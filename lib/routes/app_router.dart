@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../presentation/screens/change_password_screen.dart';
 import '../presentation/screens/closure_screen.dart';
 import '../presentation/screens/compliance_inspection_screen.dart';
 import '../presentation/screens/customer_request_screen.dart';
@@ -10,13 +11,16 @@ import '../presentation/screens/document_submission_screen.dart';
 import '../presentation/screens/driver_management_screen.dart';
 import '../presentation/screens/feasibility_quotation_screen.dart';
 import '../presentation/screens/fleet_management_screen.dart';
+import '../presentation/screens/forgot_password_screen.dart';
 import '../presentation/screens/invoice_screen.dart';
 import '../presentation/screens/journey_management_screen.dart';
+import '../presentation/screens/login_screen.dart';
 import '../presentation/screens/ops_dashboard_screen.dart';
 import '../presentation/screens/role_management_screen.dart';
 import '../presentation/screens/transport_management_screen.dart';
 import '../presentation/screens/trip_execution_screen.dart';
 import '../presentation/screens/user_management_screen.dart';
+import '../presentation/screens/user_profile_screen.dart';
 import '../presentation/screens/vehicle_type_form_screen.dart';
 import '../presentation/screens/vehicle_type_list_screen.dart';
 import '../presentation/screens/work_order_flow_screen.dart';
@@ -24,8 +28,26 @@ import 'route_paths.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
-    initialLocation: RoutePaths.home,
+    initialLocation: RoutePaths.login,
     routes: [
+      // Authentication Routes
+      GoRoute(
+        path: RoutePaths.login,
+        builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.forgotPassword,
+        builder: (context, state) => const ForgotPasswordScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.userProfile,
+        builder: (context, state) => const UserProfileScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.changePassword,
+        builder: (context, state) => const ChangePasswordScreen(),
+      ),
+      // Main Application Routes
       GoRoute(
         path: RoutePaths.home,
         builder: (context, state) => const OpsDashboardScreen(),
@@ -133,6 +155,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: RoutePaths.tracking,
         redirect: (context, state) => RoutePaths.tripExecution,
       ),
+      GoRoute(
+        path: RoutePaths.roleDocumentMapping,
+        redirect: (context, state) => RoutePaths.documentManagement,
+      ),
     ],
+    errorBuilder: (context, state) => Scaffold(
+      appBar: AppBar(title: const Text('Error')),
+      body: Center(child: Text('Page not found: ${state.uri}')),
+    ),
   );
 });

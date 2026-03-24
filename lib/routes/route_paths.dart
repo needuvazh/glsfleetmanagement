@@ -1,6 +1,8 @@
 class RoutePaths {
   const RoutePaths._();
 
+  static const login = '/login';
+  static const forgotPassword = '/forgot-password';
   static const home = '/';
   static const fleet = '/fleet';
   static const dashboard = '/dashboard';
@@ -29,4 +31,6 @@ class RoutePaths {
   static const vehicleTypeForm = '/vehicle-types/form';
   static const documentManagement = '/document-management';
   static const roleDocumentMapping = '/role-document-mapping';
+  static const userProfile = '/user-profile';
+  static const changePassword = '/change-password';
 }
