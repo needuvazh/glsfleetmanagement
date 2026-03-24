@@ -1,0 +1,24 @@
+[
+  {
+    "requestId": "REQ001",
+    "clientId": "C001",
+    "clientName": "Shell",
+    "clientType": "PDO",
+    "cargo": "Oil Equipment",
+    "pickup": "Muscat",
+    "drop": "Sohar",
+    "weight": 1200,
+    "status": "Approved"
+  },
+  {
+    "requestId": "REQ002",
+    "clientId": "C006",
+    "clientName": "GOL",
+    "clientType": "Non-PDO",
+    "cargo": "General Cargo",
+    "pickup": "Nizwa",
+    "drop": "Duqm",
+    "weight": 800,
+    "status": "Approved"
+  }
+]

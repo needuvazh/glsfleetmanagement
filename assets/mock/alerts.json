@@ -1,0 +1,56 @@
+[
+  {
+    "id": "AL-6001",
+    "vehicleId": "8603 BK",
+    "type": "Overspeed",
+    "severity": "High",
+    "message": "Vehicle exceeded 110 km/h limit.",
+    "timestamp": "2026-03-20T07:42:00Z",
+    "isRead": false
+  },
+  {
+    "id": "AL-6002",
+    "vehicleId": "99876 M",
+    "type": "Geofence Exit",
+    "severity": "Medium",
+    "message": "Vehicle moved outside assigned zone.",
+    "timestamp": "2026-03-20T11:05:00Z",
+    "isRead": true
+  },
+  {
+    "id": "AL-6003",
+    "vehicleId": "7561 RH",
+    "type": "Engine Fault",
+    "severity": "High",
+    "message": "Coolant temperature above normal range.",
+    "timestamp": "2026-03-21T05:14:00Z",
+    "isRead": false
+  },
+  {
+    "id": "AL-6004",
+    "vehicleId": "33442 K",
+    "type": "Harsh Braking",
+    "severity": "Low",
+    "message": "Multiple harsh braking events detected.",
+    "timestamp": "2026-03-21T06:40:00Z",
+    "isRead": true
+  },
+  {
+    "id": "AL-6005",
+    "vehicleId": "24567 A",
+    "type": "Fuel Drop",
+    "severity": "Medium",
+    "message": "Fuel level dropped unexpectedly by 12%.",
+    "timestamp": "2026-03-21T09:02:00Z",
+    "isRead": false
+  },
+  {
+    "id": "AL-6006",
+    "vehicleId": "8603 BK",
+    "type": "Battery Low",
+    "severity": "Low",
+    "message": "Auxiliary battery voltage below threshold.",
+    "timestamp": "2026-03-21T10:25:00Z",
+    "isRead": false
+  }
+]

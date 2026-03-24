@@ -1,0 +1,32 @@
+[
+  {
+    "id": "1",
+    "planName": "Muscat to Sohar",
+    "origin": "Muscat",
+    "destination": "Sohar",
+    "distance": 350,
+    "estimatedTime": 6,
+    "stops": ["Barka", "Saham"],
+    "fuelEstimate": 40
+  },
+  {
+    "id": "2",
+    "planName": "Muscat to Nizwa",
+    "origin": "Muscat",
+    "destination": "Nizwa",
+    "distance": 150,
+    "estimatedTime": 3.5,
+    "stops": ["Barka", "Bidbid"],
+    "fuelEstimate": 18
+  },
+  {
+    "id": "3",
+    "planName": "Sohar to Duqm",
+    "origin": "Sohar",
+    "destination": "Duqm",
+    "distance": 280,
+    "estimatedTime": 5,
+    "stops": ["Ibri", "Adam"],
+    "fuelEstimate": 32
+  }
+]

@@ -1,0 +1,18 @@
+[
+  {
+    "journeyId": "JMP-MCT-SHR",
+    "planName": "Muscat to Sohar",
+    "origin": "Muscat",
+    "destination": "Sohar",
+    "stops": ["Barka", "Saham", "Sohar Port"],
+    "restPoints": ["Barka", "Saham"]
+  },
+  {
+    "journeyId": "JMP-MCT-SLL",
+    "planName": "Muscat to Salalah",
+    "origin": "Muscat",
+    "destination": "Salalah",
+    "stops": ["Nizwa", "Ibri", "Duqm"],
+    "restPoints": ["Nizwa", "Duqm"]
+  }
+]

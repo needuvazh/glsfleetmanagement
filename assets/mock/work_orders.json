@@ -1,0 +1,18 @@
+[
+  {
+    "woId": "WO001",
+    "requestId": "REQ001",
+    "client": "Shell",
+    "route": "Muscat -> Sohar",
+    "vehicleNumber": "8603 BK",
+    "status": "Assigned"
+  },
+  {
+    "woId": "WO002",
+    "requestId": "REQ002",
+    "client": "GOL",
+    "route": "Nizwa -> Duqm",
+    "vehicleNumber": "24567 A",
+    "status": "Assigned"
+  }
+]

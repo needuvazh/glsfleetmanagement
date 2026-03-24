@@ -1,0 +1,132 @@
+[
+  {
+    "name": "PDO Prime Mover",
+    "code": "VT-PDO-PM",
+    "category": "Heavy Vehicle",
+    "vehicleClass": "XXXL",
+    "ownershipTypes": ["Company Owned", "Vendor Owned"],
+    "vendorRequired": true,
+    "loadType": "PDO",
+    "transportType": "External",
+    "maxTripsPerDay": 1,
+    "allowMultiDayJourney": true,
+    "allowMultipleStops": true,
+    "maxStopsAllowed": 4,
+    "requireRoutePlanApproval": true,
+    "isHazardous": true,
+    "requiresSafetyCompliance": true,
+    "temperatureControlled": false,
+    "requiresEscortVehicle": true,
+    "defaultCapacity": 32000,
+    "capacityUnit": "KG",
+    "features": [
+      "GPS",
+      "DFMS",
+      "IVMS",
+      "Speed Limiter"
+    ],
+    "requiresInsurance": true,
+    "requiresPermit": true,
+    "requiresFitness": true,
+    "requiresPollution": true,
+    "complianceMode": "PDO",
+    "documentRequirements": [
+      {
+        "documentName": "Mulkiya Card",
+        "mandatory": true,
+        "validityValue": 1,
+        "validityUnit": "Year",
+        "applicableFor": "PDO"
+      },
+      {
+        "documentName": "RAS Inspection",
+        "mandatory": true,
+        "validityValue": 1,
+        "validityUnit": "Year",
+        "applicableFor": "PDO"
+      },
+      {
+        "documentName": "IVMS",
+        "mandatory": true,
+        "validityValue": 1,
+        "validityUnit": "Year",
+        "applicableFor": "PDO"
+      },
+      {
+        "documentName": "DFMS",
+        "mandatory": true,
+        "validityValue": 1,
+        "validityUnit": "Year",
+        "applicableFor": "PDO"
+      },
+      {
+        "documentName": "Speed Limiter",
+        "mandatory": true,
+        "validityValue": 1,
+        "validityUnit": "Year",
+        "applicableFor": "PDO"
+      },
+      {
+        "documentName": "Third Party Inspection",
+        "mandatory": true,
+        "validityValue": 6,
+        "validityUnit": "Months",
+        "applicableFor": "PDO"
+      }
+    ],
+    "status": "Active",
+    "isDefaultType": true
+  },
+  {
+    "name": "Trailer Hauler",
+    "code": "VT-TRL-HLR",
+    "category": "Trailer",
+    "vehicleClass": "Trailer",
+    "ownershipTypes": ["Company Owned"],
+    "vendorRequired": false,
+    "loadType": "NON-PDO",
+    "transportType": "Internal",
+    "maxTripsPerDay": 2,
+    "allowMultiDayJourney": false,
+    "allowMultipleStops": true,
+    "maxStopsAllowed": 3,
+    "requireRoutePlanApproval": true,
+    "isHazardous": false,
+    "requiresSafetyCompliance": true,
+    "temperatureControlled": false,
+    "requiresEscortVehicle": false,
+    "defaultCapacity": 24000,
+    "capacityUnit": "KG",
+    "features": ["GPS", "IVMS"],
+    "requiresInsurance": true,
+    "requiresPermit": true,
+    "requiresFitness": true,
+    "requiresPollution": true,
+    "complianceMode": "NON-PDO",
+    "documentRequirements": [
+      {
+        "documentName": "Mulkiya Card",
+        "mandatory": true,
+        "validityValue": 1,
+        "validityUnit": "Year",
+        "applicableFor": "Trailer"
+      },
+      {
+        "documentName": "RAS Inspection",
+        "mandatory": true,
+        "validityValue": 1,
+        "validityUnit": "Year",
+        "applicableFor": "Trailer"
+      },
+      {
+        "documentName": "King Pin Certificate",
+        "mandatory": true,
+        "validityValue": 1,
+        "validityUnit": "Year",
+        "applicableFor": "Trailer"
+      }
+    ],
+    "status": "Active",
+    "isDefaultType": false
+  }
+]

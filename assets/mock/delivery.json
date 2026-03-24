@@ -1,0 +1,16 @@
+[
+  {
+    "deliveryId": "DEL001",
+    "woId": "WO001",
+    "status": "Delivered",
+    "receiver": "Ahmed",
+    "location": "Sohar"
+  },
+  {
+    "deliveryId": "DEL002",
+    "woId": "WO002",
+    "status": "Pending",
+    "receiver": "",
+    "location": "Duqm"
+  }
+]

@@ -1,0 +1,20 @@
+[
+  {
+    "id": "DOC-001",
+    "documentName": "Driver License Copy",
+    "targetType": "Driver",
+    "documentType": "PDF"
+  },
+  {
+    "id": "DOC-002",
+    "documentName": "Vehicle Insurance Sheet",
+    "targetType": "Transport Manager",
+    "documentType": "XLSX"
+  },
+  {
+    "id": "DOC-003",
+    "documentName": "Journey Summary",
+    "targetType": "Journey manager",
+    "documentType": "DOCX"
+  }
+]

@@ -1,0 +1,9 @@
+[
+  { "id": "C001", "name": "Shell", "type": "PDO" },
+  { "id": "C002", "name": "DHL", "type": "PDO" },
+  { "id": "C003", "name": "BSC", "type": "PDO" },
+  { "id": "C004", "name": "Agreeko", "type": "PDO" },
+  { "id": "C005", "name": "STC", "type": "PDO" },
+  { "id": "C006", "name": "GOL", "type": "Non-PDO" },
+  { "id": "C007", "name": "Al Madina", "type": "Non-PDO" }
+]

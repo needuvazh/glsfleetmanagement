@@ -1,0 +1,37 @@
+[
+  {
+    "vehicleId": "8603 BK",
+    "registrationExpiry": "2026-08-12",
+    "insuranceExpiry": "2026-06-30",
+    "inspectionDue": "2026-05-14",
+    "complianceStatus": "Compliant"
+  },
+  {
+    "vehicleId": "24567 A",
+    "registrationExpiry": "2026-04-03",
+    "insuranceExpiry": "2026-03-29",
+    "inspectionDue": "2026-03-25",
+    "complianceStatus": "Expiring Soon"
+  },
+  {
+    "vehicleId": "99876 M",
+    "registrationExpiry": "2026-02-28",
+    "insuranceExpiry": "2026-03-01",
+    "inspectionDue": "2026-03-05",
+    "complianceStatus": "Overdue"
+  },
+  {
+    "vehicleId": "7561 RH",
+    "registrationExpiry": "2026-10-16",
+    "insuranceExpiry": "2026-09-09",
+    "inspectionDue": "2026-08-21",
+    "complianceStatus": "Compliant"
+  },
+  {
+    "vehicleId": "33442 K",
+    "registrationExpiry": "2026-04-19",
+    "insuranceExpiry": "2026-05-02",
+    "inspectionDue": "2026-04-12",
+    "complianceStatus": "Expiring Soon"
+  }
+]

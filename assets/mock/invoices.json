@@ -1,0 +1,16 @@
+[
+  {
+    "invoiceId": "INV001",
+    "woId": "WO001",
+    "client": "Shell",
+    "amount": 500,
+    "paymentTerms": "30 days"
+  },
+  {
+    "invoiceId": "INV002",
+    "woId": "WO002",
+    "client": "GOL",
+    "amount": 320,
+    "paymentTerms": "45 days"
+  }
+]

@@ -1,0 +1,32 @@
+[
+  {
+    "driverId": "DRV001",
+    "name": "Arun Kumar",
+    "licenseNo": "TN-DL-345211",
+    "expiryDate": "2027-05-18",
+    "phone": "+91-9876543210",
+    "experience": 8,
+    "dfmsDeviceId": "DFMS-DRV001",
+    "status": "Available"
+  },
+  {
+    "driverId": "DRV002",
+    "name": "Karthik Raj",
+    "licenseNo": "TN-DL-289011",
+    "expiryDate": "2026-11-02",
+    "phone": "+91-9988776611",
+    "experience": 6,
+    "dfmsDeviceId": "DFMS-DRV002",
+    "status": "On Duty"
+  },
+  {
+    "driverId": "DRV003",
+    "name": "Siva Prakash",
+    "licenseNo": "TN-DL-742102",
+    "expiryDate": "2026-09-15",
+    "phone": "+91-9123456780",
+    "experience": 4,
+    "dfmsDeviceId": "DFMS-DRV003",
+    "status": "Rest"
+  }
+]

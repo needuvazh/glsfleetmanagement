@@ -1,0 +1,17 @@
+[
+  {
+    "vehicleNumber": "8603 BK",
+    "vehicleClass": "Dry Movers",
+    "status": "On Trip"
+  },
+  {
+    "vehicleNumber": "24567 A",
+    "vehicleClass": "Rigid Truck",
+    "status": "On Trip"
+  },
+  {
+    "vehicleNumber": "99876 M",
+    "vehicleClass": "Container",
+    "status": "Maintenance"
+  }
+]

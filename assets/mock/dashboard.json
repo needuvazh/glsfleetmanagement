@@ -1,0 +1,23 @@
+{
+  "kpis": {
+    "totalVehicles": 128,
+    "activeVehicles": 109,
+    "inMaintenance": 11,
+    "criticalAlerts": 7,
+    "avgFuelConsumptionLPer100km": 18.6
+  },
+  "weeklyMileageKm": [
+    { "day": "Mon", "value": 12840 },
+    { "day": "Tue", "value": 13110 },
+    { "day": "Wed", "value": 12620 },
+    { "day": "Thu", "value": 13870 },
+    { "day": "Fri", "value": 14240 },
+    { "day": "Sat", "value": 9780 },
+    { "day": "Sun", "value": 8450 }
+  ],
+  "vehicleStatusShare": [
+    { "status": "Active", "value": 109 },
+    { "status": "Maintenance", "value": 11 },
+    { "status": "Idle", "value": 8 }
+  ]
+}

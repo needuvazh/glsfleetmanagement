@@ -1,0 +1,20 @@
+[
+  {
+    "customerName": "Mina Al Falah Logistics",
+    "contact": "+968-90011122",
+    "cargoType": "Heavy Equipment",
+    "weightVolume": "12 Tons",
+    "pickup": "Muscat",
+    "delivery": "Sohar",
+    "date": "2026-03-22"
+  },
+  {
+    "customerName": "GLS Retail",
+    "contact": "+968-90909011",
+    "cargoType": "General Cargo",
+    "weightVolume": "8 Tons",
+    "pickup": "Muscat",
+    "delivery": "Nizwa",
+    "date": "2026-03-23"
+  }
+]

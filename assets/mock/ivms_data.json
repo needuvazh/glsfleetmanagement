@@ -1,0 +1,35 @@
+[
+  {
+    "vehicleId": "8603 BK",
+    "location": {
+      "lat": 12.9716,
+      "lng": 80.2212
+    },
+    "speed": 65,
+    "fuelLevel": 70,
+    "distanceCovered": 120,
+    "status": "Moving"
+  },
+  {
+    "vehicleId": "24567 A",
+    "location": {
+      "lat": 12.5123,
+      "lng": 79.8877
+    },
+    "speed": 84,
+    "fuelLevel": 46,
+    "distanceCovered": 198,
+    "status": "Moving"
+  },
+  {
+    "vehicleId": "99876 M",
+    "location": {
+      "lat": 12.2311,
+      "lng": 79.4552
+    },
+    "speed": 0,
+    "fuelLevel": 32,
+    "distanceCovered": 88,
+    "status": "Stop"
+  }
+]

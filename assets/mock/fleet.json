@@ -1,0 +1,57 @@
+[
+  {
+    "id": "8603 BK",
+    "vehicleNumber": "8603 BK",
+    "type": "Truck",
+    "status": "Active",
+    "driver": "Arif Khan",
+    "fuelLevel": 72,
+    "odometerKm": 184520,
+    "lastServiceDate": "2026-02-18",
+    "location": { "lat": 25.2048, "lng": 55.2708 }
+  },
+  {
+    "id": "24567 A",
+    "vehicleNumber": "24567 A",
+    "type": "Van",
+    "status": "Maintenance",
+    "driver": "Samir Nadeem",
+    "fuelLevel": 34,
+    "odometerKm": 121004,
+    "lastServiceDate": "2026-01-26",
+    "location": { "lat": 24.4539, "lng": 54.3773 }
+  },
+  {
+    "id": "99876 M",
+    "vehicleNumber": "99876 M",
+    "type": "Bus",
+    "status": "Idle",
+    "driver": "Hassan Ali",
+    "fuelLevel": 58,
+    "odometerKm": 261882,
+    "lastServiceDate": "2026-03-03",
+    "location": { "lat": 25.2854, "lng": 51.5310 }
+  },
+  {
+    "id": "7561 RH",
+    "vehicleNumber": "7561 RH",
+    "type": "Trailer",
+    "status": "Active",
+    "driver": "Rashid Noor",
+    "fuelLevel": 81,
+    "odometerKm": 309877,
+    "lastServiceDate": "2026-03-01",
+    "location": { "lat": 25.3548, "lng": 55.4033 }
+  },
+  {
+    "id": "33442 K",
+    "vehicleNumber": "33442 K",
+    "type": "Truck",
+    "status": "Active",
+    "driver": "Faisal Javed",
+    "fuelLevel": 66,
+    "odometerKm": 212765,
+    "lastServiceDate": "2026-02-08",
+    "location": { "lat": 24.7136, "lng": 46.6753 }
+  }
+]

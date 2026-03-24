@@ -1,0 +1,23 @@
+[
+  {
+    "woId": "WO-2025-0892",
+    "customer": "Mina Al Falah Logistics",
+    "route": "Muscat -> Sohar",
+    "cargo": "Heavy Equipment",
+    "status": "Pending Assignment"
+  },
+  {
+    "woId": "WO-2025-0891",
+    "customer": "GLS Retail",
+    "route": "Muscat -> Nizwa",
+    "cargo": "General Cargo",
+    "status": "In Transit"
+  },
+  {
+    "woId": "WO-2025-0889",
+    "customer": "ChemPro",
+    "route": "Sohar -> Duqm",
+    "cargo": "Hazardous Material",
+    "status": "Delayed"
+  }
+]

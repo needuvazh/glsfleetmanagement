@@ -1,0 +1,23 @@
+[
+  {
+    "driverId": "DRV001",
+    "fatigueLevel": "Medium",
+    "eyeClosureRate": 0.45,
+    "drivingHours": 6,
+    "alert": "Take Rest"
+  },
+  {
+    "driverId": "DRV002",
+    "fatigueLevel": "High",
+    "eyeClosureRate": 0.71,
+    "drivingHours": 9,
+    "alert": "High Fatigue - Stop at nearest rest point"
+  },
+  {
+    "driverId": "DRV003",
+    "fatigueLevel": "Low",
+    "eyeClosureRate": 0.22,
+    "drivingHours": 3,
+    "alert": "Normal"
+  }
+]

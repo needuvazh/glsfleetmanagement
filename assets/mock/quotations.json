@@ -1,0 +1,30 @@
+[
+  {
+    "slNo": 1,
+    "date": "2026-03-21",
+    "quoteRef": "QTN-2026-001",
+    "salesPerson": "Rahul Menon",
+    "customer": "Mina Al Falah Logistics",
+    "customerContact": "+968-90011122",
+    "workDescription": "Heavy Equipment - Muscat to Sohar",
+    "noOfTrips": 3,
+    "kilometer": 350,
+    "rate": 42,
+    "amount": 44100,
+    "approved": true
+  },
+  {
+    "slNo": 2,
+    "date": "2026-03-22",
+    "quoteRef": "QTN-2026-002",
+    "salesPerson": "Priya Sharma",
+    "customer": "GLS Retail",
+    "customerContact": "+968-90909011",
+    "workDescription": "General Cargo - Muscat to Nizwa",
+    "noOfTrips": 2,
+    "kilometer": 210,
+    "rate": 38,
+    "amount": 15960,
+    "approved": false
+  }
+]

@@ -1,0 +1,18 @@
+[
+  {
+    "journeyId": "JMP001",
+    "woId": "WO001",
+    "vehicle": "8603 BK",
+    "driver": "Usman",
+    "route": ["Muscat", "Barka", "Sohar"],
+    "status": "In Transit"
+  },
+  {
+    "journeyId": "JMP002",
+    "woId": "WO002",
+    "vehicle": "24567 A",
+    "driver": "Hamdan",
+    "route": ["Nizwa", "Ibri", "Duqm"],
+    "status": "Planned"
+  }
+]
