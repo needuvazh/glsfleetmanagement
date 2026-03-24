@@ -25,22 +25,12 @@ class OpsShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final useLiveApi = ref.watch(useLiveApiProvider);
     final isDesktop = Responsive.isDesktop(context);
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF0F4FA),
+      backgroundColor: colorScheme.background,
       appBar: AppBar(
         title: Text(title),
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFFFFFFFF), Color(0xFFEFF5FF)],
-            ),
-          ),
-        ),
         actions: [
           Container(
             margin: const EdgeInsets.only(right: 8),
@@ -48,8 +38,13 @@ class OpsShell extends ConsumerWidget {
               avatar: Icon(
                 useLiveApi ? Icons.cloud_done_outlined : Icons.dataset_outlined,
                 size: 16,
+                color: colorScheme.onPrimaryContainer,
               ),
               label: Text(useLiveApi ? 'Live API' : 'Mock JSON'),
+              labelStyle: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: colorScheme.onPrimaryContainer,
+              ),
+              backgroundColor: colorScheme.primaryContainer,
               onPressed: () => ref.read(useLiveApiProvider.notifier).toggle(),
             ),
           ),
@@ -63,34 +58,38 @@ class OpsShell extends ConsumerWidget {
       ),
       drawer: isDesktop
           ? null
-          : Drawer(child: SafeArea(child: _Sidebar(currentRoute))),
+          : Drawer(
+              backgroundColor: colorScheme.surface,
+              child: SafeArea(child: _Sidebar(currentRoute)),
+            ),
       body: Stack(
         children: [
-          const Positioned(
+          // Decorative background blobs (can be replaced with more subtle design)
+          Positioned(
             top: -80,
             right: -60,
-            child: _GlowBlob(size: 220, color: Color(0xFFDBEAFE)),
+            child: _GlowBlob(size: 220, color: colorScheme.primaryContainer.withOpacity(0.4)),
           ),
-          const Positioned(
+          Positioned(
             bottom: -100,
             left: -70,
-            child: _GlowBlob(size: 260, color: Color(0xFFE0F2FE)),
+            child: _GlowBlob(size: 260, color: colorScheme.secondaryContainer.withOpacity(0.4)),
           ),
           isDesktop
               ? Row(
                   children: [
                     SizedBox(width: 280, child: _Sidebar(currentRoute)),
-                    const VerticalDivider(width: 1),
+                    VerticalDivider(width: 1, color: colorScheme.outlineVariant),
                     Expanded(
                       child: Padding(
-                        padding: const EdgeInsets.all(14),
+                        padding: const EdgeInsets.all(16),
                         child: child,
                       ),
                     ),
                   ],
                 )
               : Padding(
-                  padding: const EdgeInsets.all(10),
+                  padding: const EdgeInsets.all(16),
                   child: child,
                 ),
         ],
@@ -112,7 +111,7 @@ class _GlowBlob extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: color.withValues(alpha: 0.45),
+        color: color,
       ),
     );
   }
@@ -125,6 +124,9 @@ class _Sidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
     final groups = [
       _MenuGroup(
         'OPERATIONS',
@@ -183,73 +185,70 @@ class _Sidebar extends StatelessWidget {
     ];
 
     return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFFF8FAFE), Color(0xFFF1F5FC)],
-        ),
-      ),
+      color: colorScheme.surface,
       child: ListView(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(16),
         children: [
+          // Logo and App Title Section
           Container(
             padding: const EdgeInsets.all(12),
+            margin: const EdgeInsets.only(bottom: 16),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFFD9E5FB)),
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFFE9F2FF), Color(0xFFF7FAFF)],
-              ),
+              borderRadius: BorderRadius.circular(16),
+              color: colorScheme.primaryContainer.withOpacity(0.2),
+              border: Border.all(color: colorScheme.outline.withOpacity(0.3)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
+                    // Placeholder for Logo
                     Container(
-                      width: 34,
-                      height: 34,
+                      width: 40,
+                      height: 40,
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(9),
-                        color: const Color(0xFFDCEBFF),
+                        borderRadius: BorderRadius.circular(10),
+                        color: colorScheme.primary,
                       ),
-                      child: const Icon(Icons.hub_outlined),
+                      child: Icon(Icons.local_shipping_rounded, color: colorScheme.onPrimary, size: 24),
                     ),
-                    const SizedBox(width: 8),
-                    const Expanded(
+                    const SizedBox(width: 10),
+                    Expanded(
                       child: Text(
                         'GLS-IMS',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w800, fontSize: 18),
+                        style: textTheme.headlineSmall?.copyWith(
+                          color: colorScheme.onSurface,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 4),
-                const Text('Transport Fleet Logistics Platform'),
+                Text(
+                  'Transport Fleet Logistics Platform',
+                  style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+                ),
               ],
             ),
           ),
-          const SizedBox(height: 12),
+          // Menu Items
           for (final group in groups) ...[
             Padding(
-              padding: const EdgeInsets.fromLTRB(8, 8, 8, 6),
+              padding: const EdgeInsets.fromLTRB(8, 12, 8, 8),
               child: Text(
                 group.title,
-                style: const TextStyle(
+                style: textTheme.labelSmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
                   fontWeight: FontWeight.w800,
-                  fontSize: 11,
-                  letterSpacing: 0.9,
-                  color: Color(0xFF687385),
+                  letterSpacing: 1,
                 ),
               ),
             ),
             for (final item in group.items)
               _MenuTile(item: item, selected: currentRoute == item.route),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
           ],
         ],
       ),
@@ -265,24 +264,27 @@ class _MenuTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 5),
+      margin: const EdgeInsets.only(bottom: 6),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(11),
-        color: selected ? const Color(0xFFE6EEFF) : Colors.transparent,
-        border: Border.all(
-          color: selected ? const Color(0xFFC7D8FB) : Colors.transparent,
-        ),
+        borderRadius: BorderRadius.circular(12),
+        color: selected ? colorScheme.primary.withOpacity(0.1) : Colors.transparent,
+        border: selected ? Border.all(color: colorScheme.primary.withOpacity(0.3)) : null,
       ),
       child: ListTile(
         dense: true,
         visualDensity: const VisualDensity(vertical: -2),
-        leading: Icon(item.icon, size: 20),
-        title: Text(item.label),
-        trailing:
-            selected ? const Icon(Icons.chevron_right_rounded, size: 18) : null,
+        leading: Icon(item.icon, size: 20, color: selected ? colorScheme.primary : colorScheme.onSurfaceVariant),
+        title: Text(item.label, style: textTheme.bodyMedium?.copyWith(
+          color: selected ? colorScheme.primary : colorScheme.onSurface,
+          fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+        )),
+        trailing: selected ? Icon(Icons.chevron_right_rounded, size: 18, color: colorScheme.primary) : null,
         onTap: () {
-          Navigator.of(context).maybePop();
+          Navigator.of(context).maybePop(); // Close drawer if open
           context.go(item.route);
         },
       ),
