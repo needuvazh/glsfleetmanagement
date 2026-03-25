@@ -1,7 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:glsfleetmanagement/domain/entities/customer.dart';
 
-final customerViewModelProvider = StateNotifierProvider<CustomerViewModel, CustomerState>((ref) {
+import '../../domain/entities/customer.dart';
+
+final customerViewModelProvider =
+    StateNotifierProvider<CustomerViewModel, CustomerState>((ref) {
   return CustomerViewModel();
 });
 
@@ -109,7 +111,8 @@ class CustomerViewModel extends StateNotifier<CustomerState> {
   }
 
   void deleteCustomer(String customerId) {
-    final updatedCustomers = state.customers.where((cust) => cust.id != customerId).toList();
+    final updatedCustomers =
+        state.customers.where((cust) => cust.id != customerId).toList();
     state = state.copyWith(customers: updatedCustomers);
   }
 

@@ -34,22 +34,30 @@ class OpsShell extends ConsumerWidget {
     return Scaffold(
       backgroundColor: colorScheme.surface,
       appBar: _buildAppBar(context, ref, isDesktop, isCollapsed),
-      drawer: isDesktop ? null : Drawer(
-        backgroundColor: colorScheme.surface,
-        child: SafeArea(child: _Sidebar(currentRoute: currentRoute, isCollapsed: false)),
-      ),
+      drawer: isDesktop
+          ? null
+          : Drawer(
+              backgroundColor: colorScheme.surface,
+              child: SafeArea(
+                  child:
+                      _Sidebar(currentRoute: currentRoute, isCollapsed: false)),
+            ),
       body: Stack(
         children: [
           // Decorative background
           Positioned(
             top: -80,
             right: -60,
-            child: _GlowBlob(size: 220, color: colorScheme.primaryContainer.withOpacity(0.3)),
+            child: _GlowBlob(
+                size: 220,
+                color: colorScheme.primaryContainer.withOpacity(0.3)),
           ),
           Positioned(
             bottom: -100,
             left: -70,
-            child: _GlowBlob(size: 260, color: colorScheme.secondaryContainer.withOpacity(0.3)),
+            child: _GlowBlob(
+                size: 260,
+                color: colorScheme.secondaryContainer.withOpacity(0.3)),
           ),
           isDesktop
               ? Row(
@@ -58,9 +66,11 @@ class OpsShell extends ConsumerWidget {
                       duration: const Duration(milliseconds: 250),
                       curve: Curves.easeInOut,
                       width: isCollapsed ? 80 : 280,
-                      child: _Sidebar(currentRoute: currentRoute, isCollapsed: isCollapsed),
+                      child: _Sidebar(
+                          currentRoute: currentRoute, isCollapsed: isCollapsed),
                     ),
-                    VerticalDivider(width: 1, color: colorScheme.outlineVariant),
+                    VerticalDivider(
+                        width: 1, color: colorScheme.outlineVariant),
                     Expanded(
                       child: Padding(
                         padding: const EdgeInsets.all(16),
@@ -78,7 +88,8 @@ class OpsShell extends ConsumerWidget {
     );
   }
 
-  PreferredSizeWidget _buildAppBar(BuildContext context, WidgetRef ref, bool isDesktop, bool isCollapsed) {
+  PreferredSizeWidget _buildAppBar(
+      BuildContext context, WidgetRef ref, bool isDesktop, bool isCollapsed) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final useLiveApi = ref.watch(useLiveApiProvider);
@@ -97,7 +108,8 @@ class OpsShell extends ConsumerWidget {
                 child: const Icon(Icons.menu_open_rounded),
               ),
               onPressed: () {
-                ref.read(sidebarCollapsedProvider.notifier).state = !isCollapsed;
+                ref.read(sidebarCollapsedProvider.notifier).state =
+                    !isCollapsed;
               },
             )
           : null,
@@ -217,7 +229,8 @@ class _UserProfileMenu extends ConsumerWidget {
           child: ListTile(
             dense: true,
             contentPadding: EdgeInsets.zero,
-            leading: Icon(Icons.person_outline_rounded, color: colorScheme.primary),
+            leading:
+                Icon(Icons.person_outline_rounded, color: colorScheme.primary),
             title: const Text('My Profile'),
             subtitle: const Text('View and edit profile'),
           ),
@@ -227,7 +240,8 @@ class _UserProfileMenu extends ConsumerWidget {
           child: ListTile(
             dense: true,
             contentPadding: EdgeInsets.zero,
-            leading: Icon(Icons.lock_outline_rounded, color: colorScheme.secondary),
+            leading:
+                Icon(Icons.lock_outline_rounded, color: colorScheme.secondary),
             title: const Text('Change Password'),
             subtitle: const Text('Update your password'),
           ),
@@ -262,7 +276,7 @@ class _UserProfileMenu extends ConsumerWidget {
 
   void _showLogoutDialog(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
-    
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -316,11 +330,24 @@ class _GlowBlob extends StatelessWidget {
   }
 }
 
-class _Sidebar extends StatelessWidget {
+class _Sidebar extends StatefulWidget {
   const _Sidebar({required this.currentRoute, required this.isCollapsed});
 
   final String currentRoute;
   final bool isCollapsed;
+
+  @override
+  State<_Sidebar> createState() => _SidebarState();
+}
+
+class _SidebarState extends State<_Sidebar> {
+  late final Set<String> _expandedMenus;
+
+  @override
+  void initState() {
+    super.initState();
+    _expandedMenus = {'Customer', 'User Access', 'Master'};
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -331,39 +358,79 @@ class _Sidebar extends StatelessWidget {
       _MenuGroup(
         'OPERATIONS',
         const [
-          _OpsMenuItem('Dashboard', Icons.dashboard_outlined, RoutePaths.home),
-          _OpsMenuItem('Customer Request', Icons.request_page_outlined, RoutePaths.customerRequest),
-          _OpsMenuItem('Feasibility & Quotation', Icons.price_check_outlined, RoutePaths.feasibilityQuotation),
-          _OpsMenuItem('Work Order', Icons.assignment_outlined, RoutePaths.workOrderFlow),
-          _OpsMenuItem('Fleet Management', Icons.local_shipping_outlined, RoutePaths.fleetManagement),
-          _OpsMenuItem('Driver Management', Icons.badge_outlined, RoutePaths.driverManagement),
+          _OpsMenuItem('Dashboard', Icons.dashboard_outlined,
+              route: RoutePaths.home),
+          _OpsMenuItem(
+            'Customer',
+            Icons.business_outlined,
+            children: [
+              _OpsMenuItem('Customer Management', Icons.business_outlined,
+                  route: RoutePaths.customerManagement),
+              _OpsMenuItem('Customer Request', Icons.request_page_outlined,
+                  route: RoutePaths.customerRequest),
+            ],
+          ),
+          _OpsMenuItem('Feasibility & Quotation', Icons.price_check_outlined,
+              route: RoutePaths.feasibilityQuotation),
+          _OpsMenuItem('Work Orders', Icons.assignment_outlined,
+              route: RoutePaths.workOrders),
+          _OpsMenuItem('Assignments', Icons.assignment_ind_outlined,
+              route: RoutePaths.assignments),
+          _OpsMenuItem('Fleet Management', Icons.local_shipping_outlined,
+              route: RoutePaths.fleetManagement),
+          _OpsMenuItem('Driver Management', Icons.badge_outlined,
+              route: RoutePaths.driverManagement),
         ],
       ),
       _MenuGroup(
         'SAFETY & COMPLIANCE',
         const [
-          _OpsMenuItem('Compliance & Inspection', Icons.verified_user_outlined, RoutePaths.complianceInspection),
-          _OpsMenuItem('Journey Management', Icons.alt_route_outlined, RoutePaths.journeyManagement),
-          _OpsMenuItem('Trip Execution', Icons.map_outlined, RoutePaths.tripExecution),
+          _OpsMenuItem('Compliance & Inspection', Icons.verified_user_outlined,
+              route: RoutePaths.complianceInspection),
+          _OpsMenuItem('Journey Management', Icons.alt_route_outlined,
+              route: RoutePaths.journeyManagement),
+          _OpsMenuItem('Trip Monitoring', Icons.map_outlined,
+              route: RoutePaths.tripMonitoring),
         ],
       ),
       _MenuGroup(
         'DELIVERY & FINANCE',
         const [
-          _OpsMenuItem('Delivery & POD', Icons.inventory_2_outlined, RoutePaths.deliveryPod),
-          _OpsMenuItem('Document Submission', Icons.upload_file_outlined, RoutePaths.documentSubmission),
-          _OpsMenuItem('Closure', Icons.task_alt_outlined, RoutePaths.closure),
-          _OpsMenuItem('Invoice', Icons.receipt_long_outlined, RoutePaths.invoice),
+          _OpsMenuItem('Delivery & POD', Icons.inventory_2_outlined,
+              route: RoutePaths.deliveryPod),
+          _OpsMenuItem('Document Submission', Icons.upload_file_outlined,
+              route: RoutePaths.documentSubmission),
+          _OpsMenuItem('Closure', Icons.task_alt_outlined,
+              route: RoutePaths.closure),
+          _OpsMenuItem('Invoice', Icons.receipt_long_outlined,
+              route: RoutePaths.invoice),
         ],
       ),
       _MenuGroup(
-        'USER ACCESS',
+        'ADMINISTRATION',
         const [
-          _OpsMenuItem('Role Module', Icons.security_outlined, RoutePaths.roleManagement),
-          _OpsMenuItem('User Module', Icons.manage_accounts_outlined, RoutePaths.userManagement),
-          _OpsMenuItem('Vehicle Master', Icons.local_shipping_outlined, RoutePaths.transportManagement),
-          _OpsMenuItem('Vehicle Types', Icons.directions_car_outlined, RoutePaths.vehicleTypes),
-          _OpsMenuItem('Document Module', Icons.folder_copy_outlined, RoutePaths.documentManagement),
+          _OpsMenuItem(
+            'User Access',
+            Icons.security_outlined,
+            children: [
+              _OpsMenuItem('Role Module', Icons.security_outlined,
+                  route: RoutePaths.roleManagement),
+              _OpsMenuItem('User Module', Icons.manage_accounts_outlined,
+                  route: RoutePaths.userManagement),
+            ],
+          ),
+          _OpsMenuItem(
+            'Master',
+            Icons.layers_outlined,
+            children: [
+              _OpsMenuItem('Vehicle Master', Icons.local_shipping_outlined,
+                  route: RoutePaths.transportManagement),
+              _OpsMenuItem('Vehicle Type', Icons.directions_car_outlined,
+                  route: RoutePaths.vehicleTypes),
+              _OpsMenuItem('Document Type', Icons.folder_copy_outlined,
+                  route: RoutePaths.documentManagement),
+            ],
+          ),
         ],
       ),
     ];
@@ -372,12 +439,11 @@ class _Sidebar extends StatelessWidget {
       color: colorScheme.surface,
       child: Column(
         children: [
-          // Logo Section
           AnimatedContainer(
             duration: const Duration(milliseconds: 250),
-            padding: EdgeInsets.all(isCollapsed ? 12 : 16),
+            padding: EdgeInsets.all(widget.isCollapsed ? 12 : 16),
             child: Container(
-              padding: EdgeInsets.all(isCollapsed ? 8 : 12),
+              padding: EdgeInsets.all(widget.isCollapsed ? 8 : 12),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
                 color: Colors.white,
@@ -389,7 +455,7 @@ class _Sidebar extends StatelessWidget {
                   ),
                 ],
               ),
-              child: isCollapsed
+              child: widget.isCollapsed
                   ? ClipRRect(
                       borderRadius: BorderRadius.circular(8),
                       child: Image.asset(
@@ -397,7 +463,8 @@ class _Sidebar extends StatelessWidget {
                         width: 48,
                         height: 48,
                         fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) => _buildFallbackLogo(context, true),
+                        errorBuilder: (_, __, ___) =>
+                            _buildFallbackLogo(context, true),
                       ),
                     )
                   : Row(
@@ -409,7 +476,8 @@ class _Sidebar extends StatelessWidget {
                             width: 56,
                             height: 56,
                             fit: BoxFit.contain,
-                            errorBuilder: (_, __, ___) => _buildFallbackLogo(context, false),
+                            errorBuilder: (_, __, ___) =>
+                                _buildFallbackLogo(context, false),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -439,13 +507,13 @@ class _Sidebar extends StatelessWidget {
             ),
           ),
           const Divider(height: 1),
-          // Menu Items
           Expanded(
             child: ListView(
-              padding: EdgeInsets.symmetric(horizontal: isCollapsed ? 8 : 16, vertical: 8),
+              padding: EdgeInsets.symmetric(
+                  horizontal: widget.isCollapsed ? 8 : 16, vertical: 8),
               children: [
                 for (final group in groups) ...[
-                  if (!isCollapsed)
+                  if (!widget.isCollapsed)
                     Padding(
                       padding: const EdgeInsets.fromLTRB(8, 16, 8, 8),
                       child: Text(
@@ -459,12 +527,36 @@ class _Sidebar extends StatelessWidget {
                     )
                   else
                     const SizedBox(height: 12),
-                  for (final item in group.items)
-                    _MenuTile(
-                      item: item,
-                      selected: currentRoute == item.route,
-                      isCollapsed: isCollapsed,
-                    ),
+                  for (final item in group.items) ...[
+                    if (item.hasChildren && !widget.isCollapsed) ...[
+                      _ParentMenuTile(
+                        item: item,
+                        selected: _isParentSelected(item),
+                        expanded: _isMenuExpanded(item),
+                        onTap: () => _toggleMenu(item.label),
+                      ),
+                      if (_isMenuExpanded(item))
+                        for (final child in item.children)
+                          _MenuTile(
+                            item: child,
+                            selected: widget.currentRoute == child.route,
+                            isCollapsed: widget.isCollapsed,
+                            isChild: true,
+                          ),
+                    ] else if (item.hasChildren && widget.isCollapsed) ...[
+                      for (final child in item.children)
+                        _MenuTile(
+                          item: child,
+                          selected: widget.currentRoute == child.route,
+                          isCollapsed: widget.isCollapsed,
+                        ),
+                    ] else
+                      _MenuTile(
+                        item: item,
+                        selected: widget.currentRoute == item.route,
+                        isCollapsed: widget.isCollapsed,
+                      ),
+                  ],
                 ],
               ],
             ),
@@ -472,6 +564,24 @@ class _Sidebar extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  bool _isParentSelected(_OpsMenuItem item) {
+    return item.children.any((child) => child.route == widget.currentRoute);
+  }
+
+  bool _isMenuExpanded(_OpsMenuItem item) {
+    return _expandedMenus.contains(item.label) || _isParentSelected(item);
+  }
+
+  void _toggleMenu(String label) {
+    setState(() {
+      if (_expandedMenus.contains(label)) {
+        _expandedMenus.remove(label);
+      } else {
+        _expandedMenus.add(label);
+      }
+    });
   }
 
   Widget _buildFallbackLogo(BuildContext context, bool small) {
@@ -498,8 +608,10 @@ class _Sidebar extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.chevron_right, color: Colors.white, size: small ? 12 : 14),
-                Icon(Icons.chevron_right, color: Colors.white, size: small ? 12 : 14),
+                Icon(Icons.chevron_right,
+                    color: Colors.white, size: small ? 12 : 14),
+                Icon(Icons.chevron_right,
+                    color: Colors.white, size: small ? 12 : 14),
               ],
             ),
           ),
@@ -523,11 +635,13 @@ class _MenuTile extends StatelessWidget {
     required this.item,
     required this.selected,
     required this.isCollapsed,
+    this.isChild = false,
   });
 
   final _OpsMenuItem item;
   final bool selected;
   final bool isCollapsed;
+  final bool isChild;
 
   @override
   Widget build(BuildContext context) {
@@ -539,8 +653,12 @@ class _MenuTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 4),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        color: selected ? colorScheme.primary.withOpacity(0.12) : Colors.transparent,
-        border: selected ? Border.all(color: colorScheme.primary.withOpacity(0.3)) : null,
+        color: selected
+            ? colorScheme.primary.withOpacity(0.12)
+            : Colors.transparent,
+        border: selected
+            ? Border.all(color: colorScheme.primary.withOpacity(0.3))
+            : null,
       ),
       child: Material(
         color: Colors.transparent,
@@ -548,11 +666,17 @@ class _MenuTile extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           onTap: () {
             Navigator.of(context).maybePop();
-            context.go(item.route);
+            if (item.route != null) {
+              context.go(item.route!);
+            }
           },
           child: Padding(
             padding: EdgeInsets.symmetric(
-              horizontal: isCollapsed ? 12 : 14,
+              horizontal: isCollapsed
+                  ? 12
+                  : isChild
+                      ? 26
+                      : 14,
               vertical: isCollapsed ? 14 : 12,
             ),
             child: isCollapsed
@@ -560,23 +684,31 @@ class _MenuTile extends StatelessWidget {
                     child: Icon(
                       item.icon,
                       size: 22,
-                      color: selected ? colorScheme.primary : colorScheme.onSurfaceVariant,
+                      color: selected
+                          ? colorScheme.primary
+                          : colorScheme.onSurfaceVariant,
                     ),
                   )
                 : Row(
                     children: [
                       Icon(
                         item.icon,
-                        size: 20,
-                        color: selected ? colorScheme.primary : colorScheme.onSurfaceVariant,
+                        size: isChild ? 18 : 20,
+                        color: selected
+                            ? colorScheme.primary
+                            : colorScheme.onSurfaceVariant,
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
                           item.label,
                           style: textTheme.bodyMedium?.copyWith(
-                            color: selected ? colorScheme.primary : colorScheme.onSurface,
-                            fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                            color: selected
+                                ? colorScheme.primary
+                                : colorScheme.onSurface,
+                            fontWeight: selected
+                                ? FontWeight.w600
+                                : (isChild ? FontWeight.w400 : FontWeight.w500),
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -606,12 +738,92 @@ class _MenuTile extends StatelessWidget {
   }
 }
 
+class _ParentMenuTile extends StatelessWidget {
+  const _ParentMenuTile({
+    required this.item,
+    required this.selected,
+    required this.expanded,
+    required this.onTap,
+  });
+
+  final _OpsMenuItem item;
+  final bool selected;
+  final bool expanded;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      margin: const EdgeInsets.only(bottom: 4),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: selected
+            ? colorScheme.primary.withOpacity(0.08)
+            : Colors.transparent,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(
+              children: [
+                Icon(
+                  item.icon,
+                  size: 20,
+                  color: selected
+                      ? colorScheme.primary
+                      : colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    item.label,
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: selected
+                          ? colorScheme.primary
+                          : colorScheme.onSurface,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                AnimatedRotation(
+                  duration: const Duration(milliseconds: 180),
+                  turns: expanded ? 0.5 : 0,
+                  child: Icon(
+                    Icons.expand_more_rounded,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _OpsMenuItem {
-  const _OpsMenuItem(this.label, this.icon, this.route);
+  const _OpsMenuItem(
+    this.label,
+    this.icon, {
+    this.route,
+    this.children = const [],
+  });
 
   final String label;
   final IconData icon;
-  final String route;
+  final String? route;
+  final List<_OpsMenuItem> children;
+
+  bool get hasChildren => children.isNotEmpty;
 }
 
 class _MenuGroup {

@@ -3,9 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../presentation/screens/change_password_screen.dart';
+import '../presentation/screens/assignments_screen.dart';
 import '../presentation/screens/closure_screen.dart';
 import '../presentation/screens/compliance_inspection_screen.dart';
+import '../presentation/screens/customer_management_screen.dart';
 import '../presentation/screens/customer_request_screen.dart';
+import '../presentation/screens/create_work_order_screen.dart';
 import '../presentation/screens/delivery_pod_screen.dart';
 import '../presentation/screens/document_management_screen.dart';
 import '../presentation/screens/document_submission_screen.dart';
@@ -19,12 +22,15 @@ import '../presentation/screens/login_screen.dart';
 import '../presentation/screens/ops_dashboard_screen.dart';
 import '../presentation/screens/role_management_screen.dart';
 import '../presentation/screens/transport_management_screen.dart';
+import '../presentation/screens/trip_monitoring_screen.dart';
 import '../presentation/screens/trip_execution_screen.dart';
 import '../presentation/screens/user_management_screen.dart';
 import '../presentation/screens/user_profile_screen.dart';
 import '../presentation/screens/vehicle_type_form_screen.dart';
 import '../presentation/screens/vehicle_type_list_screen.dart';
 import '../presentation/screens/work_order_flow_screen.dart';
+import '../presentation/screens/work_order_detail_screen.dart';
+import '../presentation/screens/work_orders_screen.dart';
 import 'route_paths.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -58,6 +64,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const OpsDashboardScreen(),
       ),
       GoRoute(
+        path: RoutePaths.customerManagement,
+        builder: (context, state) => const CustomerManagementScreen(),
+      ),
+      GoRoute(
         path: RoutePaths.customerRequest,
         builder: (context, state) => const CustomerRequestScreen(),
       ),
@@ -68,6 +78,25 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: RoutePaths.workOrderFlow,
         builder: (context, state) => const WorkOrderFlowScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.workOrders,
+        builder: (context, state) => const WorkOrdersScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.assignments,
+        builder: (context, state) => const AssignmentsScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.createWorkOrder,
+        builder: (context, state) => const CreateWorkOrderScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.workOrderDetail,
+        builder: (context, state) => WorkOrderDetailScreen(
+          workOrderId: state.pathParameters['workOrderId'] ?? 'Unknown',
+          initialTab: state.uri.queryParameters['tab'],
+        ),
       ),
       GoRoute(
         path: RoutePaths.fleetManagement,
@@ -84,6 +113,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: RoutePaths.journeyManagement,
         builder: (context, state) => const JourneyManagementScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.tripMonitoring,
+        builder: (context, state) => const TripMonitoringScreen(),
       ),
       GoRoute(
         path: RoutePaths.tripExecution,
@@ -133,10 +166,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       // Legacy aliases to keep older links functional.
       GoRoute(
-        path: RoutePaths.workOrders,
-        redirect: (context, state) => RoutePaths.workOrderFlow,
-      ),
-      GoRoute(
         path: RoutePaths.fleet,
         redirect: (context, state) => RoutePaths.fleetManagement,
       ),
@@ -154,7 +183,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: RoutePaths.tracking,
-        redirect: (context, state) => RoutePaths.tripExecution,
+        redirect: (context, state) => RoutePaths.tripMonitoring,
       ),
       GoRoute(
         path: RoutePaths.roleDocumentMapping,

@@ -1,17 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:glsfleetmanagement/core/theme/app_theme.dart';
-import 'package:glsfleetmanagement/domain/entities/customer.dart';
-import 'package:glsfleetmanagement/presentation/viewmodels/customer_viewmodel.dart';
+
+import '../../domain/entities/customer.dart';
+import '../viewmodels/customer_viewmodel.dart';
 
 class CustomerManagementScreen extends ConsumerStatefulWidget {
   const CustomerManagementScreen({Key? key}) : super(key: key);
 
   @override
-  ConsumerState<CustomerManagementScreen> createState() => _CustomerManagementScreenState();
+  ConsumerState<CustomerManagementScreen> createState() =>
+      _CustomerManagementScreenState();
 }
 
-class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScreen> {
+class _CustomerManagementScreenState
+    extends ConsumerState<CustomerManagementScreen> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
   String _selectedCategory = 'All';
@@ -24,6 +26,7 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
 
   @override
   Widget build(BuildContext context) {
+    final primaryColor = Theme.of(context).colorScheme.primary;
     final customerState = ref.watch(customerViewModelProvider);
     final customerViewModel = ref.read(customerViewModelProvider.notifier);
 
@@ -31,18 +34,22 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
         .where((cust) =>
             cust.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
             cust.email.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-            cust.contactPerson.toLowerCase().contains(_searchQuery.toLowerCase()))
+            cust.contactPerson
+                .toLowerCase()
+                .contains(_searchQuery.toLowerCase()))
         .toList();
 
     if (_selectedCategory != 'All') {
-      filteredCustomers = filteredCustomers.where((cust) => cust.category == _selectedCategory).toList();
+      filteredCustomers = filteredCustomers
+          .where((cust) => cust.category == _selectedCategory)
+          .toList();
     }
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Customer Management'),
         elevation: 0,
-        backgroundColor: AppTheme.primaryColor,
+        backgroundColor: primaryColor,
         foregroundColor: Colors.white,
       ),
       body: Column(
@@ -79,7 +86,7 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppTheme.primaryColor, width: 2),
+                      borderSide: BorderSide(color: primaryColor, width: 2),
                     ),
                   ),
                 ),
@@ -99,10 +106,12 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
                             setState(() => _selectedCategory = category);
                           },
                           backgroundColor: Colors.grey[200],
-                          selectedColor: AppTheme.primaryColor.withOpacity(0.3),
+                          selectedColor: primaryColor.withOpacity(0.3),
                           labelStyle: TextStyle(
-                            color: isSelected ? AppTheme.primaryColor : Colors.grey[700],
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            color: isSelected ? primaryColor : Colors.grey[700],
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
                           ),
                         ),
                       );
@@ -127,9 +136,10 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
                         const SizedBox(height: 16),
                         Text(
                           'No customers found',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                color: Colors.grey[600],
-                              ),
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    color: Colors.grey[600],
+                                  ),
                         ),
                       ],
                     ),
@@ -141,9 +151,12 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
                       final customer = filteredCustomers[index];
                       return _CustomerCard(
                         customer: customer,
-                        onEdit: () => _showCustomerDialog(context, customer, customerViewModel),
-                        onDelete: () => _showDeleteConfirmation(context, customer, customerViewModel),
-                        onViewDetails: () => _showCustomerDetails(context, customer),
+                        onEdit: () => _showCustomerDialog(
+                            context, customer, customerViewModel),
+                        onDelete: () => _showDeleteConfirmation(
+                            context, customer, customerViewModel),
+                        onViewDetails: () =>
+                            _showCustomerDetails(context, customer),
                       );
                     },
                   ),
@@ -151,21 +164,26 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: AppTheme.primaryColor,
+        backgroundColor: primaryColor,
         onPressed: () => _showCustomerDialog(context, null, customerViewModel),
         child: const Icon(Icons.add),
       ),
     );
   }
 
-  void _showCustomerDialog(BuildContext context, Customer? customer, CustomerViewModel viewModel) {
+  void _showCustomerDialog(
+      BuildContext context, Customer? customer, CustomerViewModel viewModel) {
     final nameController = TextEditingController(text: customer?.name ?? '');
-    final addressController = TextEditingController(text: customer?.address ?? '');
+    final addressController =
+        TextEditingController(text: customer?.address ?? '');
     final emailController = TextEditingController(text: customer?.email ?? '');
-    final phoneController = TextEditingController(text: customer?.phoneNumber ?? '');
+    final phoneController =
+        TextEditingController(text: customer?.phoneNumber ?? '');
     final crController = TextEditingController(text: customer?.crNumber ?? '');
-    final vatinController = TextEditingController(text: customer?.vatinNumber ?? '');
-    final contactController = TextEditingController(text: customer?.contactPerson ?? '');
+    final vatinController =
+        TextEditingController(text: customer?.vatinNumber ?? '');
+    final contactController =
+        TextEditingController(text: customer?.contactPerson ?? '');
     String selectedCategory = customer?.category ?? 'PDO';
     String selectedCurrency = customer?.currency ?? 'OMR';
 
@@ -278,7 +296,8 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
           ElevatedButton(
             onPressed: () {
               final newCustomer = Customer(
-                id: customer?.id ?? 'CUST${DateTime.now().millisecondsSinceEpoch}',
+                id: customer?.id ??
+                    'CUST${DateTime.now().millisecondsSinceEpoch}',
                 name: nameController.text,
                 address: addressController.text,
                 email: emailController.text,
@@ -307,7 +326,8 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
     );
   }
 
-  void _showDeleteConfirmation(BuildContext context, Customer customer, CustomerViewModel viewModel) {
+  void _showDeleteConfirmation(
+      BuildContext context, Customer customer, CustomerViewModel viewModel) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -358,6 +378,7 @@ class _CustomerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final primaryColor = Theme.of(context).colorScheme.primary;
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8),
       elevation: 2,
@@ -376,12 +397,12 @@ class _CustomerCard extends StatelessWidget {
                     width: 50,
                     height: 50,
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withOpacity(0.2),
+                      color: primaryColor.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
                       Icons.business,
-                      color: AppTheme.primaryColor,
+                      color: primaryColor,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -391,23 +412,26 @@ class _CustomerCard extends StatelessWidget {
                       children: [
                         Text(
                           customer.name,
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                         Text(
                           customer.contactPerson,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Colors.grey[600],
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Colors.grey[600],
+                                  ),
                         ),
                       ],
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       color: customer.category == 'PDO'
                           ? Colors.green.withOpacity(0.2)
@@ -417,7 +441,9 @@ class _CustomerCard extends StatelessWidget {
                     child: Text(
                       customer.category,
                       style: TextStyle(
-                        color: customer.category == 'PDO' ? Colors.green : Colors.orange,
+                        color: customer.category == 'PDO'
+                            ? Colors.green
+                            : Colors.orange,
                         fontWeight: FontWeight.bold,
                         fontSize: 12,
                       ),

@@ -6,6 +6,7 @@ class RoutePaths {
   static const home = '/';
   static const fleet = '/fleet';
   static const dashboard = '/dashboard';
+  static const customerManagement = '/customer-management';
   static const customerRequest = '/customer-request';
   static const feasibilityQuotation = '/feasibility-quotation';
   static const workOrderFlow = '/work-order-flow';
@@ -13,12 +14,15 @@ class RoutePaths {
   static const driverManagement = '/driver-management';
   static const complianceInspection = '/compliance-inspection';
   static const journeyManagement = '/journey-management';
+  static const tripMonitoring = '/trips';
   static const tripExecution = '/trip-execution';
   static const deliveryPod = '/delivery-pod';
   static const documentSubmission = '/document-submission';
   static const closure = '/closure';
   static const invoice = '/invoice';
   static const workOrders = '/work-orders';
+  static const assignments = '/assignments';
+  static const workOrderDetail = '/work-orders/:workOrderId';
   static const createWorkOrder = '/work-orders/create';
   static const journeyPlans = '/journey-plans';
   static const alerts = '/alerts';
@@ -33,4 +37,7 @@ class RoutePaths {
   static const roleDocumentMapping = '/role-document-mapping';
   static const userProfile = '/user-profile';
   static const changePassword = '/change-password';
+
+  static String workOrderDetailById(String workOrderId) =>
+      '/work-orders/$workOrderId';
 }
