@@ -17,6 +17,10 @@ class AuthState {
   final DateTime? expiresAt;
   final String? error;
 
+  // Convenience getters for user info
+  String get userName => user?.fullName ?? user?.username ?? 'User';
+  String get userRole => user?.role.label ?? 'Guest';
+
   factory AuthState.initial() {
     return const AuthState(
       isAuthenticated: false,

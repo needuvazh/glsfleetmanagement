@@ -5,7 +5,11 @@ import 'package:go_router/go_router.dart';
 import '../../core/providers/data_source_mode_provider.dart';
 import '../../core/utils/responsive.dart';
 import '../../routes/route_paths.dart';
+import '../viewmodels/auth_viewmodel.dart';
 import '../viewmodels/theme_mode_viewmodel.dart';
+
+// Provider for sidebar collapsed state
+final sidebarCollapsedProvider = StateProvider<bool>((ref) => false);
 
 class OpsShell extends ConsumerWidget {
   const OpsShell({
@@ -23,62 +27,39 @@ class OpsShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final useLiveApi = ref.watch(useLiveApiProvider);
     final isDesktop = Responsive.isDesktop(context);
     final colorScheme = Theme.of(context).colorScheme;
+    final isCollapsed = ref.watch(sidebarCollapsedProvider);
 
     return Scaffold(
-      backgroundColor: colorScheme.background,
-      appBar: AppBar(
-        title: Text(title),
-        actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 8),
-            child: ActionChip(
-              avatar: Icon(
-                useLiveApi ? Icons.cloud_done_outlined : Icons.dataset_outlined,
-                size: 16,
-                color: colorScheme.onPrimaryContainer,
-              ),
-              label: Text(useLiveApi ? 'Live API' : 'Mock JSON'),
-              labelStyle: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: colorScheme.onPrimaryContainer,
-              ),
-              backgroundColor: colorScheme.primaryContainer,
-              onPressed: () => ref.read(useLiveApiProvider.notifier).toggle(),
-            ),
-          ),
-          IconButton(
-            tooltip: 'Toggle Theme',
-            onPressed: () => ref.read(themeModeProvider.notifier).toggleTheme(),
-            icon: const Icon(Icons.dark_mode_outlined),
-          ),
-          ...actions,
-        ],
+      backgroundColor: colorScheme.surface,
+      appBar: _buildAppBar(context, ref, isDesktop, isCollapsed),
+      drawer: isDesktop ? null : Drawer(
+        backgroundColor: colorScheme.surface,
+        child: SafeArea(child: _Sidebar(currentRoute: currentRoute, isCollapsed: false)),
       ),
-      drawer: isDesktop
-          ? null
-          : Drawer(
-              backgroundColor: colorScheme.surface,
-              child: SafeArea(child: _Sidebar(currentRoute)),
-            ),
       body: Stack(
         children: [
-          // Decorative background blobs (can be replaced with more subtle design)
+          // Decorative background
           Positioned(
             top: -80,
             right: -60,
-            child: _GlowBlob(size: 220, color: colorScheme.primaryContainer.withOpacity(0.4)),
+            child: _GlowBlob(size: 220, color: colorScheme.primaryContainer.withOpacity(0.3)),
           ),
           Positioned(
             bottom: -100,
             left: -70,
-            child: _GlowBlob(size: 260, color: colorScheme.secondaryContainer.withOpacity(0.4)),
+            child: _GlowBlob(size: 260, color: colorScheme.secondaryContainer.withOpacity(0.3)),
           ),
           isDesktop
               ? Row(
                   children: [
-                    SizedBox(width: 280, child: _Sidebar(currentRoute)),
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 250),
+                      curve: Curves.easeInOut,
+                      width: isCollapsed ? 80 : 280,
+                      child: _Sidebar(currentRoute: currentRoute, isCollapsed: isCollapsed),
+                    ),
                     VerticalDivider(width: 1, color: colorScheme.outlineVariant),
                     Expanded(
                       child: Padding(
@@ -92,6 +73,224 @@ class OpsShell extends ConsumerWidget {
                   padding: const EdgeInsets.all(16),
                   child: child,
                 ),
+        ],
+      ),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar(BuildContext context, WidgetRef ref, bool isDesktop, bool isCollapsed) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final useLiveApi = ref.watch(useLiveApiProvider);
+
+    return AppBar(
+      elevation: 0,
+      scrolledUnderElevation: 1,
+      backgroundColor: colorScheme.surface,
+      surfaceTintColor: Colors.transparent,
+      leading: isDesktop
+          ? IconButton(
+              tooltip: isCollapsed ? 'Expand Menu' : 'Collapse Menu',
+              icon: AnimatedRotation(
+                duration: const Duration(milliseconds: 200),
+                turns: isCollapsed ? 0.5 : 0,
+                child: const Icon(Icons.menu_open_rounded),
+              ),
+              onPressed: () {
+                ref.read(sidebarCollapsedProvider.notifier).state = !isCollapsed;
+              },
+            )
+          : null,
+      title: Row(
+        children: [
+          Text(
+            title,
+            style: textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        // Data source chip
+        Container(
+          margin: const EdgeInsets.only(right: 8),
+          child: ActionChip(
+            avatar: Icon(
+              useLiveApi ? Icons.cloud_done_outlined : Icons.dataset_outlined,
+              size: 16,
+              color: colorScheme.onPrimaryContainer,
+            ),
+            label: Text(useLiveApi ? 'Live API' : 'Mock JSON'),
+            labelStyle: textTheme.labelMedium?.copyWith(
+              color: colorScheme.onPrimaryContainer,
+            ),
+            backgroundColor: colorScheme.primaryContainer,
+            onPressed: () => ref.read(useLiveApiProvider.notifier).toggle(),
+          ),
+        ),
+        // Theme toggle
+        IconButton(
+          tooltip: 'Toggle Theme',
+          onPressed: () => ref.read(themeModeProvider.notifier).toggleTheme(),
+          icon: Icon(
+            Theme.of(context).brightness == Brightness.dark
+                ? Icons.light_mode_outlined
+                : Icons.dark_mode_outlined,
+          ),
+        ),
+        // User Profile Menu
+        _UserProfileMenu(),
+        const SizedBox(width: 8),
+        ...actions,
+      ],
+    );
+  }
+}
+
+class _UserProfileMenu extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final authState = ref.watch(authViewModelProvider).valueOrNull;
+    final userName = authState?.userName ?? 'User';
+    final userRole = authState?.userRole ?? 'Guest';
+
+    return PopupMenuButton<String>(
+      offset: const Offset(0, 50),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      position: PopupMenuPosition.under,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: colorScheme.outlineVariant),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircleAvatar(
+              radius: 16,
+              backgroundColor: colorScheme.primary,
+              child: Text(
+                userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
+                style: TextStyle(
+                  color: colorScheme.onPrimary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  userName,
+                  style: textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  userRole,
+                  style: textTheme.labelSmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: colorScheme.onSurfaceVariant,
+              size: 20,
+            ),
+          ],
+        ),
+      ),
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          value: 'profile',
+          child: ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.person_outline_rounded, color: colorScheme.primary),
+            title: const Text('My Profile'),
+            subtitle: const Text('View and edit profile'),
+          ),
+        ),
+        PopupMenuItem(
+          value: 'password',
+          child: ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.lock_outline_rounded, color: colorScheme.secondary),
+            title: const Text('Change Password'),
+            subtitle: const Text('Update your password'),
+          ),
+        ),
+        const PopupMenuDivider(),
+        PopupMenuItem(
+          value: 'logout',
+          child: ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.logout_rounded, color: colorScheme.error),
+            title: Text('Logout', style: TextStyle(color: colorScheme.error)),
+            subtitle: const Text('Sign out of your account'),
+          ),
+        ),
+      ],
+      onSelected: (value) {
+        switch (value) {
+          case 'profile':
+            context.push(RoutePaths.userProfile);
+            break;
+          case 'password':
+            context.push(RoutePaths.changePassword);
+            break;
+          case 'logout':
+            _showLogoutDialog(context, ref);
+            break;
+        }
+      },
+    );
+  }
+
+  void _showLogoutDialog(BuildContext context, WidgetRef ref) {
+    final colorScheme = Theme.of(context).colorScheme;
+    
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(Icons.logout_rounded, color: colorScheme.error),
+            const SizedBox(width: 12),
+            const Text('Logout'),
+          ],
+        ),
+        content: const Text('Are you sure you want to logout?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: colorScheme.error,
+            ),
+            onPressed: () {
+              Navigator.pop(ctx);
+              ref.read(authViewModelProvider.notifier).logout();
+              context.go(RoutePaths.login);
+            },
+            child: const Text('Logout'),
+          ),
         ],
       ),
     );
@@ -118,9 +317,10 @@ class _GlowBlob extends StatelessWidget {
 }
 
 class _Sidebar extends StatelessWidget {
-  const _Sidebar(this.currentRoute);
+  const _Sidebar({required this.currentRoute, required this.isCollapsed});
 
   final String currentRoute;
+  final bool isCollapsed;
 
   @override
   Widget build(BuildContext context) {
@@ -132,124 +332,186 @@ class _Sidebar extends StatelessWidget {
         'OPERATIONS',
         const [
           _OpsMenuItem('Dashboard', Icons.dashboard_outlined, RoutePaths.home),
-          _OpsMenuItem('Customer Request', Icons.request_page_outlined,
-              RoutePaths.customerRequest),
-          _OpsMenuItem('Feasibility & Quotation', Icons.price_check_outlined,
-              RoutePaths.feasibilityQuotation),
-          _OpsMenuItem('Work Order', Icons.assignment_outlined,
-              RoutePaths.workOrderFlow),
-          _OpsMenuItem('Fleet Management', Icons.local_shipping_outlined,
-              RoutePaths.fleetManagement),
-          _OpsMenuItem('Driver Management', Icons.badge_outlined,
-              RoutePaths.driverManagement),
+          _OpsMenuItem('Customer Request', Icons.request_page_outlined, RoutePaths.customerRequest),
+          _OpsMenuItem('Feasibility & Quotation', Icons.price_check_outlined, RoutePaths.feasibilityQuotation),
+          _OpsMenuItem('Work Order', Icons.assignment_outlined, RoutePaths.workOrderFlow),
+          _OpsMenuItem('Fleet Management', Icons.local_shipping_outlined, RoutePaths.fleetManagement),
+          _OpsMenuItem('Driver Management', Icons.badge_outlined, RoutePaths.driverManagement),
         ],
       ),
       _MenuGroup(
         'SAFETY & COMPLIANCE',
         const [
-          _OpsMenuItem('Compliance & Inspection', Icons.verified_user_outlined,
-              RoutePaths.complianceInspection),
-          _OpsMenuItem('Journey Management', Icons.alt_route_outlined,
-              RoutePaths.journeyManagement),
-          _OpsMenuItem(
-              'Trip Execution', Icons.map_outlined, RoutePaths.tripExecution),
+          _OpsMenuItem('Compliance & Inspection', Icons.verified_user_outlined, RoutePaths.complianceInspection),
+          _OpsMenuItem('Journey Management', Icons.alt_route_outlined, RoutePaths.journeyManagement),
+          _OpsMenuItem('Trip Execution', Icons.map_outlined, RoutePaths.tripExecution),
         ],
       ),
       _MenuGroup(
         'DELIVERY & FINANCE',
         const [
-          _OpsMenuItem('Delivery & POD', Icons.inventory_2_outlined,
-              RoutePaths.deliveryPod),
-          _OpsMenuItem('Document Submission', Icons.upload_file_outlined,
-              RoutePaths.documentSubmission),
+          _OpsMenuItem('Delivery & POD', Icons.inventory_2_outlined, RoutePaths.deliveryPod),
+          _OpsMenuItem('Document Submission', Icons.upload_file_outlined, RoutePaths.documentSubmission),
           _OpsMenuItem('Closure', Icons.task_alt_outlined, RoutePaths.closure),
-          _OpsMenuItem(
-              'Invoice', Icons.receipt_long_outlined, RoutePaths.invoice),
+          _OpsMenuItem('Invoice', Icons.receipt_long_outlined, RoutePaths.invoice),
         ],
       ),
       _MenuGroup(
         'USER ACCESS',
         const [
-          _OpsMenuItem('Role Module', Icons.security_outlined,
-              RoutePaths.roleManagement),
-          _OpsMenuItem('User Module', Icons.manage_accounts_outlined,
-              RoutePaths.userManagement),
-          _OpsMenuItem('Vehicle Master Module', Icons.local_shipping_outlined,
-              RoutePaths.transportManagement),
-          _OpsMenuItem('Vehicle Types', Icons.directions_car_outlined,
-              RoutePaths.vehicleTypes),
-          _OpsMenuItem('Document Module', Icons.folder_copy_outlined,
-              RoutePaths.documentManagement),
+          _OpsMenuItem('Role Module', Icons.security_outlined, RoutePaths.roleManagement),
+          _OpsMenuItem('User Module', Icons.manage_accounts_outlined, RoutePaths.userManagement),
+          _OpsMenuItem('Vehicle Master', Icons.local_shipping_outlined, RoutePaths.transportManagement),
+          _OpsMenuItem('Vehicle Types', Icons.directions_car_outlined, RoutePaths.vehicleTypes),
+          _OpsMenuItem('Document Module', Icons.folder_copy_outlined, RoutePaths.documentManagement),
         ],
       ),
     ];
 
     return Container(
       color: colorScheme.surface,
-      child: ListView(
-        padding: const EdgeInsets.all(16),
+      child: Column(
         children: [
-          // Logo and App Title Section
-          Container(
-            padding: const EdgeInsets.all(12),
-            margin: const EdgeInsets.only(bottom: 16),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              color: colorScheme.primaryContainer.withOpacity(0.2),
-              border: Border.all(color: colorScheme.outline.withOpacity(0.3)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    // Placeholder for Logo
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(10),
-                        color: colorScheme.primary,
+          // Logo Section
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            padding: EdgeInsets.all(isCollapsed ? 12 : 16),
+            child: Container(
+              padding: EdgeInsets.all(isCollapsed ? 8 : 12),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: colorScheme.shadow.withOpacity(0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: isCollapsed
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.asset(
+                        'assets/images/gls_logo.jpg',
+                        width: 48,
+                        height: 48,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => _buildFallbackLogo(context, true),
                       ),
-                      child: Icon(Icons.local_shipping_rounded, color: colorScheme.onPrimary, size: 24),
+                    )
+                  : Row(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: Image.asset(
+                            'assets/images/gls_logo.jpg',
+                            width: 56,
+                            height: 56,
+                            fit: BoxFit.contain,
+                            errorBuilder: (_, __, ___) => _buildFallbackLogo(context, false),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Greenfield Logistics',
+                                style: textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  color: const Color(0xFF2E7D32),
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Services LLC',
+                                style: textTheme.bodySmall?.copyWith(
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
+            ),
+          ),
+          const Divider(height: 1),
+          // Menu Items
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.symmetric(horizontal: isCollapsed ? 8 : 16, vertical: 8),
+              children: [
+                for (final group in groups) ...[
+                  if (!isCollapsed)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(8, 16, 8, 8),
                       child: Text(
-                        'GLS-IMS',
-                        style: textTheme.headlineSmall?.copyWith(
-                          color: colorScheme.onSurface,
+                        group.title,
+                        style: textTheme.labelSmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
                           fontWeight: FontWeight.w800,
+                          letterSpacing: 1,
                         ),
                       ),
+                    )
+                  else
+                    const SizedBox(height: 12),
+                  for (final item in group.items)
+                    _MenuTile(
+                      item: item,
+                      selected: currentRoute == item.route,
+                      isCollapsed: isCollapsed,
                     ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Transport Fleet Logistics Platform',
-                  style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
-                ),
+                ],
               ],
             ),
           ),
-          // Menu Items
-          for (final group in groups) ...[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8, 12, 8, 8),
-              child: Text(
-                group.title,
-                style: textTheme.labelSmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1,
-                ),
-              ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFallbackLogo(BuildContext context, bool small) {
+    const gold = Color(0xFFD4AF37);
+    const green = Color(0xFF2E7D32);
+    final size = small ? 48.0 : 56.0;
+
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9F7EF),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+            decoration: BoxDecoration(
+              color: gold,
+              borderRadius: BorderRadius.circular(4),
             ),
-            for (final item in group.items)
-              _MenuTile(item: item, selected: currentRoute == item.route),
-            const SizedBox(height: 8),
-          ],
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.chevron_right, color: Colors.white, size: small ? 12 : 14),
+                Icon(Icons.chevron_right, color: Colors.white, size: small ? 12 : 14),
+              ],
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'GLS',
+            style: TextStyle(
+              color: green,
+              fontWeight: FontWeight.w900,
+              fontSize: small ? 12 : 14,
+            ),
+          ),
         ],
       ),
     );
@@ -257,38 +519,90 @@ class _Sidebar extends StatelessWidget {
 }
 
 class _MenuTile extends StatelessWidget {
-  const _MenuTile({required this.item, required this.selected});
+  const _MenuTile({
+    required this.item,
+    required this.selected,
+    required this.isCollapsed,
+  });
 
   final _OpsMenuItem item;
   final bool selected;
+  final bool isCollapsed;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 6),
+    final tile = AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      margin: const EdgeInsets.only(bottom: 4),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        color: selected ? colorScheme.primary.withOpacity(0.1) : Colors.transparent,
+        color: selected ? colorScheme.primary.withOpacity(0.12) : Colors.transparent,
         border: selected ? Border.all(color: colorScheme.primary.withOpacity(0.3)) : null,
       ),
-      child: ListTile(
-        dense: true,
-        visualDensity: const VisualDensity(vertical: -2),
-        leading: Icon(item.icon, size: 20, color: selected ? colorScheme.primary : colorScheme.onSurfaceVariant),
-        title: Text(item.label, style: textTheme.bodyMedium?.copyWith(
-          color: selected ? colorScheme.primary : colorScheme.onSurface,
-          fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-        )),
-        trailing: selected ? Icon(Icons.chevron_right_rounded, size: 18, color: colorScheme.primary) : null,
-        onTap: () {
-          Navigator.of(context).maybePop(); // Close drawer if open
-          context.go(item.route);
-        },
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () {
+            Navigator.of(context).maybePop();
+            context.go(item.route);
+          },
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: isCollapsed ? 12 : 14,
+              vertical: isCollapsed ? 14 : 12,
+            ),
+            child: isCollapsed
+                ? Center(
+                    child: Icon(
+                      item.icon,
+                      size: 22,
+                      color: selected ? colorScheme.primary : colorScheme.onSurfaceVariant,
+                    ),
+                  )
+                : Row(
+                    children: [
+                      Icon(
+                        item.icon,
+                        size: 20,
+                        color: selected ? colorScheme.primary : colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          item.label,
+                          style: textTheme.bodyMedium?.copyWith(
+                            color: selected ? colorScheme.primary : colorScheme.onSurface,
+                            fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (selected)
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          size: 18,
+                          color: colorScheme.primary,
+                        ),
+                    ],
+                  ),
+          ),
+        ),
       ),
     );
+
+    if (isCollapsed) {
+      return Tooltip(
+        message: item.label,
+        preferBelow: false,
+        child: tile,
+      );
+    }
+    return tile;
   }
 }
 

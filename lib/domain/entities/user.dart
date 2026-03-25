@@ -63,4 +63,6 @@ enum UserRole {
 
   final String displayName;
   final String description;
+  
+  String get label => displayName;
 }
