@@ -59,6 +59,12 @@ class RoutePaths {
   static const vendorMaster = '/vendor-master';
   static const vendorForm = '/vendor-master/form';
   static const vendorView = '/vendor-master/view/:vendorId';
+  static const locationMaster = '/location-master';
+  static const locationForm = '/location-master/form';
+  static const locationView = '/location-master/view/:locationCode';
+  static const routeLocationMaster = '/route-location-master';
+  static const routeLocationForm = '/route-location-master/form';
+  static const routeLocationView = '/route-location-master/view/:routeId';
   static const documentManagement = '/document-management';
   static const roleDocumentMapping = '/role-document-mapping';
   static const userProfile = '/user-profile';
@@ -85,6 +91,12 @@ class RoutePaths {
 
   static String vendorViewById(String vendorId) =>
       '/vendor-master/view/$vendorId';
+
+  static String locationViewByCode(String locationCode) =>
+      '/location-master/view/$locationCode';
+
+  static String routeLocationViewById(String routeId) =>
+      '/route-location-master/view/$routeId';
 
   static String fleetDetailById(String fleetId) => '/fleet-management/$fleetId';
 
