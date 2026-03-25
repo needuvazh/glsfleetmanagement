@@ -33,6 +33,9 @@ class RoutePaths {
   static const transportManagement = '/transport-management';
   static const vehicleTypes = '/vehicle-types';
   static const vehicleTypeForm = '/vehicle-types/form';
+  static const vendorMaster = '/vendor-master';
+  static const vendorForm = '/vendor-master/form';
+  static const vendorView = '/vendor-master/view/:vendorId';
   static const documentManagement = '/document-management';
   static const roleDocumentMapping = '/role-document-mapping';
   static const userProfile = '/user-profile';
@@ -40,4 +43,5 @@ class RoutePaths {
 
   static String workOrderDetailById(String workOrderId) =>
       '/work-orders/$workOrderId';
+  static String vendorViewById(String vendorId) => '/vendor-master/view/$vendorId';
 }

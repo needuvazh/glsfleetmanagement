@@ -427,6 +427,8 @@ class _SidebarState extends State<_Sidebar> {
                   route: RoutePaths.transportManagement),
               _OpsMenuItem('Vehicle Type', Icons.directions_car_outlined,
                   route: RoutePaths.vehicleTypes),
+              _OpsMenuItem('Vendor Master', Icons.store_outlined,
+                  route: RoutePaths.vendorMaster),
               _OpsMenuItem('Document Type', Icons.folder_copy_outlined,
                   route: RoutePaths.documentManagement),
             ],

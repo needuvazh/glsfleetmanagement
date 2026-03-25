@@ -6,9 +6,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../domain/vendor_model.dart';
 import '../../domain/entities/logistics_flow.dart';
 import '../../routes/route_paths.dart';
 import '../viewmodels/logistics_viewmodel.dart';
+import '../viewmodels/vendor_viewmodel.dart';
 import '../widgets/flow_stepper_card.dart';
 import '../widgets/ops_shell.dart';
 import '../widgets/ops_ui.dart';
@@ -34,6 +36,8 @@ class _FeasibilityQuotationScreenState
   final _kilometer = TextEditingController(text: '100');
   final _rate = TextEditingController(text: '1');
   final _customerRate = TextEditingController(text: '500');
+  VendorServiceType _selectedServiceType = VendorServiceType.pdo;
+  String? _selectedVendorId;
   bool _managerOverride = false;
 
   int? _selectedRequestIndex;
@@ -64,6 +68,7 @@ class _FeasibilityQuotationScreenState
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(logisticsViewModelProvider);
+    final vendorState = ref.watch(vendorViewModelProvider);
 
     return OpsShell(
       title: 'Feasibility & Quotation',
@@ -79,6 +84,18 @@ class _FeasibilityQuotationScreenState
         error: (error, _) => Center(child: Text(error.toString())),
         data: (data) {
           _syncQuoteRef(data.quotations);
+          final activeVendors = vendorState.valueOrNull?.vendors
+                  .where(
+                    (vendor) =>
+                        vendor.status == VendorStatus.active &&
+                        vendor.serviceType == _selectedServiceType,
+                  )
+                  .toList() ??
+              const [];
+          if (_selectedVendorId != null &&
+              !activeVendors.any((vendor) => vendor.vendorId == _selectedVendorId)) {
+            _selectedVendorId = null;
+          }
 
           final amount = _currentAmount;
 
@@ -134,6 +151,56 @@ class _FeasibilityQuotationScreenState
                         ),
                         validator: _positiveDouble,
                       ),
+                      const SizedBox(height: 10),
+                      DropdownButtonFormField<VendorServiceType>(
+                        value: _selectedServiceType,
+                        decoration: const InputDecoration(
+                          labelText: 'Service Type',
+                        ),
+                        items: [
+                          for (final item in VendorServiceType.values)
+                            DropdownMenuItem(
+                              value: item,
+                              child: Text(item.label),
+                            ),
+                        ],
+                        onChanged: (value) {
+                          if (value == null) {
+                            return;
+                          }
+                          setState(() {
+                            _selectedServiceType = value;
+                            _selectedVendorId = null;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 10),
+                      DropdownButtonFormField<String>(
+                        value: _selectedVendorId,
+                        decoration: const InputDecoration(
+                          labelText: 'Suggested Active Vendor',
+                        ),
+                        items: [
+                          for (final vendor in activeVendors)
+                            DropdownMenuItem(
+                              value: vendor.vendorId,
+                              child: Text('${vendor.vendorName} (${vendor.contactNumber})'),
+                            ),
+                        ],
+                        onChanged: activeVendors.isEmpty
+                            ? null
+                            : (value) => setState(() => _selectedVendorId = value),
+                      ),
+                      if (activeVendors.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 8),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'No active vendors available for selected service type.',
+                            ),
+                          ),
+                        ),
                       const SizedBox(height: 8),
                       CheckboxListTile(
                         contentPadding: EdgeInsets.zero,
@@ -518,6 +585,8 @@ class _FeasibilityQuotationScreenState
     CustomerRequestData request, {
     required List<QuotationData> quotations,
   }) {
+    _selectedServiceType = _inferServiceType(request.cargoType);
+    _selectedVendorId = null;
     _customer.text = request.customerName;
     _customerContact.text = request.contact;
     _workDescription.text =
@@ -563,6 +632,14 @@ class _FeasibilityQuotationScreenState
     }
     final sequence = (samePrefixCount + nextOffset).toString().padLeft(3, '0');
     return '$base-$sequence';
+  }
+
+  VendorServiceType _inferServiceType(String input) {
+    final normalized = input.toLowerCase();
+    if (normalized.contains('pdo')) {
+      return VendorServiceType.pdo;
+    }
+    return VendorServiceType.nonPdo;
   }
 
   String _formatDate(DateTime value) {

@@ -4,8 +4,10 @@ import 'package:go_router/go_router.dart';
 
 import '../../domain/entities/journey_plan.dart';
 import '../../domain/entities/work_order.dart';
+import '../../domain/vendor_model.dart';
 import '../../routes/route_paths.dart';
 import '../viewmodels/journey_plan_viewmodel.dart';
+import '../viewmodels/vendor_viewmodel.dart';
 import '../viewmodels/work_order_draft_viewmodel.dart';
 import '../viewmodels/work_orders_viewmodel.dart';
 import '../widgets/ops_shell.dart';
@@ -35,6 +37,8 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
   final _stopPointsController = TextEditingController();
   final _routeNotesController = TextEditingController();
   final _specialDocumentsController = TextEditingController();
+  VendorServiceType _vendorServiceType = VendorServiceType.nonPdo;
+  String? _vendorId;
 
   WorkOrderPriority _priority = WorkOrderPriority.medium;
   DateTime? _requestedDate;
@@ -97,6 +101,7 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
   @override
   Widget build(BuildContext context) {
     final journeyState = ref.watch(journeyPlanViewModelProvider);
+    final vendorState = ref.watch(vendorViewModelProvider);
 
     return OpsShell(
       title: 'Create Work Order',
@@ -108,6 +113,18 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
         data: (planState) {
           final plans = planState.items;
           final selectedPlan = _findPlan(plans, _journeyPlanId);
+          final activeVendors = vendorState.valueOrNull?.vendors
+                  .where(
+                    (vendor) =>
+                        vendor.status == VendorStatus.active &&
+                        vendor.serviceType == _vendorServiceType,
+                  )
+                  .toList() ??
+              const [];
+          if (_vendorId != null &&
+              !activeVendors.any((vendor) => vendor.vendorId == _vendorId)) {
+            _vendorId = null;
+          }
 
           return Form(
             key: _formKey,
@@ -228,6 +245,12 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
                           controller: _loadTypeController,
                           decoration:
                               const InputDecoration(labelText: 'Load Type'),
+                          onChanged: (value) {
+                            setState(() {
+                              _vendorServiceType = _inferServiceType(value);
+                              _vendorId = null;
+                            });
+                          },
                         ),
                         TextFormField(
                           controller: _specialHandlingController,
@@ -327,6 +350,76 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
                           labelText: 'Special Customer Documents',
                         ),
                       ),
+                    ],
+                  ),
+                ),
+                _SectionCard(
+                  title: 'G. Vendor Assignment',
+                  child: Column(
+                    children: [
+                      _threeColumnFields(
+                        context,
+                        DropdownButtonFormField<VendorServiceType>(
+                          value: _vendorServiceType,
+                          decoration:
+                              const InputDecoration(labelText: 'Service Type'),
+                          items: [
+                            for (final item in VendorServiceType.values)
+                              DropdownMenuItem(
+                                value: item,
+                                child: Text(item.label),
+                              ),
+                          ],
+                          onChanged: (value) {
+                            if (value == null) {
+                              return;
+                            }
+                            setState(() {
+                              _vendorServiceType = value;
+                              _vendorId = null;
+                            });
+                          },
+                        ),
+                        DropdownButtonFormField<String>(
+                          value: _vendorId,
+                          decoration: const InputDecoration(
+                            labelText: 'Vendor (Active only)',
+                          ),
+                          items: [
+                            for (final vendor in activeVendors)
+                              DropdownMenuItem(
+                                value: vendor.vendorId,
+                                child: Text(vendor.vendorName),
+                              ),
+                          ],
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Required';
+                            }
+                            return null;
+                          },
+                          onChanged: activeVendors.isEmpty
+                              ? null
+                              : (value) => setState(() => _vendorId = value),
+                        ),
+                        TextFormField(
+                          initialValue: 'Vehicle & Driver mapping in next module',
+                          readOnly: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Mapping Status',
+                          ),
+                        ),
+                      ),
+                      if (activeVendors.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 8),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'No active vendors for selected service type.',
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -537,6 +630,14 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
   void _placeholder(String message) {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  VendorServiceType _inferServiceType(String value) {
+    final normalized = value.trim().toLowerCase();
+    if (normalized == 'pdo') {
+      return VendorServiceType.pdo;
+    }
+    return VendorServiceType.nonPdo;
   }
 }
 

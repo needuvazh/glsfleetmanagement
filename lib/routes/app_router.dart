@@ -26,6 +26,9 @@ import '../presentation/screens/trip_monitoring_screen.dart';
 import '../presentation/screens/trip_execution_screen.dart';
 import '../presentation/screens/user_management_screen.dart';
 import '../presentation/screens/user_profile_screen.dart';
+import '../presentation/screens/vendor_form_screen.dart';
+import '../presentation/screens/vendor_list_screen.dart';
+import '../presentation/screens/vendor_view_screen.dart';
 import '../presentation/screens/vehicle_type_form_screen.dart';
 import '../presentation/screens/vehicle_type_list_screen.dart';
 import '../presentation/screens/work_order_flow_screen.dart';
@@ -158,6 +161,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: RoutePaths.vehicleTypeForm,
         builder: (context, state) => VehicleTypeFormScreen(
           editCode: state.uri.queryParameters['code'],
+        ),
+      ),
+      GoRoute(
+        path: RoutePaths.vendorMaster,
+        builder: (context, state) => const VendorListScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.vendorForm,
+        builder: (context, state) => VendorFormScreen(
+          editVendorId: state.uri.queryParameters['id'],
+        ),
+      ),
+      GoRoute(
+        path: RoutePaths.vendorView,
+        builder: (context, state) => VendorViewScreen(
+          vendorId: state.pathParameters['vendorId'] ?? '',
         ),
       ),
       GoRoute(
