@@ -8,6 +8,9 @@ import '../presentation/screens/assignments_screen.dart';
 import '../presentation/screens/closure_screen.dart';
 import '../presentation/screens/customer_management_screen.dart';
 import '../presentation/screens/customer_request_screen.dart';
+import '../presentation/screens/customer_request_form_screen.dart';
+import '../presentation/screens/customer_request_view_screen.dart';
+import '../presentation/screens/enquiry_details_screen.dart';
 import '../presentation/screens/create_work_order_screen.dart';
 import '../presentation/screens/compliance_dashboard_screen.dart';
 import '../presentation/screens/dispatch_readiness_screen.dart';
@@ -91,6 +94,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: RoutePaths.customerRequest,
         builder: (context, state) => const CustomerRequestScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.customerRequestForm,
+        builder: (context, state) => CustomerRequestFormScreen(
+          enquiryNumber: state.uri.queryParameters['enquiryNumber'],
+        ),
+      ),
+      GoRoute(
+        path: RoutePaths.customerRequestView,
+        builder: (context, state) => CustomerRequestViewScreen(
+          enquiryNumber: state.pathParameters['enquiryNumber'] ?? '',
+        ),
+      ),
+      GoRoute(
+        path: RoutePaths.enquiryDetails,
+        builder: (context, state) => const EnquiryDetailsScreen(),
       ),
       GoRoute(
         path: RoutePaths.feasibilityQuotation,

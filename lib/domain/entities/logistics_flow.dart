@@ -16,22 +16,139 @@ class DashboardSnapshot {
 
 class CustomerRequestData {
   const CustomerRequestData({
+    required this.enquiryNumber,
+    required this.requestSource,
     required this.customerName,
+    required this.requestType,
+    required this.emailOrReference,
     required this.contact,
     required this.cargoType,
     required this.weightVolume,
     required this.pickup,
     required this.delivery,
-    required this.date,
+    required this.requestDate,
+    this.notes = '',
+    this.hazardous = false,
+    this.pdoSpec = 'Non-PDO',
+    this.route = '',
+    this.quantity = '',
+    this.dimensions = '',
+    this.customerSpecificRequirement = '',
+    this.requiredVehicleType = '',
+    this.tentativeDispatchDate = '',
+    this.routeRiskFlag = false,
+    this.hazardousComplianceRequired = false,
+    this.status = 'New Enquiry',
+    this.cancellationReason = '',
+    required this.createdAt,
+    required this.updatedAt,
   });
 
+  final String enquiryNumber;
+  final String requestSource;
   final String customerName;
+  final String requestType;
+  final String emailOrReference;
   final String contact;
   final String cargoType;
   final String weightVolume;
   final String pickup;
   final String delivery;
-  final String date;
+  final String requestDate;
+  final String notes;
+  final bool hazardous;
+  final String pdoSpec;
+  final String route;
+  final String quantity;
+  final String dimensions;
+  final String customerSpecificRequirement;
+  final String requiredVehicleType;
+  final String tentativeDispatchDate;
+  final bool routeRiskFlag;
+  final bool hazardousComplianceRequired;
+  final String status;
+  final String cancellationReason;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  String get date => requestDate;
+
+  CustomerRequestData copyWith({
+    String? enquiryNumber,
+    String? requestSource,
+    String? customerName,
+    String? requestType,
+    String? emailOrReference,
+    String? contact,
+    String? cargoType,
+    String? weightVolume,
+    String? pickup,
+    String? delivery,
+    String? requestDate,
+    String? notes,
+    bool? hazardous,
+    String? pdoSpec,
+    String? route,
+    String? quantity,
+    String? dimensions,
+    String? customerSpecificRequirement,
+    String? requiredVehicleType,
+    String? tentativeDispatchDate,
+    bool? routeRiskFlag,
+    bool? hazardousComplianceRequired,
+    String? status,
+    String? cancellationReason,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return CustomerRequestData(
+      enquiryNumber: enquiryNumber ?? this.enquiryNumber,
+      requestSource: requestSource ?? this.requestSource,
+      customerName: customerName ?? this.customerName,
+      requestType: requestType ?? this.requestType,
+      emailOrReference: emailOrReference ?? this.emailOrReference,
+      contact: contact ?? this.contact,
+      cargoType: cargoType ?? this.cargoType,
+      weightVolume: weightVolume ?? this.weightVolume,
+      pickup: pickup ?? this.pickup,
+      delivery: delivery ?? this.delivery,
+      requestDate: requestDate ?? this.requestDate,
+      notes: notes ?? this.notes,
+      hazardous: hazardous ?? this.hazardous,
+      pdoSpec: pdoSpec ?? this.pdoSpec,
+      route: route ?? this.route,
+      quantity: quantity ?? this.quantity,
+      dimensions: dimensions ?? this.dimensions,
+      customerSpecificRequirement:
+          customerSpecificRequirement ?? this.customerSpecificRequirement,
+      requiredVehicleType: requiredVehicleType ?? this.requiredVehicleType,
+      tentativeDispatchDate:
+          tentativeDispatchDate ?? this.tentativeDispatchDate,
+      routeRiskFlag: routeRiskFlag ?? this.routeRiskFlag,
+      hazardousComplianceRequired:
+          hazardousComplianceRequired ?? this.hazardousComplianceRequired,
+      status: status ?? this.status,
+      cancellationReason: cancellationReason ?? this.cancellationReason,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+}
+
+class EnquiryAuditEntry {
+  const EnquiryAuditEntry({
+    required this.enquiryNumber,
+    required this.action,
+    required this.actor,
+    required this.at,
+    this.remarks = '',
+  });
+
+  final String enquiryNumber;
+  final String action;
+  final String actor;
+  final DateTime at;
+  final String remarks;
 }
 
 class WorkOrderFlowItem {

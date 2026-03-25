@@ -8,6 +8,9 @@ class RoutePaths {
   static const dashboard = '/dashboard';
   static const customerManagement = '/customer-management';
   static const customerRequest = '/customer-request';
+  static const customerRequestForm = '/customer-request/form';
+  static const customerRequestView = '/customer-request/view/:enquiryNumber';
+  static const enquiryDetails = '/enquiry-details';
   static const feasibilityQuotation = '/feasibility-quotation';
   static const workOrderFlow = '/work-order-flow';
   static const fleetManagement = '/fleet-management';
@@ -61,10 +64,16 @@ class RoutePaths {
 
   static String workOrderDetailById(String workOrderId) =>
       '/work-orders/$workOrderId';
+
+  static String customerRequestViewById(String enquiryNumber) =>
+      '/customer-request/view/$enquiryNumber';
+
   static String roleViewById(String roleId) => '/role-management/view/$roleId';
+
+  static String userViewById(String userId) => '/user-management/view/$userId';
+
   static String vendorViewById(String vendorId) =>
       '/vendor-master/view/$vendorId';
-  static String userViewById(String userId) => '/user-management/view/$userId';
 
   static String fleetDetailById(String fleetId) => '/fleet-management/$fleetId';
 

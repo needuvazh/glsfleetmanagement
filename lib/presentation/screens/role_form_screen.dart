@@ -110,7 +110,7 @@ class _RoleFormScreenState extends ConsumerState<RoleFormScreen> {
                           _RoleGridItem(
                             child: DropdownButtonFormField<RoleStatusType>(
                               key: const ValueKey('roleStatus'),
-                              initialValue: form.status,
+                              value: form.status,
                               decoration:
                                   const InputDecoration(labelText: 'Status'),
                               items: [

@@ -18,6 +18,7 @@ import 'access_control_viewmodel.dart';
 class LogisticsUiState {
   const LogisticsUiState({
     required this.customerRequests,
+    required this.enquiryAuditTrail,
     required this.quotations,
     required this.quoteStatusByRef,
     required this.workOrders,
@@ -52,6 +53,7 @@ class LogisticsUiState {
   });
 
   final List<CustomerRequestData> customerRequests;
+  final List<EnquiryAuditEntry> enquiryAuditTrail;
   final List<QuotationData> quotations;
   final Map<String, String> quoteStatusByRef;
   final List<WorkOrderFlowItem> workOrders;
@@ -187,6 +189,7 @@ class LogisticsUiState {
 
   LogisticsUiState copyWith({
     List<CustomerRequestData>? customerRequests,
+    List<EnquiryAuditEntry>? enquiryAuditTrail,
     List<QuotationData>? quotations,
     Map<String, String>? quoteStatusByRef,
     List<WorkOrderFlowItem>? workOrders,
@@ -224,6 +227,7 @@ class LogisticsUiState {
   }) {
     return LogisticsUiState(
       customerRequests: customerRequests ?? this.customerRequests,
+      enquiryAuditTrail: enquiryAuditTrail ?? this.enquiryAuditTrail,
       quotations: quotations ?? this.quotations,
       quoteStatusByRef: quoteStatusByRef ?? this.quoteStatusByRef,
       workOrders: workOrders ?? this.workOrders,
@@ -327,7 +331,8 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
     final useCase = ref.read(_logisticsUseCaseProvider);
     final access = ref.watch(accessControlProvider);
 
-    final customerRequests = await useCase.getCustomerRequests();
+    final customerRequests =
+        _normalizeCustomerRequests(await useCase.getCustomerRequests());
     final quotations = await useCase.getQuotations();
     final workOrders = await useCase.getFlowWorkOrders();
     final fallbackVehicles = await useCase.getVehicles();
@@ -377,6 +382,7 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
 
     return LogisticsUiState(
       customerRequests: customerRequests,
+      enquiryAuditTrail: const [],
       quotations: quotations,
       quoteStatusByRef: quoteStatusByRef,
       workOrders: workOrders,
@@ -423,12 +429,319 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
     if (current == null) {
       return 'Data not loaded.';
     }
-    final next = [request, ...current.customerRequests];
+
+    final validationMessage = _validateEnquiryRequest(request);
+    if (validationMessage != null) {
+      return validationMessage;
+    }
+
+    if (_isDuplicateEnquiry(current.customerRequests, request)) {
+      return 'Duplicate enquiry detected. Save blocked.';
+    }
+
+    final now = DateTime.now();
+    final entry = request.copyWith(
+      enquiryNumber: request.enquiryNumber.trim().isEmpty
+          ? _nextEnquiryNumber(current.customerRequests)
+          : request.enquiryNumber.trim(),
+      requestSource: request.requestSource.trim().isEmpty
+          ? 'Phone'
+          : request.requestSource.trim(),
+      requestType: request.requestType.trim().isEmpty
+          ? 'Transport Request'
+          : request.requestType.trim(),
+      emailOrReference: request.emailOrReference.trim(),
+      requestDate: request.requestDate.trim().isEmpty
+          ? _formatDate(now)
+          : request.requestDate.trim(),
+      notes: request.notes.trim(),
+      status: 'New Enquiry',
+      cancellationReason: '',
+      createdAt: now,
+      updatedAt: now,
+    );
+
+    final nextAudit = [
+      EnquiryAuditEntry(
+        enquiryNumber: entry.enquiryNumber,
+        action: 'Created',
+        actor: 'Operations',
+        at: now,
+        remarks: 'Enquiry captured and status set to New Enquiry.',
+      ),
+      ...current.enquiryAuditTrail,
+    ];
+
+    final next = [entry, ...current.customerRequests];
     state = AsyncData(current.copyWith(
       customerRequests: next,
+      enquiryAuditTrail: nextAudit,
       lastUpdated: DateTime.now(),
     ));
-    return 'Customer request created.';
+    return 'Enquiry ${entry.enquiryNumber} created.';
+  }
+
+  String updateEnquiry(CustomerRequestData request) {
+    final current = state.valueOrNull;
+    if (current == null) {
+      return 'Data not loaded.';
+    }
+
+    final enquiryNumber = request.enquiryNumber.trim();
+    if (enquiryNumber.isEmpty) {
+      return 'Enquiry number is required for edit.';
+    }
+
+    final index = current.customerRequests
+        .indexWhere((item) => item.enquiryNumber == enquiryNumber);
+    if (index < 0) {
+      return 'Enquiry not found.';
+    }
+
+    final validationMessage = _validateEnquiryRequest(request);
+    if (validationMessage != null) {
+      return validationMessage;
+    }
+
+    if (_isDuplicateEnquiry(
+      current.customerRequests,
+      request,
+      ignoreEnquiryNumber: enquiryNumber,
+    )) {
+      return 'Duplicate enquiry detected. Update blocked.';
+    }
+
+    final existing = current.customerRequests[index];
+    if (existing.status == 'Cancelled') {
+      return 'Cancelled enquiry cannot be edited.';
+    }
+
+    final now = DateTime.now();
+    final updated = request.copyWith(
+      hazardous: existing.hazardous,
+      pdoSpec: existing.pdoSpec,
+      route: existing.route,
+      quantity: existing.quantity,
+      dimensions: existing.dimensions,
+      customerSpecificRequirement: existing.customerSpecificRequirement,
+      requiredVehicleType: existing.requiredVehicleType,
+      tentativeDispatchDate: existing.tentativeDispatchDate,
+      routeRiskFlag: existing.routeRiskFlag,
+      hazardousComplianceRequired: existing.hazardousComplianceRequired,
+      status: existing.status,
+      cancellationReason: existing.cancellationReason,
+      createdAt: existing.createdAt,
+      updatedAt: now,
+    );
+    final next = [...current.customerRequests];
+    next[index] = updated;
+
+    final nextAudit = [
+      EnquiryAuditEntry(
+        enquiryNumber: enquiryNumber,
+        action: 'Edited',
+        actor: 'Operations',
+        at: now,
+        remarks: 'Enquiry details updated.',
+      ),
+      ...current.enquiryAuditTrail,
+    ];
+
+    state = AsyncData(current.copyWith(
+      customerRequests: next,
+      enquiryAuditTrail: nextAudit,
+      lastUpdated: now,
+    ));
+    return 'Enquiry $enquiryNumber updated.';
+  }
+
+  String cancelEnquiry({
+    required String enquiryNumber,
+    required String reason,
+  }) {
+    final current = state.valueOrNull;
+    if (current == null) {
+      return 'Data not loaded.';
+    }
+    if (reason.trim().isEmpty) {
+      return 'Cancellation reason is mandatory.';
+    }
+
+    final index = current.customerRequests
+        .indexWhere((item) => item.enquiryNumber == enquiryNumber);
+    if (index < 0) {
+      return 'Enquiry not found.';
+    }
+
+    final existing = current.customerRequests[index];
+    if (existing.status == 'Cancelled') {
+      return 'Enquiry already cancelled.';
+    }
+
+    final now = DateTime.now();
+    final next = [...current.customerRequests];
+    next[index] = existing.copyWith(
+      status: 'Cancelled',
+      cancellationReason: reason.trim(),
+      updatedAt: now,
+    );
+
+    final nextAudit = [
+      EnquiryAuditEntry(
+        enquiryNumber: enquiryNumber,
+        action: 'Cancelled',
+        actor: 'Operations',
+        at: now,
+        remarks: reason.trim(),
+      ),
+      ...current.enquiryAuditTrail,
+    ];
+
+    state = AsyncData(current.copyWith(
+      customerRequests: next,
+      enquiryAuditTrail: nextAudit,
+      lastUpdated: now,
+    ));
+    return 'Enquiry $enquiryNumber cancelled.';
+  }
+
+  String moveToDetailCollection(String enquiryNumber) {
+    final current = state.valueOrNull;
+    if (current == null) {
+      return 'Data not loaded.';
+    }
+
+    final index = current.customerRequests
+        .indexWhere((item) => item.enquiryNumber == enquiryNumber);
+    if (index < 0) {
+      return 'Enquiry not found.';
+    }
+
+    final existing = current.customerRequests[index];
+    if (existing.status == 'Cancelled') {
+      return 'Cancelled enquiry cannot move to detail collection.';
+    }
+
+    final now = DateTime.now();
+    final next = [...current.customerRequests];
+    next[index] = existing.copyWith(
+      status: 'Detail Collection',
+      updatedAt: now,
+    );
+
+    final nextAudit = [
+      EnquiryAuditEntry(
+        enquiryNumber: enquiryNumber,
+        action: 'Moved to Detail Collection',
+        actor: 'Operations',
+        at: now,
+        remarks: 'Ready for feasibility and quotation.',
+      ),
+      ...current.enquiryAuditTrail,
+    ];
+
+    state = AsyncData(current.copyWith(
+      customerRequests: next,
+      enquiryAuditTrail: nextAudit,
+      lastUpdated: now,
+    ));
+    return 'Enquiry $enquiryNumber moved to detail collection.';
+  }
+
+  String gatherEnquiryKeyDetails({
+    required String enquiryNumber,
+    required String cargoType,
+    required bool hazardous,
+    required String pdoSpec,
+    required String pickup,
+    required String route,
+    required String destination,
+    required String quantity,
+    required String dimensions,
+    required String weightVolume,
+    required String customerSpecificRequirement,
+    required String requiredVehicleType,
+    required String tentativeDispatchDate,
+    required bool routeRiskFlag,
+  }) {
+    final current = state.valueOrNull;
+    if (current == null) {
+      return 'Data not loaded.';
+    }
+
+    final index = current.customerRequests
+        .indexWhere((item) => item.enquiryNumber == enquiryNumber);
+    if (index < 0) {
+      return 'Enquiry not found.';
+    }
+
+    if (pickup.trim().isEmpty || destination.trim().isEmpty) {
+      return 'Pickup and destination are mandatory.';
+    }
+    if (cargoType.trim().isEmpty) {
+      return 'Cargo type is mandatory.';
+    }
+    final hasLoadQuantity = quantity.trim().isNotEmpty ||
+        dimensions.trim().isNotEmpty ||
+        weightVolume.trim().isNotEmpty;
+    if (!hasLoadQuantity) {
+      return 'At least one load-related quantity field is required.';
+    }
+
+    final now = DateTime.now();
+    final existing = current.customerRequests[index];
+    if (existing.status == 'Cancelled') {
+      return 'Cancelled enquiry cannot be updated.';
+    }
+
+    final updated = existing.copyWith(
+      cargoType: cargoType.trim(),
+      hazardous: hazardous,
+      pdoSpec: pdoSpec.trim().isEmpty ? existing.pdoSpec : pdoSpec.trim(),
+      pickup: pickup.trim(),
+      route: route.trim(),
+      delivery: destination.trim(),
+      quantity: quantity.trim(),
+      dimensions: dimensions.trim(),
+      weightVolume: weightVolume.trim(),
+      customerSpecificRequirement: customerSpecificRequirement.trim(),
+      requiredVehicleType: requiredVehicleType.trim(),
+      tentativeDispatchDate: tentativeDispatchDate.trim(),
+      routeRiskFlag: routeRiskFlag,
+      hazardousComplianceRequired: hazardous,
+      status: 'Detail Collection',
+      updatedAt: now,
+    );
+
+    final next = [...current.customerRequests];
+    next[index] = updated;
+
+    final riskNote =
+        routeRiskFlag ? 'Route risk flagged.' : 'Route risk not flagged.';
+    final complianceNote = hazardous
+        ? 'Hazardous load: compliance flag enabled.'
+        : 'Non-hazardous load.';
+    final resourceNote =
+        'Resource snapshot - Prime Movers: ${current.availableVehicleCount}, Drivers: ${current.availableDriverCount}.';
+
+    final nextAudit = [
+      EnquiryAuditEntry(
+        enquiryNumber: enquiryNumber,
+        action: 'Key Details Collected',
+        actor: 'Operations',
+        at: now,
+        remarks: '$complianceNote $riskNote $resourceNote',
+      ),
+      ...current.enquiryAuditTrail,
+    ];
+
+    state = AsyncData(current.copyWith(
+      customerRequests: next,
+      enquiryAuditTrail: nextAudit,
+      lastUpdated: now,
+    ));
+
+    return 'Key details captured. Enquiry is ready for feasibility and costing.';
   }
 
   String runFeasibilityCheck({
@@ -998,5 +1311,124 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
   int _firstNumber(String text) {
     final match = RegExp(r'(\d+)').firstMatch(text);
     return int.tryParse(match?.group(1) ?? '') ?? 0;
+  }
+
+  String? _validateEnquiryRequest(CustomerRequestData request) {
+    if (request.requestSource.trim().isEmpty) {
+      return 'Request source is required.';
+    }
+    if (request.customerName.trim().isEmpty) {
+      return 'Customer name is required.';
+    }
+    if (request.requestType.trim().isEmpty) {
+      return 'Request type is required.';
+    }
+    if (request.emailOrReference.trim().isEmpty) {
+      return 'Email/Reference is required.';
+    }
+    if (request.contact.trim().isEmpty) {
+      return 'Contact is required.';
+    }
+    if (request.cargoType.trim().isEmpty) {
+      return 'Cargo type is required.';
+    }
+    if (request.pickup.trim().isEmpty) {
+      return 'Pickup location is required.';
+    }
+    if (request.delivery.trim().isEmpty) {
+      return 'Delivery location is required.';
+    }
+    return null;
+  }
+
+  bool _isDuplicateEnquiry(
+    List<CustomerRequestData> existing,
+    CustomerRequestData candidate, {
+    String? ignoreEnquiryNumber,
+  }) {
+    final customer = _normalizeToken(candidate.customerName);
+    final contact = _normalizeToken(candidate.contact);
+    final pickup = _normalizeToken(candidate.pickup);
+    final delivery = _normalizeToken(candidate.delivery);
+    final cargoType = _normalizeToken(candidate.cargoType);
+    final weight = _normalizeToken(candidate.weightVolume);
+    final requestType = _normalizeToken(candidate.requestType);
+
+    for (final item in existing) {
+      if (ignoreEnquiryNumber != null &&
+          item.enquiryNumber == ignoreEnquiryNumber) {
+        continue;
+      }
+      if (item.status == 'Cancelled') {
+        continue;
+      }
+      if (_normalizeToken(item.customerName) == customer &&
+          _normalizeToken(item.contact) == contact &&
+          _normalizeToken(item.pickup) == pickup &&
+          _normalizeToken(item.delivery) == delivery &&
+          _normalizeToken(item.cargoType) == cargoType &&
+          _normalizeToken(item.weightVolume) == weight &&
+          _normalizeToken(item.requestType) == requestType) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  List<CustomerRequestData> _normalizeCustomerRequests(
+    List<CustomerRequestData> requests,
+  ) {
+    final normalized = <CustomerRequestData>[];
+    var sequence = 1;
+
+    for (final item in requests) {
+      final now = DateTime.now();
+      final enquiryNo = item.enquiryNumber.trim().isEmpty
+          ? 'ENQ-${sequence.toString().padLeft(4, '0')}'
+          : item.enquiryNumber.trim();
+      sequence += 1;
+
+      normalized.add(item.copyWith(
+        enquiryNumber: enquiryNo,
+        requestSource:
+            item.requestSource.trim().isEmpty ? 'Phone' : item.requestSource,
+        requestType: item.requestType.trim().isEmpty
+            ? 'Transport Request'
+            : item.requestType,
+        emailOrReference: item.emailOrReference.trim(),
+        requestDate: item.requestDate.trim().isEmpty
+            ? _formatDate(item.createdAt)
+            : item.requestDate,
+        status: item.status.trim().isEmpty ? 'New Enquiry' : item.status,
+        createdAt: item.createdAt,
+        updatedAt:
+            item.updatedAt.isBefore(item.createdAt) ? now : item.updatedAt,
+      ));
+    }
+
+    return normalized;
+  }
+
+  String _nextEnquiryNumber(List<CustomerRequestData> requests) {
+    var maxId = 0;
+    final pattern = RegExp(r'ENQ-(\d+)', caseSensitive: false);
+    for (final item in requests) {
+      final match = pattern.firstMatch(item.enquiryNumber.trim());
+      final value = int.tryParse(match?.group(1) ?? '') ?? 0;
+      if (value > maxId) {
+        maxId = value;
+      }
+    }
+    return 'ENQ-${(maxId + 1).toString().padLeft(4, '0')}';
+  }
+
+  String _formatDate(DateTime value) {
+    final month = value.month.toString().padLeft(2, '0');
+    final day = value.day.toString().padLeft(2, '0');
+    return '${value.year}-$month-$day';
+  }
+
+  String _normalizeToken(String value) {
+    return value.toLowerCase().replaceAll(RegExp(r'\s+'), ' ').trim();
   }
 }

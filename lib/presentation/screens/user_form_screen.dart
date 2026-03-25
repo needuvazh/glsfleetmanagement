@@ -153,7 +153,7 @@ class _UserFormScreenState extends ConsumerState<UserFormScreen> {
                             _UserGridItem(
                               child: DropdownButtonFormField<UserStatusType>(
                                 key: const ValueKey('status'),
-                                initialValue: form.status,
+                                value: form.status,
                                 decoration:
                                     const InputDecoration(labelText: 'Status'),
                                 items: [

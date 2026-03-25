@@ -370,8 +370,10 @@ class _SidebarState extends State<_Sidebar> {
             'Customer',
             Icons.business_outlined,
             children: [
-              _OpsMenuItem('Customer Request', Icons.request_page_outlined,
+              _OpsMenuItem('Order Enquiry', Icons.request_page_outlined,
                   route: RoutePaths.customerRequest),
+              _OpsMenuItem('Gather Key Details', Icons.fact_check_outlined,
+                  route: RoutePaths.enquiryDetails),
             ],
           ),
           _OpsMenuItem('Feasibility & Quotation', Icons.price_check_outlined,

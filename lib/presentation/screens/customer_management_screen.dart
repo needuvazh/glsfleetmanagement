@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/entities/customer.dart';
+import '../../routes/route_paths.dart';
 import '../viewmodels/customer_viewmodel.dart';
+import '../widgets/ops_shell.dart';
 
 class CustomerManagementScreen extends ConsumerStatefulWidget {
   const CustomerManagementScreen({Key? key}) : super(key: key);
@@ -29,6 +31,7 @@ class _CustomerManagementScreenState
     final primaryColor = Theme.of(context).colorScheme.primary;
     final customerState = ref.watch(customerViewModelProvider);
     final customerViewModel = ref.read(customerViewModelProvider.notifier);
+    final isDesktop = MediaQuery.of(context).size.width >= 1000;
 
     var filteredCustomers = customerState.customers
         .where((cust) =>
@@ -45,128 +48,178 @@ class _CustomerManagementScreenState
           .toList();
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Customer Management'),
-        elevation: 0,
-        backgroundColor: primaryColor,
-        foregroundColor: Colors.white,
-      ),
-      body: Column(
+    return OpsShell(
+      title: 'Customer Management',
+      currentRoute: RoutePaths.customerManagement,
+      actions: [
+        FilledButton.icon(
+          onPressed: () =>
+              _showCustomerDialog(context, null, customerViewModel),
+          icon: const Icon(Icons.add),
+          label: const Text('Create New'),
+        ),
+        const SizedBox(width: 8),
+      ],
+      child: Column(
         children: [
-          // Search and Filter Bar
           Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                TextField(
-                  controller: _searchController,
-                  onChanged: (value) {
-                    setState(() => _searchQuery = value);
-                  },
-                  decoration: InputDecoration(
-                    hintText: 'Search customers...',
-                    prefixIcon: const Icon(Icons.search),
-                    suffixIcon: _searchQuery.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear),
-                            onPressed: () {
-                              _searchController.clear();
-                              setState(() => _searchQuery = '');
-                            },
-                          )
-                        : null,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Colors.grey),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Colors.grey),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: primaryColor, width: 2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                // Category Filter
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: ['All', 'PDO', 'NON-PDO'].map((category) {
-                      final isSelected = _selectedCategory == category;
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: FilterChip(
-                          label: Text(category),
-                          selected: isSelected,
-                          onSelected: (selected) {
-                            setState(() => _selectedCategory = category);
-                          },
-                          backgroundColor: Colors.grey[200],
-                          selectedColor: primaryColor.withOpacity(0.3),
-                          labelStyle: TextStyle(
-                            color: isSelected ? primaryColor : Colors.grey[700],
-                            fontWeight: isSelected
-                                ? FontWeight.bold
-                                : FontWeight.normal,
-                          ),
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Card(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: _searchController,
+                      onChanged: (value) {
+                        setState(() => _searchQuery = value);
+                      },
+                      decoration: InputDecoration(
+                        hintText: 'Search customers...',
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: _searchQuery.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  setState(() => _searchQuery = '');
+                                },
+                              )
+                            : null,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: Colors.grey),
                         ),
-                      );
-                    }).toList(),
-                  ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: Colors.grey),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: primaryColor, width: 2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: ['All', 'PDO', 'NON-PDO'].map((category) {
+                          final isSelected = _selectedCategory == category;
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: FilterChip(
+                              label: Text(category),
+                              selected: isSelected,
+                              onSelected: (selected) {
+                                setState(() => _selectedCategory = category);
+                              },
+                              backgroundColor: Colors.grey[200],
+                              selectedColor: primaryColor.withOpacity(0.3),
+                              labelStyle: TextStyle(
+                                color: isSelected
+                                    ? primaryColor
+                                    : Colors.grey[700],
+                                fontWeight: isSelected
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
-          // Customer List
           Expanded(
             child: filteredCustomers.isEmpty
                 ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.business_outlined,
-                          size: 64,
-                          color: Colors.grey[400],
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No customers found',
-                          style:
-                              Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    color: Colors.grey[600],
-                                  ),
-                        ),
-                      ],
+                    child: Text(
+                      'No customers found',
+                      style: Theme.of(context).textTheme.titleMedium,
                     ),
                   )
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: filteredCustomers.length,
-                    itemBuilder: (context, index) {
-                      final customer = filteredCustomers[index];
-                      return _CustomerCard(
-                        customer: customer,
-                        onEdit: () => _showCustomerDialog(
-                            context, customer, customerViewModel),
-                        onDelete: () => _showDeleteConfirmation(
-                            context, customer, customerViewModel),
-                        onViewDetails: () =>
-                            _showCustomerDetails(context, customer),
-                      );
-                    },
-                  ),
+                : isDesktop
+                    ? Card(
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: DataTable(
+                            columns: const [
+                              DataColumn(label: Text('Customer ID')),
+                              DataColumn(label: Text('Name')),
+                              DataColumn(label: Text('Category')),
+                              DataColumn(label: Text('Contact Person')),
+                              DataColumn(label: Text('Email')),
+                              DataColumn(label: Text('Phone')),
+                              DataColumn(label: Text('Currency')),
+                              DataColumn(label: Text('Actions')),
+                            ],
+                            rows: [
+                              for (final customer in filteredCustomers)
+                                DataRow(cells: [
+                                  DataCell(Text(customer.id)),
+                                  DataCell(Text(customer.name)),
+                                  DataCell(Text(customer.category)),
+                                  DataCell(Text(customer.contactPerson)),
+                                  DataCell(Text(customer.email)),
+                                  DataCell(Text(customer.phoneNumber)),
+                                  DataCell(Text(customer.currency)),
+                                  DataCell(
+                                    Wrap(
+                                      spacing: 4,
+                                      children: [
+                                        TextButton.icon(
+                                          onPressed: () => _showCustomerDetails(
+                                            context,
+                                            customer,
+                                          ),
+                                          icon: const Icon(
+                                              Icons.visibility_outlined),
+                                          label: const Text('View'),
+                                        ),
+                                        TextButton.icon(
+                                          onPressed: () => _showCustomerDialog(
+                                            context,
+                                            customer,
+                                            customerViewModel,
+                                          ),
+                                          icon: const Icon(Icons.edit_outlined),
+                                          label: const Text('Edit'),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ]),
+                            ],
+                          ),
+                        ),
+                      )
+                    : ListView.builder(
+                        itemCount: filteredCustomers.length,
+                        itemBuilder: (context, index) {
+                          final customer = filteredCustomers[index];
+                          return _CustomerCard(
+                            customer: customer,
+                            onEdit: () => _showCustomerDialog(
+                              context,
+                              customer,
+                              customerViewModel,
+                            ),
+                            onDelete: () => _showDeleteConfirmation(
+                              context,
+                              customer,
+                              customerViewModel,
+                            ),
+                            onViewDetails: () =>
+                                _showCustomerDetails(context, customer),
+                          );
+                        },
+                      ),
           ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: primaryColor,
-        onPressed: () => _showCustomerDialog(context, null, customerViewModel),
-        child: const Icon(Icons.add),
       ),
     );
   }
