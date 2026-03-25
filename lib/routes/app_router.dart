@@ -12,8 +12,14 @@ import '../presentation/screens/feasibility_quotation_screen.dart';
 import '../presentation/screens/fleet_management_screen.dart';
 import '../presentation/screens/invoice_screen.dart';
 import '../presentation/screens/journey_management_screen.dart';
+import '../presentation/screens/location_form_screen.dart';
+import '../presentation/screens/location_list_screen.dart';
+import '../presentation/screens/location_view_screen.dart';
 import '../presentation/screens/ops_dashboard_screen.dart';
 import '../presentation/screens/role_management_screen.dart';
+import '../presentation/screens/route_form_screen.dart';
+import '../presentation/screens/route_list_screen.dart';
+import '../presentation/screens/route_view_screen.dart';
 import '../presentation/screens/transport_management_screen.dart';
 import '../presentation/screens/trip_execution_screen.dart';
 import '../presentation/screens/user_management_screen.dart';
@@ -102,6 +108,38 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: RoutePaths.vehicleTypeForm,
         builder: (context, state) => VehicleTypeFormScreen(
           editCode: state.uri.queryParameters['code'],
+        ),
+      ),
+      GoRoute(
+        path: RoutePaths.locationMaster,
+        builder: (context, state) => const LocationListScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.locationForm,
+        builder: (context, state) => LocationFormScreen(
+          editCode: state.uri.queryParameters['code'],
+        ),
+      ),
+      GoRoute(
+        path: RoutePaths.locationView,
+        builder: (context, state) => LocationViewScreen(
+          locationCode: state.pathParameters['locationCode'] ?? '',
+        ),
+      ),
+      GoRoute(
+        path: RoutePaths.routeLocationMaster,
+        builder: (context, state) => const RouteListScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.routeLocationForm,
+        builder: (context, state) => RouteFormScreen(
+          editRouteId: state.uri.queryParameters['id'],
+        ),
+      ),
+      GoRoute(
+        path: RoutePaths.routeLocationView,
+        builder: (context, state) => RouteViewScreen(
+          routeId: state.pathParameters['routeId'] ?? '',
         ),
       ),
       GoRoute(

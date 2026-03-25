@@ -27,6 +27,18 @@ class RoutePaths {
   static const transportManagement = '/transport-management';
   static const vehicleTypes = '/vehicle-types';
   static const vehicleTypeForm = '/vehicle-types/form';
+  static const locationMaster = '/location-master';
+  static const locationForm = '/location-master/form';
+  static const locationView = '/location-master/view/:locationCode';
+  static const routeLocationMaster = '/route-location-master';
+  static const routeLocationForm = '/route-location-master/form';
+  static const routeLocationView = '/route-location-master/view/:routeId';
   static const documentManagement = '/document-management';
   static const roleDocumentMapping = '/role-document-mapping';
+
+  static String locationViewByCode(String locationCode) =>
+      '/location-master/view/$locationCode';
+
+  static String routeLocationViewById(String routeId) =>
+      '/route-location-master/view/$routeId';
 }

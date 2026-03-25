@@ -178,6 +178,10 @@ class _Sidebar extends StatelessWidget {
               RoutePaths.vehicleTypes),
           _OpsMenuItem('Document Module', Icons.folder_copy_outlined,
               RoutePaths.documentManagement),
+          _OpsMenuItem('Location Master', Icons.location_on_outlined,
+              RoutePaths.locationMaster),
+          _OpsMenuItem('Route Location Master', Icons.alt_route_outlined,
+              RoutePaths.routeLocationMaster),
         ],
       ),
     ];
