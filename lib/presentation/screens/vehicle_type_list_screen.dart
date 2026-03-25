@@ -19,12 +19,7 @@ class VehicleTypeListScreen extends ConsumerWidget {
     return OpsShell(
       title: 'Vehicle Type List',
       currentRoute: RoutePaths.vehicleTypes,
-      actions: [
-        TextButton(
-          onPressed: () => context.go(RoutePaths.vehicleTypeForm),
-          child: const Text('Add Vehicle Type'),
-        ),
-      ],
+      actions: const [],
       child: state.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(child: Text(error.toString())),
@@ -32,76 +27,145 @@ class VehicleTypeListScreen extends ConsumerWidget {
           final items = data.filteredItems;
           final isMobile = Responsive.isMobile(context);
 
-          return ListView(
+          return Padding(
             padding: const EdgeInsets.all(16),
-            children: [
-              OpsSectionCard(
-                title: 'Search & Filter',
-                subtitle: 'Search by name/code and filter by Oman category',
-                icon: Icons.tune_outlined,
-                accent: const Color(0xFF2563EB),
-                child: Column(
-                  children: [
-                    TextFormField(
-                      initialValue: data.query,
-                      decoration: const InputDecoration(
-                        labelText: 'Search (Name, Code, Class, Load Type)',
-                        prefixIcon: Icon(Icons.search),
-                      ),
-                      onChanged: ref
-                          .read(vehicleTypeViewModelProvider.notifier)
-                          .setQuery,
-                    ),
-                    const SizedBox(height: 10),
-                    DropdownButtonFormField<String>(
-                      value: data.categoryFilter,
-                      decoration:
-                          const InputDecoration(labelText: 'Category Filter'),
-                      items: const [
-                        DropdownMenuItem(value: 'All', child: Text('All')),
-                        DropdownMenuItem(
-                            value: 'Light Vehicle',
-                            child: Text('Light Vehicle')),
-                        DropdownMenuItem(
-                            value: 'Heavy Vehicle',
-                            child: Text('Heavy Vehicle')),
-                        DropdownMenuItem(
-                            value: 'Trailer', child: Text('Trailer')),
-                        DropdownMenuItem(value: 'Tanker', child: Text('Tanker')),
-                      ],
-                      onChanged: (value) {
-                        if (value == null) {
-                          return;
-                        }
-                        ref
-                            .read(vehicleTypeViewModelProvider.notifier)
-                            .setCategoryFilter(value);
-                      },
-                    ),
-                  ],
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                OpsSectionCard(
+                  title: 'Search & Filter',
+                  subtitle: 'Search by name/code and filter by Oman category',
+                  icon: Icons.tune_outlined,
+                  accent: const Color(0xFF2563EB),
+                  child: isMobile
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            TextFormField(
+                              initialValue: data.query,
+                              decoration: const InputDecoration(
+                                labelText:
+                                    'Search (Name, Code, Class, Load Type)',
+                                prefixIcon: Icon(Icons.search),
+                              ),
+                              onChanged: ref
+                                  .read(vehicleTypeViewModelProvider.notifier)
+                                  .setQuery,
+                            ),
+                            const SizedBox(height: 10),
+                            DropdownButtonFormField<String>(
+                              value: data.categoryFilter,
+                              decoration: const InputDecoration(
+                                  labelText: 'Category Filter'),
+                              items: const [
+                                DropdownMenuItem(
+                                    value: 'All', child: Text('All')),
+                                DropdownMenuItem(
+                                    value: 'Light Vehicle',
+                                    child: Text('Light Vehicle')),
+                                DropdownMenuItem(
+                                    value: 'Heavy Vehicle',
+                                    child: Text('Heavy Vehicle')),
+                                DropdownMenuItem(
+                                    value: 'Trailer', child: Text('Trailer')),
+                                DropdownMenuItem(
+                                    value: 'Tanker', child: Text('Tanker')),
+                              ],
+                              onChanged: (value) {
+                                if (value == null) {
+                                  return;
+                                }
+                                ref
+                                    .read(vehicleTypeViewModelProvider.notifier)
+                                    .setCategoryFilter(value);
+                              },
+                            ),
+                            const SizedBox(height: 10),
+                            FilledButton.icon(
+                              onPressed: () =>
+                                  context.go(RoutePaths.vehicleTypeForm),
+                              icon: const Icon(Icons.add),
+                              label: const Text('Add Vehicle Type'),
+                            ),
+                          ],
+                        )
+                      : Row(
+                          children: [
+                            Expanded(
+                              flex: 2,
+                              child: TextFormField(
+                                initialValue: data.query,
+                                decoration: const InputDecoration(
+                                  labelText:
+                                      'Search (Name, Code, Class, Load Type)',
+                                  prefixIcon: Icon(Icons.search),
+                                ),
+                                onChanged: ref
+                                    .read(vehicleTypeViewModelProvider.notifier)
+                                    .setQuery,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                value: data.categoryFilter,
+                                decoration: const InputDecoration(
+                                  labelText: 'Category Filter',
+                                ),
+                                items: const [
+                                  DropdownMenuItem(
+                                      value: 'All', child: Text('All')),
+                                  DropdownMenuItem(
+                                      value: 'Light Vehicle',
+                                      child: Text('Light Vehicle')),
+                                  DropdownMenuItem(
+                                      value: 'Heavy Vehicle',
+                                      child: Text('Heavy Vehicle')),
+                                  DropdownMenuItem(
+                                      value: 'Trailer', child: Text('Trailer')),
+                                  DropdownMenuItem(
+                                      value: 'Tanker', child: Text('Tanker')),
+                                ],
+                                onChanged: (value) {
+                                  if (value == null) {
+                                    return;
+                                  }
+                                  ref
+                                      .read(
+                                          vehicleTypeViewModelProvider.notifier)
+                                      .setCategoryFilter(value);
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            FilledButton.icon(
+                              onPressed: () =>
+                                  context.go(RoutePaths.vehicleTypeForm),
+                              icon: const Icon(Icons.add),
+                              label: const Text('Add Vehicle Type'),
+                            ),
+                          ],
+                        ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              OpsSectionCard(
-                title: 'Vehicle Types',
-                subtitle: 'Oman transport/JMP-ready vehicle type master',
-                icon: Icons.directions_car_outlined,
-                accent: const Color(0xFF16A34A),
-                trailing: FilledButton.icon(
-                  onPressed: () => context.go(RoutePaths.vehicleTypeForm),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add Vehicle Type'),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: OpsSectionCard(
+                    title: 'Vehicle Types',
+                    subtitle: 'Oman transport/JMP-ready vehicle type master',
+                    icon: Icons.directions_car_outlined,
+                    accent: const Color(0xFF16A34A),
+                    child: items.isEmpty
+                        ? const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 18),
+                            child: Text('No vehicle types found.'),
+                          )
+                        : (isMobile
+                            ? _MobileVehicleTypeList(items: items)
+                            : _DesktopVehicleTypeTable(items: items)),
+                  ),
                 ),
-                child: items.isEmpty
-                    ? const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 18),
-                        child: Text('No vehicle types found.'),
-                      )
-                    : (isMobile
-                        ? _MobileVehicleTypeList(items: items)
-                        : _DesktopVehicleTypeTable(items: items)),
-              ),
-            ],
+              ],
+            ),
           );
         },
       ),
@@ -116,56 +180,64 @@ class _DesktopVehicleTypeTable extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        headingRowColor: WidgetStateProperty.all(const Color(0xFFEFF4FF)),
-        columns: const [
-          DataColumn(label: Text('Name')),
-          DataColumn(label: Text('Code')),
-          DataColumn(label: Text('Category')),
-          DataColumn(label: Text('Class')),
-          DataColumn(label: Text('Ownership')),
-          DataColumn(label: Text('Load Type')),
-          DataColumn(label: Text('Max Trips/Day')),
-          DataColumn(label: Text('Status')),
-          DataColumn(label: Text('Actions')),
-        ],
-        rows: [
-          for (final item in items)
-            DataRow(
-              cells: [
-                DataCell(Text(item.name)),
-                DataCell(Text(item.code)),
-                DataCell(Text(item.category)),
-                DataCell(Text(item.vehicleClass)),
-                DataCell(Text(item.ownershipTypes.join(', '))),
-                DataCell(Text(item.loadType)),
-                DataCell(Text('${item.maxTripsPerDay}')),
-                DataCell(Text(item.status)),
-                DataCell(
-                  Row(
-                    children: [
-                      IconButton(
-                        tooltip: 'Edit',
-                        onPressed: () => context.go(
-                          '${RoutePaths.vehicleTypeForm}?code=${item.code}',
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minWidth: constraints.maxWidth),
+            child: DataTable(
+              headingRowColor: WidgetStateProperty.all(const Color(0xFFEFF4FF)),
+              columns: const [
+                DataColumn(label: Text('Name')),
+                DataColumn(label: Text('Code')),
+                DataColumn(label: Text('Category')),
+                DataColumn(label: Text('Class')),
+                DataColumn(label: Text('Ownership')),
+                DataColumn(label: Text('Load Type')),
+                DataColumn(label: Text('Max Trips/Day')),
+                DataColumn(label: Text('Status')),
+                DataColumn(label: Text('Actions')),
+              ],
+              rows: [
+                for (final item in items)
+                  DataRow(
+                    cells: [
+                      DataCell(Text(item.name)),
+                      DataCell(Text(item.code)),
+                      DataCell(Text(item.category)),
+                      DataCell(Text(item.vehicleClass)),
+                      DataCell(Text(item.ownershipTypes.join(', '))),
+                      DataCell(Text(item.loadType)),
+                      DataCell(Text('${item.maxTripsPerDay}')),
+                      DataCell(Text(item.status)),
+                      DataCell(
+                        Wrap(
+                          spacing: 4,
+                          children: [
+                            IconButton(
+                              tooltip: 'Edit',
+                              onPressed: () => context.go(
+                                '${RoutePaths.vehicleTypeForm}?code=${item.code}',
+                              ),
+                              icon: const Icon(Icons.edit_outlined),
+                            ),
+                            IconButton(
+                              tooltip: 'Delete',
+                              onPressed: () =>
+                                  _confirmDelete(context, ref, item.code),
+                              icon: const Icon(Icons.delete_outline),
+                            ),
+                          ],
                         ),
-                        icon: const Icon(Icons.edit_outlined),
-                      ),
-                      IconButton(
-                        tooltip: 'Delete',
-                        onPressed: () =>
-                            _confirmDelete(context, ref, item.code),
-                        icon: const Icon(Icons.delete_outline),
                       ),
                     ],
                   ),
-                ),
               ],
             ),
-        ],
-      ),
+          ),
+        );
+      },
     );
   }
 }

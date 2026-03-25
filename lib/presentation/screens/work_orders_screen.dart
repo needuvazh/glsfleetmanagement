@@ -1,21 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/utils/responsive.dart';
+import '../../domain/entities/logistics_flow.dart';
 import '../../routes/route_paths.dart';
+import '../viewmodels/logistics_viewmodel.dart';
 import '../widgets/ops_shell.dart';
 
-class WorkOrdersScreen extends StatefulWidget {
+class WorkOrdersScreen extends ConsumerStatefulWidget {
   const WorkOrdersScreen({super.key});
 
   @override
-  State<WorkOrdersScreen> createState() => _WorkOrdersScreenState();
+  ConsumerState<WorkOrdersScreen> createState() => _WorkOrdersScreenState();
 }
 
-class _WorkOrdersScreenState extends State<WorkOrdersScreen> {
+class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
   final TextEditingController _searchController = TextEditingController();
 
-  late final List<_WorkOrderRow> _rows;
   String _statusFilter = 'All';
   String _customerFilter = 'All';
   String _routeFilter = 'All';
@@ -25,7 +27,6 @@ class _WorkOrdersScreenState extends State<WorkOrdersScreen> {
   @override
   void initState() {
     super.initState();
-    _rows = _buildMockRows();
     _searchController.addListener(() => setState(() {}));
   }
 
@@ -37,58 +38,92 @@ class _WorkOrdersScreenState extends State<WorkOrdersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final filteredRows = _filteredRows;
+    final state = ref.watch(logisticsViewModelProvider);
     final isMobile = Responsive.isMobile(context);
 
     return OpsShell(
       title: 'Work Orders',
       currentRoute: RoutePaths.workOrders,
-      actions: [
-        FilledButton.icon(
-          onPressed: () => context.push(RoutePaths.createWorkOrder),
-          icon: const Icon(Icons.add_task_outlined),
-          label: const Text('Create New Work Order'),
-        ),
-        const SizedBox(width: 8),
-      ],
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _FilterPanel(
-            searchController: _searchController,
-            statusFilter: _statusFilter,
-            customerFilter: _customerFilter,
-            routeFilter: _routeFilter,
-            priorityFilter: _priorityFilter,
-            dateRange: _dateRange,
-            statusOptions: _optionsFrom(_rows.map((r) => r.status)),
-            customerOptions: _optionsFrom(_rows.map((r) => r.customer)),
-            routeOptions: _optionsFrom(_rows.map((r) => r.routeLabel)),
-            priorityOptions: _optionsFrom(_rows.map((r) => r.priority)),
-            onStatusChanged: (v) => setState(() => _statusFilter = v),
-            onCustomerChanged: (v) => setState(() => _customerFilter = v),
-            onRouteChanged: (v) => setState(() => _routeFilter = v),
-            onPriorityChanged: (v) => setState(() => _priorityFilter = v),
-            onDateRangeTap: _pickDateRange,
-            onClearAll: _resetFilters,
-            onExportTap: _showExportPlaceholder,
-          ),
-          const SizedBox(height: 12),
-          Expanded(
-            child: Card(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: filteredRows.isEmpty
-                    ? const Center(
-                        child: Text('No work orders match the current filters'),
-                      )
-                    : isMobile
-                        ? _buildMobileList(filteredRows)
-                        : _buildDesktopTable(filteredRows),
+      actions: const [],
+      child: state.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, _) => Center(child: Text(error.toString())),
+        data: (data) {
+          final rows = _rowsFromWorkOrders(data.workOrders, data.lastUpdated);
+          final filteredRows = _filteredRows(rows);
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: isMobile
+                      ? SizedBox(
+                          width: double.infinity,
+                          child: FilledButton.icon(
+                            onPressed: () =>
+                                context.push(RoutePaths.createWorkOrder),
+                            icon: const Icon(Icons.add_task_outlined),
+                            label: const Text('Create New Work Order'),
+                          ),
+                        )
+                      : Row(
+                          children: [
+                            Text(
+                              'Work Order Register',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            const Spacer(),
+                            FilledButton.icon(
+                              onPressed: () =>
+                                  context.push(RoutePaths.createWorkOrder),
+                              icon: const Icon(Icons.add_task_outlined),
+                              label: const Text('Create New Work Order'),
+                            ),
+                          ],
+                        ),
+                ),
               ),
-            ),
-          ),
-        ],
+              const SizedBox(height: 12),
+              _FilterPanel(
+                searchController: _searchController,
+                statusFilter: _statusFilter,
+                customerFilter: _customerFilter,
+                routeFilter: _routeFilter,
+                priorityFilter: _priorityFilter,
+                dateRange: _dateRange,
+                statusOptions: _optionsFrom(rows.map((r) => r.status)),
+                customerOptions: _optionsFrom(rows.map((r) => r.customer)),
+                routeOptions: _optionsFrom(rows.map((r) => r.routeLabel)),
+                priorityOptions: _optionsFrom(rows.map((r) => r.priority)),
+                onStatusChanged: (v) => setState(() => _statusFilter = v),
+                onCustomerChanged: (v) => setState(() => _customerFilter = v),
+                onRouteChanged: (v) => setState(() => _routeFilter = v),
+                onPriorityChanged: (v) => setState(() => _priorityFilter = v),
+                onDateRangeTap: _pickDateRange,
+                onClearAll: _resetFilters,
+                onExportTap: _showExportPlaceholder,
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: filteredRows.isEmpty
+                        ? const Center(
+                            child: Text(
+                                'No work orders match the current filters'),
+                          )
+                        : isMobile
+                            ? _buildMobileList(filteredRows)
+                            : _buildDesktopTable(filteredRows),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -96,10 +131,11 @@ class _WorkOrdersScreenState extends State<WorkOrdersScreen> {
   Widget _buildDesktopTable(List<_WorkOrderRow> rows) {
     return Column(
       children: [
-        Row(
+        Wrap(
+          spacing: 10,
+          runSpacing: 6,
           children: [
             Text('Showing ${rows.length} work orders'),
-            const Spacer(),
             Text(
               'Last synced ${_formatDateTime(rows.first.lastUpdated)}',
               style: Theme.of(context).textTheme.bodySmall,
@@ -112,25 +148,19 @@ class _WorkOrdersScreenState extends State<WorkOrdersScreen> {
             scrollDirection: Axis.horizontal,
             child: SingleChildScrollView(
               child: DataTable(
-                columnSpacing: 18,
+                columnSpacing: 28,
+                horizontalMargin: 16,
                 headingRowHeight: 46,
-                dataRowMinHeight: 52,
-                dataRowMaxHeight: 70,
+                dataRowMinHeight: 56,
+                dataRowMaxHeight: 72,
                 columns: const [
                   DataColumn(label: Text('WO Number')),
-                  DataColumn(label: Text('Enquiry/Ref')),
                   DataColumn(label: Text('Customer')),
-                  DataColumn(label: Text('Cargo Type')),
-                  DataColumn(label: Text('Origin')),
-                  DataColumn(label: Text('Destination')),
+                  DataColumn(label: Text('Route')),
                   DataColumn(label: Text('Planned Date')),
                   DataColumn(label: Text('Priority')),
                   DataColumn(label: Text('Status')),
-                  DataColumn(label: Text('Assigned Fleet')),
-                  DataColumn(label: Text('Assigned Driver')),
-                  DataColumn(label: Text('Inspection Status')),
                   DataColumn(label: Text('Trip Status')),
-                  DataColumn(label: Text('Last Updated')),
                   DataColumn(label: Text('Actions')),
                 ],
                 rows: rows
@@ -138,11 +168,26 @@ class _WorkOrdersScreenState extends State<WorkOrdersScreen> {
                       (item) => DataRow(
                         cells: [
                           DataCell(Text(item.woNumber)),
-                          DataCell(Text(item.enquiryReference)),
-                          DataCell(Text(item.customer)),
-                          DataCell(Text(item.cargoType)),
-                          DataCell(Text(item.origin)),
-                          DataCell(Text(item.destination)),
+                          DataCell(
+                            SizedBox(
+                              width: 210,
+                              child: Text(
+                                item.customer,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ),
+                          DataCell(
+                            SizedBox(
+                              width: 220,
+                              child: Text(
+                                '${item.origin} -> ${item.destination}',
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ),
                           DataCell(Text(_formatDate(item.plannedDate))),
                           DataCell(
                             _statusChip(
@@ -150,22 +195,12 @@ class _WorkOrdersScreenState extends State<WorkOrdersScreen> {
                           ),
                           DataCell(_statusChip(
                               item.status, _statusColor(item.status))),
-                          DataCell(Text(item.assignedFleet)),
-                          DataCell(Text(item.assignedDriver)),
-                          DataCell(
-                            _statusChip(
-                              item.inspectionStatus,
-                              _inspectionColor(item.inspectionStatus),
-                            ),
-                          ),
                           DataCell(_statusChip(
                               item.tripStatus, _tripColor(item.tripStatus))),
-                          DataCell(Text(_formatDateTime(item.lastUpdated))),
                           DataCell(
                             _RowActions(
                               onOpen: () => _openWorkOrder(item),
-                              onEdit: () =>
-                                  _showPlaceholder('Edit ${item.woNumber}'),
+                              onEdit: () => _openEditWorkOrder(item),
                               onDuplicate: () => _duplicateWorkOrder(item),
                               onCancel: () => _showCancelDialog(item),
                               onAudit: () => _openAudit(item),
@@ -198,15 +233,23 @@ class _WorkOrdersScreenState extends State<WorkOrdersScreen> {
               children: [
                 Row(
                   children: [
-                    Text(item.woNumber,
-                        style: Theme.of(context).textTheme.titleSmall),
+                    Expanded(
+                      child: Text(
+                        item.woNumber,
+                        style: Theme.of(context).textTheme.titleSmall,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
                     const SizedBox(width: 8),
                     _statusChip(item.status, _statusColor(item.status)),
                   ],
                 ),
                 const SizedBox(height: 8),
                 Text(
-                    '${item.customer} • ${item.origin} -> ${item.destination}'),
+                  '${item.customer} • ${item.origin} -> ${item.destination}',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 const SizedBox(height: 6),
                 Text(
                     'Fleet: ${item.assignedFleet} | Driver: ${item.assignedDriver}'),
@@ -214,7 +257,7 @@ class _WorkOrdersScreenState extends State<WorkOrdersScreen> {
                 _RowActions(
                   compact: true,
                   onOpen: () => _openWorkOrder(item),
-                  onEdit: () => _showPlaceholder('Edit ${item.woNumber}'),
+                  onEdit: () => _openEditWorkOrder(item),
                   onDuplicate: () => _duplicateWorkOrder(item),
                   onCancel: () => _showCancelDialog(item),
                   onAudit: () => _openAudit(item),
@@ -227,10 +270,10 @@ class _WorkOrdersScreenState extends State<WorkOrdersScreen> {
     );
   }
 
-  List<_WorkOrderRow> get _filteredRows {
+  List<_WorkOrderRow> _filteredRows(List<_WorkOrderRow> rows) {
     final query = _searchController.text.trim().toLowerCase();
 
-    return _rows.where((row) {
+    return rows.where((row) {
       if (_statusFilter != 'All' && row.status != _statusFilter) {
         return false;
       }
@@ -280,6 +323,76 @@ class _WorkOrdersScreenState extends State<WorkOrdersScreen> {
     }).toList();
   }
 
+  List<_WorkOrderRow> _rowsFromWorkOrders(
+    List<WorkOrderFlowItem> workOrders,
+    DateTime lastUpdated,
+  ) {
+    final now = DateTime.now();
+    final rows = [
+      for (final item in workOrders)
+        _WorkOrderRow(
+          woNumber: item.woId,
+          enquiryReference: item.linkedEnquiryNumber.isNotEmpty
+              ? item.linkedEnquiryNumber
+              : item.linkedQuotationRef,
+          customer: item.customer,
+          cargoType: item.cargo,
+          origin: _routeOrigin(item.route),
+          destination: _routeDestination(item.route),
+          plannedDate: _parseDate(item.serviceStartDate) ?? now,
+          priority: 'Medium',
+          status: item.status,
+          assignedFleet: '-',
+          assignedDriver: '-',
+          inspectionStatus: 'Pending',
+          tripStatus: _tripFromStatus(item.status),
+          lastUpdated: lastUpdated,
+        ),
+    ];
+    rows.sort((a, b) => a.plannedDate.compareTo(b.plannedDate));
+    return rows;
+  }
+
+  DateTime? _parseDate(String value) {
+    if (value.trim().isEmpty) {
+      return null;
+    }
+    return DateTime.tryParse(value.trim());
+  }
+
+  String _routeOrigin(String route) {
+    final parts = route.split('->');
+    if (parts.isEmpty) {
+      return route;
+    }
+    return parts.first.trim();
+  }
+
+  String _routeDestination(String route) {
+    final parts = route.split('->');
+    if (parts.length < 2) {
+      return route;
+    }
+    return parts.last.trim();
+  }
+
+  String _tripFromStatus(String status) {
+    switch (status.toLowerCase()) {
+      case 'open':
+      case 'ready for allocation':
+        return 'Not Started';
+      case 'assigned':
+      case 'in progress':
+        return 'Active';
+      case 'completed':
+        return 'Delivered';
+      case 'cancelled':
+        return 'Delayed';
+      default:
+        return 'Not Started';
+    }
+  }
+
   List<String> _optionsFrom(Iterable<String> source) {
     final values = source.toSet().toList()..sort();
     return ['All', ...values];
@@ -320,51 +433,79 @@ class _WorkOrdersScreenState extends State<WorkOrdersScreen> {
     context.push(RoutePaths.workOrderDetailById(item.woNumber));
   }
 
+  void _openEditWorkOrder(_WorkOrderRow item) {
+    context.push(RoutePaths.createWorkOrder);
+  }
+
   void _openAudit(_WorkOrderRow item) {
     context
         .push('${RoutePaths.workOrderDetailById(item.woNumber)}?tab=history');
   }
 
   void _duplicateWorkOrder(_WorkOrderRow item) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Duplicated ${item.woNumber} with core and required document fields.',
-        ),
-      ),
-    );
+    final message = ref
+        .read(logisticsViewModelProvider.notifier)
+        .duplicateWorkOrder(item.woNumber);
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _showCancelDialog(_WorkOrderRow item) async {
     final reasonController = TextEditingController();
+    String? inlineError;
     final canceled = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
-        return AlertDialog(
-          title: Text('Cancel ${item.woNumber}'),
-          content: TextField(
-            controller: reasonController,
-            maxLines: 3,
-            decoration: const InputDecoration(
-              labelText: 'Cancellation reason *',
-              hintText: 'Enter reason for cancellation',
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('Close'),
-            ),
-            FilledButton(
-              onPressed: () {
-                if (reasonController.text.trim().isEmpty) {
-                  return;
-                }
-                Navigator.of(dialogContext).pop(true);
-              },
-              child: const Text('Confirm Cancel'),
-            ),
-          ],
+        final isMobile = MediaQuery.of(dialogContext).size.width < 700;
+        final dialogWidth = isMobile ? 420.0 : 560.0;
+
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text('Cancel ${item.woNumber}'),
+              content: SizedBox(
+                width: dialogWidth,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Please provide a mandatory reason for cancellation. This will be recorded in the audit trail.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: reasonController,
+                      maxLines: 4,
+                      decoration: InputDecoration(
+                        labelText: 'Cancellation reason *',
+                        hintText: 'Enter reason for cancellation',
+                        errorText: inlineError,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(false),
+                  child: const Text('Close'),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    if (reasonController.text.trim().isEmpty) {
+                      setDialogState(() {
+                        inlineError = 'Cancellation reason is required.';
+                      });
+                      return;
+                    }
+                    Navigator.of(dialogContext).pop(true);
+                  },
+                  child: const Text('Confirm Cancel'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -399,7 +540,7 @@ class _WorkOrdersScreenState extends State<WorkOrdersScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
@@ -438,19 +579,6 @@ class _WorkOrdersScreenState extends State<WorkOrdersScreen> {
     }
   }
 
-  Color _inspectionColor(String status) {
-    switch (status) {
-      case 'Passed':
-        return const Color(0xFF15803D);
-      case 'Pending':
-        return const Color(0xFFD97706);
-      case 'Failed':
-        return const Color(0xFFB91C1C);
-      default:
-        return const Color(0xFF475569);
-    }
-  }
-
   Color _tripColor(String status) {
     switch (status) {
       case 'Not Started':
@@ -464,92 +592,6 @@ class _WorkOrdersScreenState extends State<WorkOrdersScreen> {
       default:
         return const Color(0xFF475569);
     }
-  }
-
-  List<_WorkOrderRow> _buildMockRows() {
-    final now = DateTime.now();
-    return [
-      _WorkOrderRow(
-        woNumber: 'WO-24001',
-        enquiryReference: 'ENQ-1012',
-        customer: 'PDO Logistics',
-        cargoType: 'Drilling Equipment',
-        origin: 'Muscat Yard',
-        destination: 'Fahud Site',
-        plannedDate: now.add(const Duration(days: 1)),
-        priority: 'High',
-        status: 'Open',
-        assignedFleet: 'TRK-201',
-        assignedDriver: 'Ahmed Nasser',
-        inspectionStatus: 'Pending',
-        tripStatus: 'Not Started',
-        lastUpdated: now.subtract(const Duration(minutes: 18)),
-      ),
-      _WorkOrderRow(
-        woNumber: 'WO-24002',
-        enquiryReference: 'ENQ-1014',
-        customer: 'OQ Base Operations',
-        cargoType: 'Chemical Drums',
-        origin: 'Sohar Depot',
-        destination: 'Nizwa Hub',
-        plannedDate: now,
-        priority: 'Medium',
-        status: 'In Progress',
-        assignedFleet: 'TRK-114',
-        assignedDriver: 'Salim Rashid',
-        inspectionStatus: 'Passed',
-        tripStatus: 'Active',
-        lastUpdated: now.subtract(const Duration(minutes: 6)),
-      ),
-      _WorkOrderRow(
-        woNumber: 'WO-24003',
-        enquiryReference: 'ENQ-1018',
-        customer: 'Gulf Energy LLC',
-        cargoType: 'Pipe Bundles',
-        origin: 'Barka Yard',
-        destination: 'Duqm Port',
-        plannedDate: now.add(const Duration(days: 2)),
-        priority: 'Low',
-        status: 'Completed',
-        assignedFleet: 'TRK-166',
-        assignedDriver: 'Khalid Omar',
-        inspectionStatus: 'Passed',
-        tripStatus: 'Delivered',
-        lastUpdated: now.subtract(const Duration(hours: 3)),
-      ),
-      _WorkOrderRow(
-        woNumber: 'WO-24004',
-        enquiryReference: 'ENQ-1022',
-        customer: 'Oman Refining',
-        cargoType: 'Fuel Additives',
-        origin: 'Muscat Terminal',
-        destination: 'Salalah Zone',
-        plannedDate: now.add(const Duration(days: 3)),
-        priority: 'High',
-        status: 'In Progress',
-        assignedFleet: 'TRK-309',
-        assignedDriver: 'Majid Ali',
-        inspectionStatus: 'Failed',
-        tripStatus: 'Delayed',
-        lastUpdated: now.subtract(const Duration(minutes: 45)),
-      ),
-      _WorkOrderRow(
-        woNumber: 'WO-24005',
-        enquiryReference: 'ENQ-1023',
-        customer: 'Desert Well Services',
-        cargoType: 'Rig Consumables',
-        origin: 'Nizwa Warehouse',
-        destination: 'Marmul Camp',
-        plannedDate: now.add(const Duration(days: 1)),
-        priority: 'Medium',
-        status: 'Open',
-        assignedFleet: 'TRK-410',
-        assignedDriver: 'Rafiq Khan',
-        inspectionStatus: 'Pending',
-        tripStatus: 'Not Started',
-        lastUpdated: now.subtract(const Duration(hours: 1, minutes: 10)),
-      ),
-    ];
   }
 }
 
@@ -594,16 +636,24 @@ class _FilterPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final compact = MediaQuery.of(context).size.width < 980;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
-        child: Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          crossAxisAlignment: WrapCrossAlignment.center,
+        child: compact ? _buildCompactFilterLayout() : _buildWideFilterLayout(),
+      ),
+    );
+  }
+
+  Widget _buildWideFilterLayout() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
           children: [
-            SizedBox(
-              width: 250,
+            Expanded(
+              flex: 2,
               child: TextField(
                 controller: searchController,
                 decoration: const InputDecoration(
@@ -612,30 +662,134 @@ class _FilterPanel extends StatelessWidget {
                 ),
               ),
             ),
-            _FilterDropdown(
-              label: 'Status',
-              value: statusFilter,
-              options: statusOptions,
-              onChanged: onStatusChanged,
+            const SizedBox(width: 10),
+            Expanded(
+              child: _FilterDropdown(
+                label: 'Status',
+                value: statusFilter,
+                options: statusOptions,
+                onChanged: onStatusChanged,
+                width: null,
+              ),
             ),
-            _FilterDropdown(
-              label: 'Customer',
-              value: customerFilter,
-              options: customerOptions,
-              onChanged: onCustomerChanged,
+            const SizedBox(width: 10),
+            Expanded(
+              child: _FilterDropdown(
+                label: 'Customer',
+                value: customerFilter,
+                options: customerOptions,
+                onChanged: onCustomerChanged,
+                width: null,
+              ),
             ),
-            _FilterDropdown(
-              label: 'Route',
-              value: routeFilter,
-              options: routeOptions,
-              onChanged: onRouteChanged,
+            const SizedBox(width: 10),
+            Expanded(
+              child: _FilterDropdown(
+                label: 'Route',
+                value: routeFilter,
+                options: routeOptions,
+                onChanged: onRouteChanged,
+                width: null,
+              ),
             ),
-            _FilterDropdown(
-              label: 'Priority',
-              value: priorityFilter,
-              options: priorityOptions,
-              onChanged: onPriorityChanged,
+            const SizedBox(width: 10),
+            Expanded(
+              child: _FilterDropdown(
+                label: 'Priority',
+                value: priorityFilter,
+                options: priorityOptions,
+                onChanged: onPriorityChanged,
+                width: null,
+              ),
             ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            OutlinedButton.icon(
+              onPressed: onDateRangeTap,
+              icon: const Icon(Icons.date_range_outlined),
+              label: Text(
+                dateRange == null
+                    ? 'Filter by Date'
+                    : '${_fmt(dateRange!.start)} - ${_fmt(dateRange!.end)}',
+              ),
+            ),
+            const Spacer(),
+            TextButton.icon(
+              onPressed: onClearAll,
+              icon: const Icon(Icons.clear_all),
+              label: const Text('Clear'),
+            ),
+            const SizedBox(width: 8),
+            OutlinedButton.icon(
+              onPressed: onExportTap,
+              icon: const Icon(Icons.download_outlined),
+              label: const Text('Export'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCompactFilterLayout() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TextField(
+          controller: searchController,
+          decoration: const InputDecoration(
+            hintText: 'Search work orders',
+            prefixIcon: Icon(Icons.search),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: _FilterDropdown(
+                label: 'Status',
+                value: statusFilter,
+                options: statusOptions,
+                onChanged: onStatusChanged,
+                width: null,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _FilterDropdown(
+                label: 'Priority',
+                value: priorityFilter,
+                options: priorityOptions,
+                onChanged: onPriorityChanged,
+                width: null,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        _FilterDropdown(
+          label: 'Customer',
+          value: customerFilter,
+          options: customerOptions,
+          onChanged: onCustomerChanged,
+          width: null,
+        ),
+        const SizedBox(height: 10),
+        _FilterDropdown(
+          label: 'Route',
+          value: routeFilter,
+          options: routeOptions,
+          onChanged: onRouteChanged,
+          width: null,
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
             OutlinedButton.icon(
               onPressed: onDateRangeTap,
               icon: const Icon(Icons.date_range_outlined),
@@ -657,7 +811,7 @@ class _FilterPanel extends StatelessWidget {
             ),
           ],
         ),
-      ),
+      ],
     );
   }
 
@@ -674,17 +828,19 @@ class _FilterDropdown extends StatelessWidget {
     required this.value,
     required this.options,
     required this.onChanged,
+    this.width = 170,
   });
 
   final String label;
   final String value;
   final List<String> options;
   final ValueChanged<String> onChanged;
+  final double? width;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 170,
+      width: width,
       child: DropdownButtonFormField<String>(
         value: value,
         decoration: InputDecoration(labelText: label),

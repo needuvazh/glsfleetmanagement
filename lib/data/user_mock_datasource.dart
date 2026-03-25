@@ -1,3 +1,7 @@
+import 'dart:convert';
+
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../domain/user_model.dart';
 
 abstract class UserMockDataSource {
@@ -8,19 +12,53 @@ abstract class UserMockDataSource {
 }
 
 class UserMockDataSourceImpl implements UserMockDataSource {
-  UserMockDataSourceImpl() : _users = _seedUsers();
+  UserMockDataSourceImpl();
 
-  final List<UserModel> _users;
+  static const _cacheKey = 'user_master_records_v1';
+  List<UserModel>? _users;
   int _sequence = 7;
+
+  Future<void> _ensureInitialized() async {
+    if (_users != null) {
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_cacheKey);
+
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(raw) as List<dynamic>;
+        _users = decoded
+            .map((entry) => _userFromMap(Map<String, dynamic>.from(entry)))
+            .toList();
+      } catch (_) {
+        _users = _seedUsers();
+      }
+    } else {
+      _users = _seedUsers();
+    }
+
+    _sequence = _nextSequence(_users!);
+    await _persist();
+  }
+
+  Future<void> _persist() async {
+    final prefs = await SharedPreferences.getInstance();
+    final payload = _users!.map(_userToMap).toList();
+    await prefs.setString(_cacheKey, jsonEncode(payload));
+  }
 
   @override
   Future<List<UserModel>> getUsers() async {
-    return _users.map((user) => user.copyWith()).toList();
+    await _ensureInitialized();
+    return _users!.map((user) => user.copyWith()).toList();
   }
 
   @override
   Future<UserModel?> getUserById(String userId) async {
-    for (final user in _users) {
+    await _ensureInitialized();
+    for (final user in _users!) {
       if (user.userId == userId) {
         return user.copyWith();
       }
@@ -30,28 +68,32 @@ class UserMockDataSourceImpl implements UserMockDataSource {
 
   @override
   Future<List<UserModel>> addUser(UserModel user) async {
+    await _ensureInitialized();
     final now = DateTime.now();
     final next = user.copyWith(
       userId: user.userId.trim().isEmpty ? _nextUserId() : user.userId,
       createdAt: now,
       updatedAt: now,
     );
-    _users.add(next);
+    _users!.add(next);
+    await _persist();
     return getUsers();
   }
 
   @override
   Future<List<UserModel>> updateUser(UserModel user) async {
-    final index = _users.indexWhere((entry) => entry.userId == user.userId);
+    await _ensureInitialized();
+    final index = _users!.indexWhere((entry) => entry.userId == user.userId);
     if (index == -1) {
       return getUsers();
     }
 
-    final existing = _users[index];
-    _users[index] = user.copyWith(
+    final existing = _users![index];
+    _users![index] = user.copyWith(
       createdAt: existing.createdAt,
       updatedAt: DateTime.now(),
     );
+    await _persist();
     return getUsers();
   }
 
@@ -59,6 +101,105 @@ class UserMockDataSourceImpl implements UserMockDataSource {
     final id = 'USR-${_sequence.toString().padLeft(3, '0')}';
     _sequence += 1;
     return id;
+  }
+
+  int _nextSequence(List<UserModel> users) {
+    var maxValue = 0;
+    for (final user in users) {
+      final parts = user.userId.split('-');
+      if (parts.length < 2) {
+        continue;
+      }
+      final parsed = int.tryParse(parts.last) ?? 0;
+      if (parsed > maxValue) {
+        maxValue = parsed;
+      }
+    }
+    return maxValue + 1;
+  }
+
+  UserModel _userFromMap(Map<String, dynamic> map) {
+    return UserModel(
+      userId: map['userId'] as String? ?? '',
+      department: _departmentFromName(map['department'] as String?),
+      employeeId: map['employeeId'] as String? ?? '',
+      joiningDate: DateTime.tryParse(map['joiningDate'] as String? ?? '') ??
+          DateTime.now(),
+      firstName: map['firstName'] as String? ?? '',
+      lastName: map['lastName'] as String? ?? '',
+      role: _userRoleFromName(map['role'] as String?),
+      countryCode: _countryCodeFromName(map['countryCode'] as String?),
+      phoneNumber: map['phoneNumber'] as String? ?? '',
+      alternateNumber: map['alternateNumber'] as String? ?? '',
+      email: map['email'] as String? ?? '',
+      address: map['address'] as String? ?? '',
+      licenseNumber: map['licenseNumber'] as String? ?? '',
+      licenseExpiryDate:
+          DateTime.tryParse(map['licenseExpiryDate'] as String? ?? ''),
+      status: _userStatusFromName(map['status'] as String?),
+      createdAt: DateTime.tryParse(map['createdAt'] as String? ?? '') ??
+          DateTime.now(),
+      updatedAt: DateTime.tryParse(map['updatedAt'] as String? ?? '') ??
+          DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> _userToMap(UserModel user) {
+    return {
+      'userId': user.userId,
+      'department': user.department.name,
+      'employeeId': user.employeeId,
+      'joiningDate': user.joiningDate.toIso8601String(),
+      'firstName': user.firstName,
+      'lastName': user.lastName,
+      'role': user.role.name,
+      'countryCode': user.countryCode.name,
+      'phoneNumber': user.phoneNumber,
+      'alternateNumber': user.alternateNumber,
+      'email': user.email,
+      'address': user.address,
+      'licenseNumber': user.licenseNumber,
+      'licenseExpiryDate': user.licenseExpiryDate?.toIso8601String(),
+      'status': user.status.name,
+      'createdAt': user.createdAt.toIso8601String(),
+      'updatedAt': user.updatedAt.toIso8601String(),
+    };
+  }
+
+  DepartmentType _departmentFromName(String? value) {
+    for (final item in DepartmentType.values) {
+      if (item.name == value) {
+        return item;
+      }
+    }
+    return DepartmentType.operations;
+  }
+
+  UserRoleType _userRoleFromName(String? value) {
+    for (final item in UserRoleType.values) {
+      if (item.name == value) {
+        return item;
+      }
+    }
+    return UserRoleType.dispatcher;
+  }
+
+  CountryCodeType _countryCodeFromName(String? value) {
+    for (final item in CountryCodeType.values) {
+      if (item.name == value) {
+        return item;
+      }
+    }
+    return CountryCodeType.oman;
+  }
+
+  UserStatusType _userStatusFromName(String? value) {
+    for (final item in UserStatusType.values) {
+      if (item.name == value) {
+        return item;
+      }
+    }
+    return UserStatusType.active;
   }
 }
 

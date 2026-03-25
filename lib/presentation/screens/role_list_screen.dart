@@ -20,57 +20,87 @@ class RoleListScreen extends ConsumerWidget {
     return OpsShell(
       title: 'Role Module',
       currentRoute: RoutePaths.roleManagement,
-      actions: [
-        TextButton(
-          onPressed: () => context.go(RoutePaths.roleForm),
-          child: const Text('Create Role'),
-        ),
-      ],
+      actions: const [],
       child: state.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(child: Text(error.toString())),
         data: (data) {
           final roles = data.filteredRoles;
-          return ListView(
+          return Padding(
             padding: const EdgeInsets.all(16),
-            children: [
-              OpsSectionCard(
-                title: 'Search Roles',
-                subtitle: 'Search by role name',
-                icon: Icons.search_outlined,
-                accent: const Color(0xFF2563EB),
-                child: TextFormField(
-                  initialValue: data.searchQuery,
-                  decoration: const InputDecoration(
-                    labelText: 'Search by role name',
-                    prefixIcon: Icon(Icons.search),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                OpsSectionCard(
+                  title: 'Role Search',
+                  subtitle: 'Search and manage roles from one place',
+                  icon: Icons.search_outlined,
+                  accent: const Color(0xFF2563EB),
+                  child: isMobile
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            TextFormField(
+                              initialValue: data.searchQuery,
+                              decoration: const InputDecoration(
+                                labelText: 'Search by role name',
+                                prefixIcon: Icon(Icons.search),
+                              ),
+                              onChanged: ref
+                                  .read(roleViewModelProvider.notifier)
+                                  .setSearchQuery,
+                            ),
+                            const SizedBox(height: 10),
+                            FilledButton.icon(
+                              onPressed: () => context.go(RoutePaths.roleForm),
+                              icon: const Icon(Icons.add),
+                              label: const Text('Create Role'),
+                            ),
+                          ],
+                        )
+                      : Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                initialValue: data.searchQuery,
+                                decoration: const InputDecoration(
+                                  labelText: 'Search by role name',
+                                  prefixIcon: Icon(Icons.search),
+                                ),
+                                onChanged: ref
+                                    .read(roleViewModelProvider.notifier)
+                                    .setSearchQuery,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            FilledButton.icon(
+                              onPressed: () => context.go(RoutePaths.roleForm),
+                              icon: const Icon(Icons.add),
+                              label: const Text('Create Role'),
+                            ),
+                          ],
+                        ),
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: OpsSectionCard(
+                    title: 'Role List',
+                    subtitle:
+                        'Enterprise role definitions with status and permissions',
+                    icon: Icons.admin_panel_settings_outlined,
+                    accent: const Color(0xFF16A34A),
+                    child: roles.isEmpty
+                        ? const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 18),
+                            child: Text('No roles found.'),
+                          )
+                        : (isMobile
+                            ? _MobileRoleList(roles: roles)
+                            : _DesktopRoleTable(roles: roles)),
                   ),
-                  onChanged:
-                      ref.read(roleViewModelProvider.notifier).setSearchQuery,
                 ),
-              ),
-              const SizedBox(height: 16),
-              OpsSectionCard(
-                title: 'Role List',
-                subtitle:
-                    'Enterprise role definitions with status and permissions',
-                icon: Icons.admin_panel_settings_outlined,
-                accent: const Color(0xFF16A34A),
-                trailing: FilledButton.icon(
-                  onPressed: () => context.go(RoutePaths.roleForm),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Create Role'),
-                ),
-                child: roles.isEmpty
-                    ? const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 18),
-                        child: Text('No roles found.'),
-                      )
-                    : (isMobile
-                        ? _MobileRoleList(roles: roles)
-                        : _DesktopRoleTable(roles: roles)),
-              ),
-            ],
+              ],
+            ),
           );
         },
       ),
@@ -85,59 +115,64 @@ class _DesktopRoleTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        headingRowColor: WidgetStateProperty.all(const Color(0xFFEFF4FF)),
-        columns: const [
-          DataColumn(label: Text('Role Name')),
-          DataColumn(label: Text('Description')),
-          DataColumn(label: Text('Status')),
-          DataColumn(label: Text('Actions')),
-        ],
-        rows: [
-          for (final role in roles)
-            DataRow(
-              cells: [
-                DataCell(Text(role.roleName)),
-                DataCell(
-                  SizedBox(
-                    width: 320,
-                    child: Text(
-                      role.description.isEmpty ? '-' : role.description,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ),
-                DataCell(
-                  OpsPill(
-                    label: role.status.label,
-                    color: role.status == RoleStatusType.active
-                        ? const Color(0xFF16A34A)
-                        : const Color(0xFFDC2626),
-                  ),
-                ),
-                DataCell(
-                  Row(
-                    children: [
-                      TextButton(
-                        onPressed: () =>
-                            context.go(RoutePaths.roleViewById(role.roleId)),
-                        child: const Text('View'),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minWidth: constraints.maxWidth),
+            child: DataTable(
+              headingRowColor: WidgetStateProperty.all(const Color(0xFFEFF4FF)),
+              columns: const [
+                DataColumn(label: Text('Role Name')),
+                DataColumn(label: Text('Description')),
+                DataColumn(label: Text('Status')),
+                DataColumn(label: Text('Actions')),
+              ],
+              rows: [
+                for (final role in roles)
+                  DataRow(
+                    cells: [
+                      DataCell(Text(role.roleName)),
+                      DataCell(
+                        Text(
+                          role.description.isEmpty ? '-' : role.description,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                      TextButton(
-                        onPressed: () => context
-                            .go('${RoutePaths.roleForm}?id=${role.roleId}'),
-                        child: const Text('Edit'),
+                      DataCell(
+                        OpsPill(
+                          label: role.status.label,
+                          color: role.status == RoleStatusType.active
+                              ? const Color(0xFF16A34A)
+                              : const Color(0xFFDC2626),
+                        ),
+                      ),
+                      DataCell(
+                        Wrap(
+                          spacing: 6,
+                          children: [
+                            TextButton(
+                              onPressed: () => context
+                                  .go(RoutePaths.roleViewById(role.roleId)),
+                              child: const Text('View'),
+                            ),
+                            TextButton(
+                              onPressed: () => context.go(
+                                  '${RoutePaths.roleForm}?id=${role.roleId}'),
+                              child: const Text('Edit'),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
-                ),
               ],
             ),
-        ],
-      ),
+          ),
+        );
+      },
     );
   }
 }

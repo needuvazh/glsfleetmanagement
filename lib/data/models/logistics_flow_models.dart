@@ -94,6 +94,13 @@ class WorkOrderFlowModel extends WorkOrderFlowItem {
     required super.route,
     required super.cargo,
     required super.status,
+    required super.linkedQuotationRef,
+    required super.linkedEnquiryNumber,
+    required super.customerPoReference,
+    required super.jobFileReference,
+    required super.serviceStartDate,
+    required super.serviceEndDate,
+    required super.internalNotes,
   });
 
   factory WorkOrderFlowModel.fromMap(Map<String, dynamic> map) {
@@ -105,6 +112,15 @@ class WorkOrderFlowModel extends WorkOrderFlowItem {
       route: route,
       cargo: map['cargo'] as String? ?? requestId,
       status: map['status'] as String? ?? '',
+      linkedQuotationRef: map['linkedQuotationRef'] as String? ?? '',
+      linkedEnquiryNumber: map['linkedEnquiryNumber'] as String? ??
+          map['requestId'] as String? ??
+          '',
+      customerPoReference: map['customerPoReference'] as String? ?? '',
+      jobFileReference: map['jobFileReference'] as String? ?? '',
+      serviceStartDate: map['serviceStartDate'] as String? ?? '',
+      serviceEndDate: map['serviceEndDate'] as String? ?? '',
+      internalNotes: map['internalNotes'] as String? ?? '',
     );
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/utils/responsive.dart';
 import '../../domain/vendor_model.dart';
 import '../../routes/route_paths.dart';
 import '../viewmodels/vendor_viewmodel.dart';
@@ -50,7 +51,8 @@ class _VendorFormScreenState extends ConsumerState<VendorFormScreen> {
 
           if (!formState.initialized) {
             Future.microtask(
-              () => ref.read(vendorFormProvider.notifier).initialize(editVendor),
+              () =>
+                  ref.read(vendorFormProvider.notifier).initialize(editVendor),
             );
             return const Center(child: CircularProgressIndicator());
           }
@@ -70,31 +72,39 @@ class _VendorFormScreenState extends ConsumerState<VendorFormScreen> {
                   key: _formKey,
                   child: Column(
                     children: [
-                      TextFormField(
-                        initialValue: form.vendorName,
-                        decoration: const InputDecoration(labelText: 'Vendor Name *'),
-                        validator: _required,
-                        onChanged: notifier.setVendorName,
+                      _twoColumnFields(
+                        context,
+                        TextFormField(
+                          initialValue: form.vendorName,
+                          decoration:
+                              const InputDecoration(labelText: 'Vendor Name *'),
+                          validator: _required,
+                          onChanged: notifier.setVendorName,
+                        ),
+                        TextFormField(
+                          initialValue: form.companyName,
+                          decoration:
+                              const InputDecoration(labelText: 'Company Name'),
+                          onChanged: notifier.setCompanyName,
+                        ),
                       ),
                       const SizedBox(height: 10),
-                      TextFormField(
-                        initialValue: form.companyName,
-                        decoration: const InputDecoration(labelText: 'Company Name'),
-                        onChanged: notifier.setCompanyName,
-                      ),
-                      const SizedBox(height: 10),
-                      TextFormField(
-                        initialValue: form.contactNumber,
-                        decoration: const InputDecoration(labelText: 'Contact Number *'),
-                        validator: _validateContact,
-                        onChanged: notifier.setContactNumber,
-                      ),
-                      const SizedBox(height: 10),
-                      TextFormField(
-                        initialValue: form.email,
-                        decoration: const InputDecoration(labelText: 'Email'),
-                        validator: _validateEmail,
-                        onChanged: notifier.setEmail,
+                      _twoColumnFields(
+                        context,
+                        TextFormField(
+                          initialValue: form.contactNumber,
+                          decoration: const InputDecoration(
+                            labelText: 'Contact Number *',
+                          ),
+                          validator: _validateContact,
+                          onChanged: notifier.setContactNumber,
+                        ),
+                        TextFormField(
+                          initialValue: form.email,
+                          decoration: const InputDecoration(labelText: 'Email'),
+                          validator: _validateEmail,
+                          onChanged: notifier.setEmail,
+                        ),
                       ),
                       const SizedBox(height: 10),
                       TextFormField(
@@ -104,67 +114,77 @@ class _VendorFormScreenState extends ConsumerState<VendorFormScreen> {
                         onChanged: notifier.setAddress,
                       ),
                       const SizedBox(height: 10),
-                      DropdownButtonFormField<VendorType>(
-                        value: form.vendorType,
-                        decoration: const InputDecoration(labelText: 'Vendor Type'),
-                        items: [
-                          for (final item in VendorType.values)
-                            DropdownMenuItem(
-                              value: item,
-                              child: Text(item.label),
-                            ),
-                        ],
-                        onChanged: (value) {
-                          if (value != null) {
-                            notifier.setVendorType(value);
-                          }
-                        },
+                      _twoColumnFields(
+                        context,
+                        DropdownButtonFormField<VendorType>(
+                          value: form.vendorType,
+                          decoration:
+                              const InputDecoration(labelText: 'Vendor Type'),
+                          items: [
+                            for (final item in VendorType.values)
+                              DropdownMenuItem(
+                                value: item,
+                                child: Text(item.label),
+                              ),
+                          ],
+                          onChanged: (value) {
+                            if (value != null) {
+                              notifier.setVendorType(value);
+                            }
+                          },
+                        ),
+                        DropdownButtonFormField<VendorServiceType>(
+                          value: form.serviceType,
+                          decoration:
+                              const InputDecoration(labelText: 'Service Type'),
+                          items: [
+                            for (final item in VendorServiceType.values)
+                              DropdownMenuItem(
+                                value: item,
+                                child: Text(item.label),
+                              ),
+                          ],
+                          onChanged: (value) {
+                            if (value != null) {
+                              notifier.setServiceType(value);
+                            }
+                          },
+                        ),
                       ),
                       const SizedBox(height: 10),
-                      DropdownButtonFormField<VendorServiceType>(
-                        value: form.serviceType,
-                        decoration: const InputDecoration(labelText: 'Service Type'),
-                        items: [
-                          for (final item in VendorServiceType.values)
-                            DropdownMenuItem(
-                              value: item,
-                              child: Text(item.label),
-                            ),
-                        ],
-                        onChanged: (value) {
-                          if (value != null) {
-                            notifier.setServiceType(value);
-                          }
-                        },
-                      ),
-                      const SizedBox(height: 10),
-                      DropdownButtonFormField<VendorStatus>(
-                        value: form.status,
-                        decoration: const InputDecoration(labelText: 'Status'),
-                        items: [
-                          for (final item in VendorStatus.values)
-                            DropdownMenuItem(
-                              value: item,
-                              child: Text(item.label),
-                            ),
-                        ],
-                        onChanged: (value) {
-                          if (value != null) {
-                            notifier.setStatus(value);
-                          }
-                        },
+                      _twoColumnFields(
+                        context,
+                        DropdownButtonFormField<VendorStatus>(
+                          value: form.status,
+                          decoration:
+                              const InputDecoration(labelText: 'Status'),
+                          items: [
+                            for (final item in VendorStatus.values)
+                              DropdownMenuItem(
+                                value: item,
+                                child: Text(item.label),
+                              ),
+                          ],
+                          onChanged: (value) {
+                            if (value != null) {
+                              notifier.setStatus(value);
+                            }
+                          },
+                        ),
+                        const SizedBox.shrink(),
                       ),
                       const SizedBox(height: 14),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           OutlinedButton(
-                            onPressed: () => context.go(RoutePaths.vendorMaster),
+                            onPressed: () =>
+                                context.go(RoutePaths.vendorMaster),
                             child: const Text('Cancel'),
                           ),
                           const SizedBox(width: 10),
                           FilledButton(
-                            onPressed: () => _submit(context),
+                            onPressed: _submit,
                             child: const Text('Save'),
                           ),
                         ],
@@ -177,6 +197,27 @@ class _VendorFormScreenState extends ConsumerState<VendorFormScreen> {
           );
         },
       ),
+    );
+  }
+
+  Widget _twoColumnFields(BuildContext context, Widget left, Widget right) {
+    if (Responsive.isMobile(context)) {
+      return Column(
+        children: [
+          left,
+          const SizedBox(height: 10),
+          right,
+        ],
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: left),
+        const SizedBox(width: 12),
+        Expanded(child: right),
+      ],
     );
   }
 
@@ -208,7 +249,7 @@ class _VendorFormScreenState extends ConsumerState<VendorFormScreen> {
     return null;
   }
 
-  Future<void> _submit(BuildContext context) async {
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -223,7 +264,8 @@ class _VendorFormScreenState extends ConsumerState<VendorFormScreen> {
     if (!mounted) {
       return;
     }
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
     if (message.contains('successfully')) {
       context.go(RoutePaths.vendorMaster);
     }

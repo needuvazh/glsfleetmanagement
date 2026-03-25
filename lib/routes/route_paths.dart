@@ -7,6 +7,8 @@ class RoutePaths {
   static const fleet = '/fleet';
   static const dashboard = '/dashboard';
   static const customerManagement = '/customer-management';
+  static const customerForm = '/customer-management/form';
+  static const customerView = '/customer-management/view/:customerId';
   static const customerRequest = '/customer-request';
   static const customerRequestForm = '/customer-request/form';
   static const customerRequestView = '/customer-request/view/:enquiryNumber';
@@ -65,8 +67,17 @@ class RoutePaths {
   static String workOrderDetailById(String workOrderId) =>
       '/work-orders/$workOrderId';
 
+  static String editWorkOrderById(String workOrderId) =>
+      '/work-orders/create?id=$workOrderId';
+
   static String customerRequestViewById(String enquiryNumber) =>
       '/customer-request/view/$enquiryNumber';
+
+  static String customerViewById(String customerId) =>
+      '/customer-management/view/$customerId';
+
+  static String editCustomerById(String customerId) =>
+      '/customer-management/form?id=$customerId';
 
   static String roleViewById(String roleId) => '/role-management/view/$roleId';
 

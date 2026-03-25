@@ -3,17 +3,24 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../domain/entities/journey_plan.dart';
+import '../../domain/entities/logistics_flow.dart';
 import '../../domain/entities/work_order.dart';
 import '../../domain/vendor_model.dart';
 import '../../routes/route_paths.dart';
 import '../viewmodels/journey_plan_viewmodel.dart';
+import '../viewmodels/logistics_viewmodel.dart';
 import '../viewmodels/vendor_viewmodel.dart';
 import '../viewmodels/work_order_draft_viewmodel.dart';
 import '../viewmodels/work_orders_viewmodel.dart';
 import '../widgets/ops_shell.dart';
 
 class CreateWorkOrderScreen extends ConsumerStatefulWidget {
-  const CreateWorkOrderScreen({super.key});
+  const CreateWorkOrderScreen({
+    super.key,
+    this.editWorkOrderId,
+  });
+
+  final String? editWorkOrderId;
 
   @override
   ConsumerState<CreateWorkOrderScreen> createState() =>
@@ -47,6 +54,11 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
   bool _podRequired = true;
   bool _dnRequired = true;
   String? _journeyPlanId;
+  bool _didPopulateEditValues = false;
+
+  bool get _isEditMode =>
+      widget.editWorkOrderId != null &&
+      widget.editWorkOrderId!.trim().isNotEmpty;
 
   @override
   void initState() {
@@ -75,6 +87,9 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
         _podRequired = draft.podRequired;
         _dnRequired = draft.dnRequired;
         _journeyPlanId = draft.journeyPlanId;
+        if (_isEditMode && _workOrderNumberController.text.trim().isEmpty) {
+          _workOrderNumberController.text = widget.editWorkOrderId!.trim();
+        }
       });
     });
   }
@@ -101,10 +116,13 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
   @override
   Widget build(BuildContext context) {
     final journeyState = ref.watch(journeyPlanViewModelProvider);
+    final logisticsState = ref.watch(logisticsViewModelProvider);
     final vendorState = ref.watch(vendorViewModelProvider);
 
+    _tryPopulateEditValues(logisticsState);
+
     return OpsShell(
-      title: 'Create Work Order',
+      title: _isEditMode ? 'Edit Work Order' : 'Create Work Order',
       currentRoute: RoutePaths.workOrders,
       child: journeyState.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -139,6 +157,7 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
                         _requiredField(
                           controller: _workOrderNumberController,
                           label: 'Work Order Number',
+                          readOnly: _isEditMode,
                         ),
                         _requiredField(
                           controller: _enquiryNumberController,
@@ -403,7 +422,8 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
                               : (value) => setState(() => _vendorId = value),
                         ),
                         TextFormField(
-                          initialValue: 'Vehicle & Driver mapping in next module',
+                          initialValue:
+                              'Vehicle & Driver mapping in next module',
                           readOnly: true,
                           decoration: const InputDecoration(
                             labelText: 'Mapping Status',
@@ -461,8 +481,10 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
                     const SizedBox(width: 10),
                     FilledButton.icon(
                       onPressed: () => _submit(plans),
-                      icon: const Icon(Icons.send_outlined),
-                      label: const Text('Submit'),
+                      icon: Icon(
+                        _isEditMode ? Icons.save_outlined : Icons.send_outlined,
+                      ),
+                      label: Text(_isEditMode ? 'Update' : 'Submit'),
                     ),
                     const SizedBox(width: 10),
                     TextButton.icon(
@@ -478,6 +500,83 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
         },
       ),
     );
+  }
+
+  void _tryPopulateEditValues(AsyncValue<LogisticsUiState> logisticsState) {
+    if (!_isEditMode || _didPopulateEditValues) {
+      return;
+    }
+
+    final data = logisticsState.valueOrNull;
+    if (data == null) {
+      return;
+    }
+
+    final editId = widget.editWorkOrderId!.trim();
+    WorkOrderFlowItem? source;
+    for (final item in data.workOrders) {
+      if (item.woId.trim().toLowerCase() == editId.toLowerCase()) {
+        source = item;
+        break;
+      }
+    }
+
+    _didPopulateEditValues = true;
+
+    if (source == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
+        _placeholder('Work order $editId was not found for edit auto-fill.');
+      });
+      return;
+    }
+
+    final order = source;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _workOrderNumberController.text = order.woId;
+        _enquiryNumberController.text = order.linkedEnquiryNumber.isNotEmpty
+            ? order.linkedEnquiryNumber
+            : order.linkedQuotationRef;
+        _customerController.text = order.customer;
+        _cargoTypeController.text = order.cargo;
+        _remarksController.text = order.internalNotes;
+        _routeNotesController.text = order.route;
+        _pickupController.text = _routeOrigin(order.route);
+        _deliveryController.text = _routeDestination(order.route);
+        _requestedDate = _parseIsoDate(order.serviceStartDate);
+        _plannedDispatchDate = _parseIsoDate(order.serviceStartDate);
+        _plannedDeliveryDate = _parseIsoDate(order.serviceEndDate);
+      });
+    });
+  }
+
+  DateTime? _parseIsoDate(String value) {
+    if (value.trim().isEmpty) {
+      return null;
+    }
+    return DateTime.tryParse(value.trim());
+  }
+
+  String _routeOrigin(String route) {
+    final parts = route.split('->');
+    if (parts.isEmpty) {
+      return route.trim();
+    }
+    return parts.first.trim();
+  }
+
+  String _routeDestination(String route) {
+    final parts = route.split('->');
+    if (parts.length < 2) {
+      return route.trim();
+    }
+    return parts.last.trim();
   }
 
   Widget _threeColumnFields(
@@ -510,9 +609,11 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
   TextFormField _requiredField({
     required TextEditingController controller,
     required String label,
+    bool readOnly = false,
   }) {
     return TextFormField(
       controller: controller,
+      readOnly: readOnly,
       decoration: InputDecoration(labelText: label),
       validator: (value) {
         if (value == null || value.trim().isEmpty) {
@@ -618,9 +719,11 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          selectedPlan == null
-              ? 'Work order submitted. Route template can be mapped later.'
-              : 'Work order submitted from template ${selectedPlan.planName}.',
+          _isEditMode
+              ? 'Work order updated successfully.'
+              : selectedPlan == null
+                  ? 'Work order submitted. Route template can be mapped later.'
+                  : 'Work order submitted from template ${selectedPlan.planName}.',
         ),
       ),
     );

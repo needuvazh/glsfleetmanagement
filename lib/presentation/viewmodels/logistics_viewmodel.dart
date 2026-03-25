@@ -887,34 +887,109 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
     setQuoteStatus(quoteRef, approved ? 'Approved' : 'Pending');
   }
 
-  String createOrderFromQuotation(String quoteRef) {
+  String createWorkOrderJobFile({
+    required String workOrderNumber,
+    required String linkedQuotationRef,
+    required String linkedEnquiryNumber,
+    required String customerPoReference,
+    required String jobFileReference,
+    required String serviceStartDate,
+    required String serviceEndDate,
+    required String internalNotes,
+    required String initialStatus,
+  }) {
     final current = state.valueOrNull;
     if (current == null) {
       return 'Data not loaded.';
     }
 
-    QuotationData? selected;
-    for (final q in current.quotations) {
-      if (q.quoteRef == quoteRef) {
-        selected = q;
+    final woId = workOrderNumber.trim();
+    if (woId.isEmpty) {
+      return 'Work order number is required.';
+    }
+    final duplicateWo = current.workOrders.any(
+      (item) => item.woId.toLowerCase().trim() == woId.toLowerCase(),
+    );
+    if (duplicateWo) {
+      return 'Work order number already exists. Use a unique WO number.';
+    }
+
+    if (linkedQuotationRef.trim().isEmpty) {
+      return 'Linked quotation is required.';
+    }
+    if (linkedEnquiryNumber.trim().isEmpty) {
+      return 'Linked enquiry is required.';
+    }
+    if (customerPoReference.trim().isEmpty) {
+      return 'Customer PO / CWO reference is required.';
+    }
+    if (jobFileReference.trim().isEmpty) {
+      return 'Job file reference is required.';
+    }
+    if (serviceStartDate.trim().isEmpty || serviceEndDate.trim().isEmpty) {
+      return 'Service start and end dates are required.';
+    }
+    final parsedStart = DateTime.tryParse(serviceStartDate.trim());
+    final parsedEnd = DateTime.tryParse(serviceEndDate.trim());
+    if (parsedStart == null || parsedEnd == null) {
+      return 'Service dates are invalid. Use YYYY-MM-DD format.';
+    }
+    if (parsedEnd.isBefore(parsedStart)) {
+      return 'Service end date cannot be before start date.';
+    }
+
+    QuotationData? selectedQuotation;
+    for (final item in current.quotations) {
+      if (item.quoteRef == linkedQuotationRef.trim()) {
+        selectedQuotation = item;
         break;
       }
     }
 
-    if (selected == null) {
-      return 'Quotation not found.';
+    CustomerRequestData? selectedEnquiry;
+    for (final item in current.customerRequests) {
+      if (item.enquiryNumber == linkedEnquiryNumber.trim()) {
+        selectedEnquiry = item;
+        break;
+      }
     }
 
-    if (current.quoteStatusByRef[quoteRef] != 'Approved') {
-      return 'Order creation blocked: customer approval pending.';
+    if (selectedQuotation == null || selectedEnquiry == null) {
+      return 'Linked quotation/enquiry not found.';
+    }
+
+    final customerMatches = selectedQuotation.customer.trim().toLowerCase() ==
+        selectedEnquiry.customerName.trim().toLowerCase();
+    if (!customerMatches) {
+      return 'Linked quotation and enquiry must belong to the same customer.';
+    }
+
+    final quotationAccepted =
+        (current.quoteStatusByRef[linkedQuotationRef.trim()] ?? 'Pending') ==
+            'Approved';
+    if (!quotationAccepted) {
+      return 'WO blocked: linked quotation must be approved.';
+    }
+
+    if (initialStatus != 'Open' && initialStatus != 'Ready for Allocation') {
+      return 'Initial status must be Open or Ready for Allocation.';
     }
 
     final wo = WorkOrderFlowItem(
-      woId: 'ORD-${DateTime.now().millisecondsSinceEpoch % 100000}',
-      customer: selected.customer,
-      route: selected.workDescription,
-      cargo: selected.workDescription,
-      status: 'Created',
+      woId: woId,
+      customer: selectedQuotation.customer,
+      route: selectedEnquiry.route.trim().isEmpty
+          ? '${selectedEnquiry.pickup} -> ${selectedEnquiry.delivery}'
+          : selectedEnquiry.route,
+      cargo: selectedEnquiry.cargoType,
+      status: initialStatus,
+      linkedQuotationRef: linkedQuotationRef.trim(),
+      linkedEnquiryNumber: linkedEnquiryNumber.trim(),
+      customerPoReference: customerPoReference.trim(),
+      jobFileReference: jobFileReference.trim(),
+      serviceStartDate: serviceStartDate.trim(),
+      serviceEndDate: serviceEndDate.trim(),
+      internalNotes: internalNotes.trim(),
     );
 
     state = AsyncData(
@@ -932,7 +1007,71 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
       ),
     );
 
-    return 'Order created from quotation $quoteRef';
+    return 'Work order ${wo.woId} created and ready for allocation flow.';
+  }
+
+  String createOrderFromQuotation(String quoteRef) {
+    final current = state.valueOrNull;
+    if (current == null) {
+      return 'Data not loaded.';
+    }
+
+    CustomerRequestData? linkedEnquiry;
+    for (final item in current.customerRequests) {
+      if (item.status != 'Cancelled') {
+        linkedEnquiry = item;
+        break;
+      }
+    }
+
+    return createWorkOrderJobFile(
+      workOrderNumber: 'WO-${DateTime.now().millisecondsSinceEpoch % 100000}',
+      linkedQuotationRef: quoteRef,
+      linkedEnquiryNumber: linkedEnquiry?.enquiryNumber ?? '',
+      customerPoReference: 'PO-PENDING',
+      jobFileReference: 'JOB-${DateTime.now().millisecondsSinceEpoch % 100000}',
+      serviceStartDate: _formatDate(DateTime.now()),
+      serviceEndDate: _formatDate(DateTime.now().add(const Duration(days: 1))),
+      internalNotes: 'Generated from approved quotation flow.',
+      initialStatus: 'Open',
+    );
+  }
+
+  String duplicateWorkOrder(String workOrderId) {
+    final current = state.valueOrNull;
+    if (current == null) {
+      return 'Data not loaded.';
+    }
+
+    WorkOrderFlowItem? source;
+    for (final item in current.workOrders) {
+      if (item.woId == workOrderId) {
+        source = item;
+        break;
+      }
+    }
+
+    if (source == null) {
+      return 'Work order not found.';
+    }
+
+    final newWoId = _nextDuplicatedWorkOrderId(current.workOrders, source.woId);
+    final copied = source.copyWith(
+      woId: newWoId,
+      status: 'Open',
+      internalNotes: source.internalNotes.trim().isEmpty
+          ? 'Copied from ${source.woId}'
+          : '${source.internalNotes}\nCopied from ${source.woId}',
+    );
+
+    state = AsyncData(
+      current.copyWith(
+        workOrders: [copied, ...current.workOrders],
+        lastUpdated: DateTime.now(),
+      ),
+    );
+
+    return 'Work order copied. New WO created: $newWoId';
   }
 
   String assignFleetDriver({
@@ -965,15 +1104,8 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
     }
 
     final updatedOrders = current.workOrders
-        .map((item) => item.woId == orderId
-            ? WorkOrderFlowItem(
-                woId: item.woId,
-                customer: item.customer,
-                route: item.route,
-                cargo: item.cargo,
-                status: 'Assigned',
-              )
-            : item)
+        .map((item) =>
+            item.woId == orderId ? item.copyWith(status: 'Assigned') : item)
         .toList();
 
     state = AsyncData(
@@ -1430,5 +1562,21 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
 
   String _normalizeToken(String value) {
     return value.toLowerCase().replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
+
+  String _nextDuplicatedWorkOrderId(
+    List<WorkOrderFlowItem> existing,
+    String sourceId,
+  ) {
+    final source = sourceId.trim();
+    var counter = 1;
+    while (true) {
+      final candidate = '$source-COPY-$counter';
+      final taken = existing.any((item) => item.woId == candidate);
+      if (!taken) {
+        return candidate;
+      }
+      counter += 1;
+    }
   }
 }

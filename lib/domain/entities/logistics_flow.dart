@@ -158,6 +158,13 @@ class WorkOrderFlowItem {
     required this.route,
     required this.cargo,
     required this.status,
+    this.linkedQuotationRef = '',
+    this.linkedEnquiryNumber = '',
+    this.customerPoReference = '',
+    this.jobFileReference = '',
+    this.serviceStartDate = '',
+    this.serviceEndDate = '',
+    this.internalNotes = '',
   });
 
   final String woId;
@@ -165,6 +172,43 @@ class WorkOrderFlowItem {
   final String route;
   final String cargo;
   final String status;
+  final String linkedQuotationRef;
+  final String linkedEnquiryNumber;
+  final String customerPoReference;
+  final String jobFileReference;
+  final String serviceStartDate;
+  final String serviceEndDate;
+  final String internalNotes;
+
+  WorkOrderFlowItem copyWith({
+    String? woId,
+    String? customer,
+    String? route,
+    String? cargo,
+    String? status,
+    String? linkedQuotationRef,
+    String? linkedEnquiryNumber,
+    String? customerPoReference,
+    String? jobFileReference,
+    String? serviceStartDate,
+    String? serviceEndDate,
+    String? internalNotes,
+  }) {
+    return WorkOrderFlowItem(
+      woId: woId ?? this.woId,
+      customer: customer ?? this.customer,
+      route: route ?? this.route,
+      cargo: cargo ?? this.cargo,
+      status: status ?? this.status,
+      linkedQuotationRef: linkedQuotationRef ?? this.linkedQuotationRef,
+      linkedEnquiryNumber: linkedEnquiryNumber ?? this.linkedEnquiryNumber,
+      customerPoReference: customerPoReference ?? this.customerPoReference,
+      jobFileReference: jobFileReference ?? this.jobFileReference,
+      serviceStartDate: serviceStartDate ?? this.serviceStartDate,
+      serviceEndDate: serviceEndDate ?? this.serviceEndDate,
+      internalNotes: internalNotes ?? this.internalNotes,
+    );
+  }
 }
 
 class QuotationData {

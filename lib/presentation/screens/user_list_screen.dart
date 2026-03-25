@@ -20,56 +20,87 @@ class UserListScreen extends ConsumerWidget {
     return OpsShell(
       title: 'User Module',
       currentRoute: RoutePaths.userManagement,
-      actions: [
-        TextButton(
-          onPressed: () => context.go(RoutePaths.userForm),
-          child: const Text('Create User'),
-        ),
-      ],
+      actions: const [],
       child: state.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(child: Text(error.toString())),
         data: (data) {
           final users = data.filteredUsers;
-          return ListView(
+          return Padding(
             padding: const EdgeInsets.all(16),
-            children: [
-              OpsSectionCard(
-                title: 'Search Users',
-                subtitle: 'Filter by first name, last name, or phone number',
-                icon: Icons.search_outlined,
-                accent: const Color(0xFF2563EB),
-                child: TextFormField(
-                  initialValue: data.searchQuery,
-                  decoration: const InputDecoration(
-                    labelText: 'Search by name / phone',
-                    prefixIcon: Icon(Icons.search),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                OpsSectionCard(
+                  title: 'User Search',
+                  subtitle: 'Filter by first name, last name, or phone number',
+                  icon: Icons.search_outlined,
+                  accent: const Color(0xFF2563EB),
+                  child: isMobile
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            TextFormField(
+                              initialValue: data.searchQuery,
+                              decoration: const InputDecoration(
+                                labelText: 'Search by name / phone',
+                                prefixIcon: Icon(Icons.search),
+                              ),
+                              onChanged: ref
+                                  .read(userViewModelProvider.notifier)
+                                  .setSearchQuery,
+                            ),
+                            const SizedBox(height: 10),
+                            FilledButton.icon(
+                              onPressed: () => context.go(RoutePaths.userForm),
+                              icon: const Icon(Icons.add),
+                              label: const Text('Create User'),
+                            ),
+                          ],
+                        )
+                      : Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                initialValue: data.searchQuery,
+                                decoration: const InputDecoration(
+                                  labelText: 'Search by name / phone',
+                                  prefixIcon: Icon(Icons.search),
+                                ),
+                                onChanged: ref
+                                    .read(userViewModelProvider.notifier)
+                                    .setSearchQuery,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            FilledButton.icon(
+                              onPressed: () => context.go(RoutePaths.userForm),
+                              icon: const Icon(Icons.add),
+                              label: const Text('Create User'),
+                            ),
+                          ],
+                        ),
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: OpsSectionCard(
+                    title: 'User List',
+                    subtitle:
+                        'Enterprise user directory with list-first workflow',
+                    icon: Icons.manage_accounts_outlined,
+                    accent: const Color(0xFF16A34A),
+                    child: users.isEmpty
+                        ? const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 18),
+                            child: Text('No users found.'),
+                          )
+                        : (isMobile
+                            ? _MobileUserList(users: users)
+                            : _DesktopUserTable(users: users)),
                   ),
-                  onChanged:
-                      ref.read(userViewModelProvider.notifier).setSearchQuery,
                 ),
-              ),
-              const SizedBox(height: 16),
-              OpsSectionCard(
-                title: 'User List',
-                subtitle: 'Enterprise user directory with list-first workflow',
-                icon: Icons.manage_accounts_outlined,
-                accent: const Color(0xFF16A34A),
-                trailing: FilledButton.icon(
-                  onPressed: () => context.go(RoutePaths.userForm),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Create User'),
-                ),
-                child: users.isEmpty
-                    ? const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 18),
-                        child: Text('No users found.'),
-                      )
-                    : (isMobile
-                        ? _MobileUserList(users: users)
-                        : _DesktopUserTable(users: users)),
-              ),
-            ],
+              ],
+            ),
           );
         },
       ),
@@ -84,57 +115,65 @@ class _DesktopUserTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        headingRowColor: WidgetStateProperty.all(const Color(0xFFEFF4FF)),
-        columns: const [
-          DataColumn(label: Text('First Name')),
-          DataColumn(label: Text('Last Name')),
-          DataColumn(label: Text('Role')),
-          DataColumn(label: Text('Phone')),
-          DataColumn(label: Text('Email')),
-          DataColumn(label: Text('Status')),
-          DataColumn(label: Text('Actions')),
-        ],
-        rows: [
-          for (final user in users)
-            DataRow(
-              cells: [
-                DataCell(Text(user.firstName)),
-                DataCell(Text(user.lastName)),
-                DataCell(Text(user.role.label)),
-                DataCell(Text(user.fullPhone)),
-                DataCell(Text(user.email)),
-                DataCell(
-                  OpsPill(
-                    label: user.status.label,
-                    color: user.status == UserStatusType.active
-                        ? const Color(0xFF16A34A)
-                        : const Color(0xFFDC2626),
-                  ),
-                ),
-                DataCell(
-                  Row(
-                    children: [
-                      TextButton(
-                        onPressed: () =>
-                            context.go(RoutePaths.userViewById(user.userId)),
-                        child: const Text('View'),
-                      ),
-                      TextButton(
-                        onPressed: () => context.go(
-                          '${RoutePaths.userForm}?id=${user.userId}',
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minWidth: constraints.maxWidth),
+            child: DataTable(
+              headingRowColor: WidgetStateProperty.all(const Color(0xFFEFF4FF)),
+              columns: const [
+                DataColumn(label: Text('First Name')),
+                DataColumn(label: Text('Last Name')),
+                DataColumn(label: Text('Role')),
+                DataColumn(label: Text('Phone')),
+                DataColumn(label: Text('Email')),
+                DataColumn(label: Text('Status')),
+                DataColumn(label: Text('Actions')),
+              ],
+              rows: [
+                for (final user in users)
+                  DataRow(
+                    cells: [
+                      DataCell(Text(user.firstName)),
+                      DataCell(Text(user.lastName)),
+                      DataCell(Text(user.role.label)),
+                      DataCell(Text(user.fullPhone)),
+                      DataCell(Text(user.email)),
+                      DataCell(
+                        OpsPill(
+                          label: user.status.label,
+                          color: user.status == UserStatusType.active
+                              ? const Color(0xFF16A34A)
+                              : const Color(0xFFDC2626),
                         ),
-                        child: const Text('Edit'),
+                      ),
+                      DataCell(
+                        Wrap(
+                          spacing: 6,
+                          children: [
+                            TextButton(
+                              onPressed: () => context
+                                  .go(RoutePaths.userViewById(user.userId)),
+                              child: const Text('View'),
+                            ),
+                            TextButton(
+                              onPressed: () => context.go(
+                                '${RoutePaths.userForm}?id=${user.userId}',
+                              ),
+                              child: const Text('Edit'),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
-                ),
               ],
             ),
-        ],
-      ),
+          ),
+        );
+      },
     );
   }
 }
