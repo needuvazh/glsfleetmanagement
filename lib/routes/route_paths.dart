@@ -43,7 +43,11 @@ class RoutePaths {
   static const compliance = '/compliance';
   static const tracking = '/tracking';
   static const roleManagement = '/role-management';
+  static const roleForm = '/role-management/form';
+  static const roleView = '/role-management/view/:roleId';
   static const userManagement = '/user-management';
+  static const userForm = '/user-management/form';
+  static const userView = '/user-management/view/:userId';
   static const transportManagement = '/transport-management';
   static const vehicleTypes = '/vehicle-types';
   static const vehicleTypeForm = '/vehicle-types/form';
@@ -57,7 +61,10 @@ class RoutePaths {
 
   static String workOrderDetailById(String workOrderId) =>
       '/work-orders/$workOrderId';
-  static String vendorViewById(String vendorId) => '/vendor-master/view/$vendorId';
+  static String roleViewById(String roleId) => '/role-management/view/$roleId';
+  static String vendorViewById(String vendorId) =>
+      '/vendor-master/view/$vendorId';
+  static String userViewById(String userId) => '/user-management/view/$userId';
 
   static String fleetDetailById(String fleetId) => '/fleet-management/$fleetId';
 

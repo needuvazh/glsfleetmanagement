@@ -34,12 +34,16 @@ import '../presentation/screens/media_gallery_screen.dart';
 import '../presentation/screens/media_preview_screen.dart';
 import '../presentation/screens/ops_dashboard_screen.dart';
 import '../presentation/screens/reports_screen.dart';
-import '../presentation/screens/role_management_screen.dart';
+import '../presentation/screens/role_form_screen.dart';
+import '../presentation/screens/role_list_screen.dart';
 import '../presentation/screens/transport_management_screen.dart';
 import '../presentation/screens/trip_monitoring_screen.dart';
 import '../presentation/screens/trip_execution_screen.dart';
-import '../presentation/screens/user_management_screen.dart';
+import '../presentation/screens/user_form_screen.dart';
+import '../presentation/screens/user_list_screen.dart';
 import '../presentation/screens/user_profile_screen.dart';
+import '../presentation/screens/user_view_screen.dart';
+import '../presentation/screens/role_view_screen.dart';
 import '../presentation/screens/vendor_form_screen.dart';
 import '../presentation/screens/vendor_list_screen.dart';
 import '../presentation/screens/vendor_view_screen.dart';
@@ -229,11 +233,35 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: RoutePaths.roleManagement,
-        builder: (context, state) => const RoleManagementScreen(),
+        builder: (context, state) => const RoleListScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.roleForm,
+        builder: (context, state) => RoleFormScreen(
+          editRoleId: state.uri.queryParameters['id'],
+        ),
+      ),
+      GoRoute(
+        path: RoutePaths.roleView,
+        builder: (context, state) => RoleViewScreen(
+          roleId: state.pathParameters['roleId'] ?? '',
+        ),
       ),
       GoRoute(
         path: RoutePaths.userManagement,
-        builder: (context, state) => const UserManagementScreen(),
+        builder: (context, state) => const UserListScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.userForm,
+        builder: (context, state) => UserFormScreen(
+          editUserId: state.uri.queryParameters['id'],
+        ),
+      ),
+      GoRoute(
+        path: RoutePaths.userView,
+        builder: (context, state) => UserViewScreen(
+          userId: state.pathParameters['userId'] ?? '',
+        ),
       ),
       GoRoute(
         path: RoutePaths.transportManagement,
