@@ -62,7 +62,7 @@ class _ClosureScreenState extends State<ClosureScreen> {
                   ),
                   const SizedBox(height: 10),
                   DropdownButtonFormField<String>(
-                    initialValue: _complianceStatus,
+                    value: _complianceStatus,
                     items: const [
                       DropdownMenuItem(value: 'Passed', child: Text('Compliance Passed')),
                       DropdownMenuItem(value: 'Pending', child: Text('Compliance Pending')),

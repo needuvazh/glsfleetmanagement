@@ -33,7 +33,7 @@ class RoleDocumentMappingScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     DropdownButtonFormField<String>(
-                      initialValue: data.selectedRole,
+                      value: data.selectedRole,
                       decoration: const InputDecoration(
                         labelText: 'Select Role',
                       ),

@@ -123,7 +123,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                       Expanded(
                         flex: 2,
                         child: DropdownButtonFormField<String>(
-                          initialValue: _selectedCountryCode,
+                          value: _selectedCountryCode,
                           decoration:
                               const InputDecoration(labelText: 'Country Code'),
                           items: [
@@ -189,7 +189,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                   ),
                   const SizedBox(height: 10),
                   DropdownButtonFormField<String>(
-                    initialValue: _selectedLicenseType,
+                    value: _selectedLicenseType,
                     decoration:
                         const InputDecoration(labelText: 'License Type'),
                     items: [
@@ -232,7 +232,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                   ),
                   const SizedBox(height: 10),
                   DropdownButtonFormField<String>(
-                    initialValue: _selectedEmploymentStatus,
+                    value: _selectedEmploymentStatus,
                     decoration: const InputDecoration(labelText: 'Status'),
                     items: [
                       for (final status in _employmentStatuses)
@@ -253,7 +253,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                   ),
                   const SizedBox(height: 10),
                   DropdownButtonFormField<String>(
-                    initialValue: _selectedRole,
+                    value: _selectedRole,
                     decoration: const InputDecoration(labelText: 'Role'),
                     items: [
                       for (final role in state.roles)

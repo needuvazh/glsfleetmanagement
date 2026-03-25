@@ -102,7 +102,7 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                initialValue: _journeyPlanId ?? (plans.isEmpty ? null : plans.first.id),
+                value: _journeyPlanId ?? (plans.isEmpty ? null : plans.first.id),
                 decoration: const InputDecoration(
                   labelText: 'Journey Plan',
                   prefixIcon: Icon(Icons.alt_route_outlined),
@@ -128,7 +128,7 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<WorkOrderPriority>(
-                initialValue: _priority,
+                value: _priority,
                 decoration: const InputDecoration(
                   labelText: 'Priority',
                   prefixIcon: Icon(Icons.flag_outlined),

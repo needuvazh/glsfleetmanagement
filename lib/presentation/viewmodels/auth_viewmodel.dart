@@ -3,12 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/auth_state.dart';
 import '../../domain/entities/user.dart';
 
-final authViewModelProvider = StateNotifierProvider<AuthViewModel, AsyncValue<AuthState>>((ref) {
+final authViewModelProvider =
+    StateNotifierProvider<AuthViewModel, AsyncValue<AuthState>>((ref) {
   return AuthViewModel();
 });
 
 class AuthViewModel extends StateNotifier<AsyncValue<AuthState>> {
-  AuthViewModel() : super(const AsyncValue.data(AuthState.initial()));
+  AuthViewModel() : super(AsyncValue.data(AuthState.initial()));
 
   /// Mock login method for demonstration
   Future<void> login({
@@ -86,13 +87,15 @@ class AuthViewModel extends StateNotifier<AsyncValue<AuthState>> {
 
       final user = mockUsers[username];
       if (user == null) {
-        state = AsyncValue.error('Invalid username or password', StackTrace.current);
+        state = AsyncValue.error(
+            'Invalid username or password', StackTrace.current);
         return;
       }
 
       // Mock token generation
       final token = 'mock_token_${DateTime.now().millisecondsSinceEpoch}';
-      final refreshToken = 'mock_refresh_token_${DateTime.now().millisecondsSinceEpoch}';
+      final refreshToken =
+          'mock_refresh_token_${DateTime.now().millisecondsSinceEpoch}';
       final expiresAt = DateTime.now().add(const Duration(hours: 24));
 
       state = AsyncValue.data(
@@ -110,7 +113,7 @@ class AuthViewModel extends StateNotifier<AsyncValue<AuthState>> {
 
   /// Logout method
   void logout() {
-    state = const AsyncValue.data(AuthState.initial());
+    state = AsyncValue.data(AuthState.initial());
   }
 
   /// Check if user is authenticated

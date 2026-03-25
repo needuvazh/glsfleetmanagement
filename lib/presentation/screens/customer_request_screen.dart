@@ -114,7 +114,7 @@ class _CustomerRequestScreenState extends ConsumerState<CustomerRequestScreen> {
                       ),
                       const SizedBox(height: 10),
                       DropdownButtonFormField<String>(
-                        initialValue: _selectedCustomer,
+                        value: _selectedCustomer,
                         decoration:
                             const InputDecoration(labelText: 'Customer Name'),
                         items: [
@@ -142,7 +142,7 @@ class _CustomerRequestScreenState extends ConsumerState<CustomerRequestScreen> {
                       ),
                       const SizedBox(height: 10),
                       DropdownButtonFormField<String>(
-                        initialValue: _cargoType,
+                        value: _cargoType,
                         decoration:
                             const InputDecoration(labelText: 'Cargo Type'),
                         items: const [
@@ -167,7 +167,7 @@ class _CustomerRequestScreenState extends ConsumerState<CustomerRequestScreen> {
                       ),
                       const SizedBox(height: 10),
                       DropdownButtonFormField<String>(
-                        initialValue: _loadType,
+                        value: _loadType,
                         decoration: const InputDecoration(labelText: 'Load Type'),
                         items: const [
                           DropdownMenuItem(value: 'PDO', child: Text('PDO')),

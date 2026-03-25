@@ -128,7 +128,7 @@ class _TransportManagementScreenState
                   ),
                   const SizedBox(height: 10),
                   DropdownButtonFormField<String>(
-                    initialValue: _selectedVehicleType,
+                    value: _selectedVehicleType,
                     decoration: const InputDecoration(labelText: 'Vehicle Type'),
                     items: [
                       for (final type in vehicleTypeItems)
@@ -168,7 +168,7 @@ class _TransportManagementScreenState
                   const SizedBox(height: 12),
                   _sectionTitle(context, 'Ownership'),
                   DropdownButtonFormField<String>(
-                    initialValue: _selectedOwnershipType,
+                    value: _selectedOwnershipType,
                     decoration: const InputDecoration(labelText: 'Ownership Type'),
                     items: [
                       for (final item in _ownershipTypes)
@@ -221,7 +221,7 @@ class _TransportManagementScreenState
                   ),
                   const SizedBox(height: 10),
                   DropdownButtonFormField<String>(
-                    initialValue: _selectedFuelType,
+                    value: _selectedFuelType,
                     decoration: const InputDecoration(labelText: 'Fuel Type'),
                     items: [
                       for (final item in _fuelTypes)
@@ -255,7 +255,7 @@ class _TransportManagementScreenState
                   const SizedBox(height: 12),
                   _sectionTitle(context, 'Status'),
                   DropdownButtonFormField<String>(
-                    initialValue: _selectedStatus,
+                    value: _selectedStatus,
                     decoration: const InputDecoration(labelText: 'Status'),
                     items: [
                       for (final item in _statusOptions)
@@ -269,7 +269,7 @@ class _TransportManagementScreenState
                   ),
                   const SizedBox(height: 10),
                   DropdownButtonFormField<String>(
-                    initialValue: _selectedAvailability,
+                    value: _selectedAvailability,
                     decoration:
                         const InputDecoration(labelText: 'Availability Status'),
                     items: [

@@ -59,7 +59,7 @@ class _JourneyManagementScreenState extends ConsumerState<JourneyManagementScree
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       DropdownButtonFormField<String>(
-                        initialValue: selected?.journeyId,
+                        value: selected?.journeyId,
                         decoration: const InputDecoration(labelText: 'Journey ID / Route'),
                         items: [
                           for (final j in data.journeyMaster)

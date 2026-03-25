@@ -72,7 +72,7 @@ class _DocumentManagementScreenState
                       ),
                       const SizedBox(height: 10),
                       DropdownButtonFormField<String>(
-                        initialValue: _selectedDocumentType,
+                        value: _selectedDocumentType,
                         decoration:
                             const InputDecoration(labelText: 'Document Type'),
                         items: [
@@ -88,7 +88,7 @@ class _DocumentManagementScreenState
                       ),
                       const SizedBox(height: 10),
                       DropdownButtonFormField<String>(
-                        initialValue: _selectedUserRole,
+                        value: _selectedUserRole,
                         decoration:
                             const InputDecoration(labelText: 'User Role'),
                         items: [
@@ -176,7 +176,7 @@ class _DocumentManagementScreenState
                     ),
                     const SizedBox(height: 10),
                     DropdownButtonFormField<String>(
-                      initialValue: data.roleFilter,
+                      value: data.roleFilter,
                       decoration:
                           const InputDecoration(labelText: 'User Role Filter'),
                       items: [

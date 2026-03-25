@@ -99,7 +99,7 @@ class _FeasibilityQuotationScreenState
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       DropdownButtonFormField<int>(
-                        initialValue: _selectedRequestIndex,
+                        value: _selectedRequestIndex,
                         decoration: const InputDecoration(
                           labelText: 'Auto-populate from Customer Request',
                         ),

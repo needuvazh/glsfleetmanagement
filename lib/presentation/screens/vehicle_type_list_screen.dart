@@ -54,7 +54,7 @@ class VehicleTypeListScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 10),
                     DropdownButtonFormField<String>(
-                      initialValue: data.categoryFilter,
+                      value: data.categoryFilter,
                       decoration:
                           const InputDecoration(labelText: 'Category Filter'),
                       items: const [

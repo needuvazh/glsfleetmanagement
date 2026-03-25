@@ -72,7 +72,7 @@ class _WorkOrderFlowScreenState extends ConsumerState<WorkOrderFlowScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     DropdownButtonFormField<String>(
-                      initialValue: _selectedQuoteRef,
+                      value: _selectedQuoteRef,
                       decoration: const InputDecoration(
                         labelText: 'Approved Quotation ID',
                       ),
@@ -143,7 +143,7 @@ class _WorkOrderFlowScreenState extends ConsumerState<WorkOrderFlowScreen> {
                 child: Column(
                   children: [
                     DropdownButtonFormField<String>(
-                      initialValue: _selectedOrderId,
+                      value: _selectedOrderId,
                       decoration: const InputDecoration(labelText: 'Order Number'),
                       items: [
                         for (final item in data.workOrders)
@@ -156,7 +156,7 @@ class _WorkOrderFlowScreenState extends ConsumerState<WorkOrderFlowScreen> {
                     ),
                     const SizedBox(height: 10),
                     DropdownButtonFormField<String>(
-                      initialValue: _selectedVehicleNo,
+                      value: _selectedVehicleNo,
                       decoration: const InputDecoration(labelText: 'Vehicle'),
                       items: [
                         for (final item in data.vehicles)
@@ -170,7 +170,7 @@ class _WorkOrderFlowScreenState extends ConsumerState<WorkOrderFlowScreen> {
                     ),
                     const SizedBox(height: 10),
                     DropdownButtonFormField<String>(
-                      initialValue: _selectedDriverId,
+                      value: _selectedDriverId,
                       decoration: const InputDecoration(labelText: 'Driver'),
                       items: [
                         for (final item in data.drivers)
