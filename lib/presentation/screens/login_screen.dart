@@ -139,9 +139,40 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           ),
         ),
         child: SafeArea(
-          child: isCompact
-              ? _buildMobileLayout(context, textTheme, colorScheme, isMobile)
-              : _buildDesktopLayout(context, textTheme, colorScheme),
+          child: _buildAuthOnlyLayout(
+            context,
+            textTheme,
+            colorScheme,
+            isCompact,
+            isMobile,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAuthOnlyLayout(
+    BuildContext context,
+    TextTheme textTheme,
+    ColorScheme colorScheme,
+    bool isCompact,
+    bool isMobile,
+  ) {
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: SlideTransition(
+        position: _formSlideAnimation,
+        child: Center(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.symmetric(
+              horizontal: isMobile ? 24 : (isCompact ? 40 : 48),
+              vertical: isMobile ? 32 : 48,
+            ),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 460),
+              child: _buildLoginForm(context, textTheme, colorScheme),
+            ),
+          ),
         ),
       ),
     );
@@ -316,6 +347,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          const Center(
+            child: _GLSLogo(isMobile: false),
+          ),
+          const SizedBox(height: 20),
           Text(
             'Welcome back',
             style: textTheme.headlineMedium?.copyWith(
@@ -431,7 +466,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           ),
           const SizedBox(height: 28),
           // Demo credentials
-          _DemoCredentialsSection(colorScheme: colorScheme, textTheme: textTheme),
+          _DemoCredentialsSection(
+              colorScheme: colorScheme, textTheme: textTheme),
         ],
       ),
     );
@@ -446,35 +482,20 @@ class _GLSLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final size = isMobile ? 80.0 : 100.0;
+    final size = isMobile ? 150.0 : 220.0;
+    final width = isMobile ? 150.0 : 320.0;
+    final height = isMobile ? 150.0 : 220.0;
 
-    return Container(
-      width: size + 20,
-      height: size + 20,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: colorScheme.shadow.withOpacity(0.15),
-            blurRadius: 30,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(10),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Image.asset(
-          'assets/images/gls_logo.jpg',
-          width: size,
-          height: size,
-          fit: BoxFit.contain,
-          errorBuilder: (context, error, stackTrace) {
-            return _FallbackLogo(size: size);
-          },
-        ),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: Image.asset(
+        'assets/images/gls_logo.jpg',
+        width: width,
+        height: height,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) {
+          return _FallbackLogo(size: size);
+        },
       ),
     );
   }

@@ -346,7 +346,13 @@ class _SidebarState extends State<_Sidebar> {
   @override
   void initState() {
     super.initState();
-    _expandedMenus = {'Customer', 'User Access', 'Master'};
+    _expandedMenus = {
+      'Customer',
+      'Inspections',
+      'Compliance',
+      'User Access',
+      'Master'
+    };
   }
 
   @override
@@ -364,8 +370,6 @@ class _SidebarState extends State<_Sidebar> {
             'Customer',
             Icons.business_outlined,
             children: [
-              _OpsMenuItem('Customer Management', Icons.business_outlined,
-                  route: RoutePaths.customerManagement),
               _OpsMenuItem('Customer Request', Icons.request_page_outlined,
                   route: RoutePaths.customerRequest),
             ],
@@ -378,19 +382,46 @@ class _SidebarState extends State<_Sidebar> {
               route: RoutePaths.assignments),
           _OpsMenuItem('Fleet Management', Icons.local_shipping_outlined,
               route: RoutePaths.fleetManagement),
-          _OpsMenuItem('Driver Management', Icons.badge_outlined,
+          _OpsMenuItem('Drivers', Icons.badge_outlined,
               route: RoutePaths.driverManagement),
         ],
       ),
       _MenuGroup(
         'SAFETY & COMPLIANCE',
         const [
-          _OpsMenuItem('Compliance & Inspection', Icons.verified_user_outlined,
-              route: RoutePaths.complianceInspection),
+          _OpsMenuItem(
+            'Inspections',
+            Icons.verified_user_outlined,
+            children: [
+              _OpsMenuItem('Inspection List', Icons.list_alt_outlined,
+                  route: RoutePaths.inspections),
+              _OpsMenuItem('Failed Queue', Icons.error_outline,
+                  route: RoutePaths.inspectionFailedQueue),
+              _OpsMenuItem('Calendar / Due', Icons.calendar_month_outlined,
+                  route: RoutePaths.inspectionCalendar),
+              _OpsMenuItem('Checklist Templates', Icons.fact_check_outlined,
+                  route: RoutePaths.inspectionTemplates),
+            ],
+          ),
+          _OpsMenuItem(
+            'Compliance',
+            Icons.shield_outlined,
+            children: [
+              _OpsMenuItem(
+                  'Compliance Dashboard', Icons.space_dashboard_outlined,
+                  route: RoutePaths.complianceDashboard),
+              _OpsMenuItem('Dispatch Readiness', Icons.rule_folder_outlined,
+                  route: RoutePaths.dispatchReadiness),
+            ],
+          ),
+          _OpsMenuItem('Media & Evidence', Icons.perm_media_outlined,
+              route: RoutePaths.mediaGallery),
           _OpsMenuItem('Journey Management', Icons.alt_route_outlined,
               route: RoutePaths.journeyManagement),
           _OpsMenuItem('Trip Monitoring', Icons.map_outlined,
               route: RoutePaths.tripMonitoring),
+          _OpsMenuItem('Alerts', Icons.notification_important_outlined,
+              route: RoutePaths.alerts),
         ],
       ),
       _MenuGroup(
@@ -404,6 +435,8 @@ class _SidebarState extends State<_Sidebar> {
               route: RoutePaths.closure),
           _OpsMenuItem('Invoice', Icons.receipt_long_outlined,
               route: RoutePaths.invoice),
+          _OpsMenuItem('Reports', Icons.bar_chart_outlined,
+              route: RoutePaths.reports),
         ],
       ),
       _MenuGroup(
@@ -431,6 +464,8 @@ class _SidebarState extends State<_Sidebar> {
                   route: RoutePaths.vendorMaster),
               _OpsMenuItem('Document Type', Icons.folder_copy_outlined,
                   route: RoutePaths.documentManagement),
+              _OpsMenuItem('Customer Management', Icons.business_outlined,
+                  route: RoutePaths.customerManagement),
             ],
           ),
         ],

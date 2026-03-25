@@ -97,7 +97,7 @@ class _WorkOrderDetailScreenState extends State<WorkOrderDetailScreen>
                       ),
                       OutlinedButton.icon(
                         onPressed: () =>
-                            context.go(RoutePaths.complianceInspection),
+                            context.go(RoutePaths.inspectionCreate),
                         icon: const Icon(Icons.fact_check_outlined),
                         label: const Text('Create Inspection'),
                       ),
@@ -146,8 +146,7 @@ class _WorkOrderDetailScreenState extends State<WorkOrderDetailScreen>
                 _AssignmentTab(data: _data),
                 _InspectionTab(
                   data: _data,
-                  onOpenInspection: () =>
-                      context.go(RoutePaths.complianceInspection),
+                  onOpenInspection: () => context.go(RoutePaths.inspections),
                 ),
                 _TripTab(data: _data),
                 _DocumentsTab(data: _data),

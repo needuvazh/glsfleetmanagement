@@ -3,23 +3,37 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../presentation/screens/change_password_screen.dart';
+import '../presentation/screens/alerts_screen.dart';
 import '../presentation/screens/assignments_screen.dart';
 import '../presentation/screens/closure_screen.dart';
-import '../presentation/screens/compliance_inspection_screen.dart';
 import '../presentation/screens/customer_management_screen.dart';
 import '../presentation/screens/customer_request_screen.dart';
 import '../presentation/screens/create_work_order_screen.dart';
+import '../presentation/screens/compliance_dashboard_screen.dart';
+import '../presentation/screens/dispatch_readiness_screen.dart';
 import '../presentation/screens/delivery_pod_screen.dart';
 import '../presentation/screens/document_management_screen.dart';
 import '../presentation/screens/document_submission_screen.dart';
+import '../presentation/screens/driver_detail_screen.dart';
 import '../presentation/screens/driver_management_screen.dart';
 import '../presentation/screens/feasibility_quotation_screen.dart';
+import '../presentation/screens/fleet_detail_screen.dart';
 import '../presentation/screens/fleet_management_screen.dart';
 import '../presentation/screens/forgot_password_screen.dart';
 import '../presentation/screens/invoice_screen.dart';
+import '../presentation/screens/inspection_approval_screen.dart';
+import '../presentation/screens/inspection_calendar_screen.dart';
+import '../presentation/screens/inspection_create_screen.dart';
+import '../presentation/screens/inspection_detail_screen.dart';
+import '../presentation/screens/inspection_failed_queue_screen.dart';
+import '../presentation/screens/inspection_list_screen.dart';
+import '../presentation/screens/inspection_template_management_screen.dart';
 import '../presentation/screens/journey_management_screen.dart';
 import '../presentation/screens/login_screen.dart';
+import '../presentation/screens/media_gallery_screen.dart';
+import '../presentation/screens/media_preview_screen.dart';
 import '../presentation/screens/ops_dashboard_screen.dart';
+import '../presentation/screens/reports_screen.dart';
 import '../presentation/screens/role_management_screen.dart';
 import '../presentation/screens/transport_management_screen.dart';
 import '../presentation/screens/trip_monitoring_screen.dart';
@@ -106,12 +120,80 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const FleetManagementScreen(),
       ),
       GoRoute(
+        path: RoutePaths.fleetDetail,
+        builder: (context, state) => FleetDetailScreen(
+          fleetId: state.pathParameters['fleetId'] ?? 'Unknown',
+          initialTab: state.uri.queryParameters['tab'],
+        ),
+      ),
+      GoRoute(
         path: RoutePaths.driverManagement,
         builder: (context, state) => const DriverManagementScreen(),
       ),
       GoRoute(
+        path: RoutePaths.driverDetail,
+        builder: (context, state) => DriverDetailScreen(
+          driverId: state.pathParameters['driverId'] ?? 'Unknown',
+          initialTab: state.uri.queryParameters['tab'],
+        ),
+      ),
+      GoRoute(
+        path: RoutePaths.complianceDashboard,
+        builder: (context, state) => const ComplianceDashboardScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.dispatchReadiness,
+        builder: (context, state) => const DispatchReadinessScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.alerts,
+        builder: (context, state) => const AlertsScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.mediaGallery,
+        builder: (context, state) => const MediaGalleryScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.mediaPreview,
+        builder: (context, state) => MediaPreviewScreen(
+          evidenceId: state.pathParameters['evidenceId'] ?? 'Unknown',
+        ),
+      ),
+      GoRoute(
+        path: RoutePaths.inspections,
+        builder: (context, state) => const InspectionListScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.inspectionCreate,
+        builder: (context, state) => const InspectionCreateScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.inspectionApproval,
+        builder: (context, state) => InspectionApprovalScreen(
+          inspectionId: state.pathParameters['inspectionId'] ?? 'Unknown',
+        ),
+      ),
+      GoRoute(
+        path: RoutePaths.inspectionDetail,
+        builder: (context, state) => InspectionDetailScreen(
+          inspectionId: state.pathParameters['inspectionId'] ?? 'Unknown',
+        ),
+      ),
+      GoRoute(
+        path: RoutePaths.inspectionTemplates,
+        builder: (context, state) => const InspectionTemplateManagementScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.inspectionFailedQueue,
+        builder: (context, state) => const InspectionFailedQueueScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.inspectionCalendar,
+        builder: (context, state) => const InspectionCalendarScreen(),
+      ),
+      GoRoute(
         path: RoutePaths.complianceInspection,
-        builder: (context, state) => const ComplianceInspectionScreen(),
+        redirect: (context, state) => RoutePaths.inspections,
       ),
       GoRoute(
         path: RoutePaths.journeyManagement,
@@ -140,6 +222,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: RoutePaths.invoice,
         builder: (context, state) => const InvoiceScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.reports,
+        builder: (context, state) => const ReportsScreen(),
       ),
       GoRoute(
         path: RoutePaths.roleManagement,
@@ -193,12 +279,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         redirect: (context, state) => RoutePaths.journeyManagement,
       ),
       GoRoute(
-        path: RoutePaths.alerts,
-        redirect: (context, state) => RoutePaths.tripExecution,
-      ),
-      GoRoute(
         path: RoutePaths.compliance,
-        redirect: (context, state) => RoutePaths.complianceInspection,
+        redirect: (context, state) => RoutePaths.complianceDashboard,
       ),
       GoRoute(
         path: RoutePaths.tracking,

@@ -175,6 +175,90 @@ class FleetViewModel extends AsyncNotifier<FleetUiState> {
     state = AsyncData(current.copyWith(filter: filter));
   }
 
+  String addFleet({
+    required String fleetNumber,
+    required String type,
+    required String driver,
+    required FleetStatus status,
+    required int fuelLevel,
+    required int odometerKm,
+  }) {
+    final current = state.valueOrNull;
+    if (current == null) {
+      return 'Fleet data is still loading.';
+    }
+
+    final normalizedNumber = fleetNumber.trim();
+    if (normalizedNumber.isEmpty) {
+      return 'Fleet number is required.';
+    }
+    final exists =
+        current.items.any((item) => item.vehicleNumber == normalizedNumber);
+    if (exists) {
+      return 'Fleet number already exists.';
+    }
+
+    final next = Fleet(
+      id: normalizedNumber,
+      vehicleNumber: normalizedNumber,
+      type: type.trim().isEmpty ? 'Truck' : type.trim(),
+      status: status,
+      driver: driver.trim().isEmpty ? 'Unassigned' : driver.trim(),
+      fuelLevel: fuelLevel.clamp(0, 100),
+      odometerKm: odometerKm < 0 ? 0 : odometerKm,
+      lastServiceDate: DateTime.now(),
+      latitude: 0,
+      longitude: 0,
+    );
+
+    state = AsyncData(
+      current.copyWith(
+        items: [next, ...current.items],
+        lastUpdated: DateTime.now(),
+      ),
+    );
+    return 'Fleet $normalizedNumber added.';
+  }
+
+  String updateFleet({
+    required String fleetNumber,
+    required String type,
+    required String driver,
+    required FleetStatus status,
+    required int fuelLevel,
+    required int odometerKm,
+  }) {
+    final current = state.valueOrNull;
+    if (current == null) {
+      return 'Fleet data is still loading.';
+    }
+
+    final index =
+        current.items.indexWhere((item) => item.vehicleNumber == fleetNumber);
+    if (index < 0) {
+      return 'Fleet not found.';
+    }
+
+    final updated = current.items[index].copyWith(
+      type: type.trim().isEmpty ? current.items[index].type : type.trim(),
+      driver: driver.trim().isEmpty ? 'Unassigned' : driver.trim(),
+      status: status,
+      fuelLevel: fuelLevel.clamp(0, 100),
+      odometerKm: odometerKm < 0 ? 0 : odometerKm,
+    );
+
+    final nextItems = [...current.items];
+    nextItems[index] = updated;
+
+    state = AsyncData(
+      current.copyWith(
+        items: nextItems,
+        lastUpdated: DateTime.now(),
+      ),
+    );
+    return 'Fleet ${updated.vehicleNumber} updated.';
+  }
+
   void _startMockRealtimeUpdates() {
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 8), (_) {

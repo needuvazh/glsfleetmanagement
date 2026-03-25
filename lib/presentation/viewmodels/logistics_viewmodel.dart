@@ -84,11 +84,13 @@ class LogisticsUiState {
   final double profit;
   final DateTime lastUpdated;
 
-  int get availableVehicleCount =>
-      vehicles.where((item) => item.status.toLowerCase().contains('available')).length;
+  int get availableVehicleCount => vehicles
+      .where((item) => item.status.toLowerCase().contains('available'))
+      .length;
 
-  int get availableDriverCount =>
-      drivers.where((item) => item.status.toLowerCase().contains('available')).length;
+  int get availableDriverCount => drivers
+      .where((item) => item.status.toLowerCase().contains('available'))
+      .length;
 
   DashboardSnapshot get dashboard {
     final activeTrips =
@@ -174,7 +176,8 @@ class LogisticsUiState {
       }
     }
     if (vehicleDocStatus == 'Expired' || driverDocStatus == 'Expired') {
-      alerts.add('Compliance block: expired vehicle/driver documents detected.');
+      alerts
+          .add('Compliance block: expired vehicle/driver documents detected.');
     }
     if (alerts.isEmpty) {
       alerts.add('No critical alerts now.');
@@ -339,7 +342,8 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
               FleetVehicleData(
                 vehicleNo: item.vehicleNumber,
                 type: item.vehicleType,
-                capacity: '${item.capacity.toStringAsFixed(0)} ${item.capacityUnit}',
+                capacity:
+                    '${item.capacity.toStringAsFixed(0)} ${item.capacityUnit}',
                 fuelType: item.fuelType,
                 ivmsDeviceId: 'IVMS-${item.vehicleNumber}',
                 status: item.availabilityStatus,
@@ -351,8 +355,8 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
             .where((item) => item.role.toLowerCase().contains('driver'))
             .isNotEmpty
         ? [
-            for (final item
-                in access.users.where((u) => u.role.toLowerCase().contains('driver')))
+            for (final item in access.users
+                .where((u) => u.role.toLowerCase().contains('driver')))
               DriverData(
                 driverId: item.userId,
                 name: item.fullName,
@@ -367,7 +371,8 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
         : fallbackDrivers;
 
     final quoteStatusByRef = {
-      for (final q in quotations) q.quoteRef: q.approved ? 'Approved' : 'Pending',
+      for (final q in quotations)
+        q.quoteRef: q.approved ? 'Approved' : 'Pending',
     };
 
     return LogisticsUiState(
@@ -436,7 +441,6 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
       return 'Data not loaded.';
     }
 
-    final distance = _firstNumber(request.pickup + request.delivery) * 0;
     final parsedDistance =
         _firstNumber(request.weightVolume).toDouble() + 120; // mock baseline
     final estimatedTravelHours = (parsedDistance / 45).clamp(2, 18).toDouble();
@@ -478,7 +482,8 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
     if (current == null) {
       return;
     }
-    state = AsyncData(current.copyWith(managerOverride: value, lastUpdated: DateTime.now()));
+    state = AsyncData(
+        current.copyWith(managerOverride: value, lastUpdated: DateTime.now()));
   }
 
   String addQuotation({
@@ -552,7 +557,9 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
       ..[quoteRef] = status;
 
     final updated = current.quotations
-        .map((q) => q.quoteRef == quoteRef ? q.copyWith(approved: status == 'Approved') : q)
+        .map((q) => q.quoteRef == quoteRef
+            ? q.copyWith(approved: status == 'Approved')
+            : q)
         .toList();
 
     state = AsyncData(current.copyWith(
@@ -636,8 +643,7 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
     }
     final isPdoClient = _pdoClients.contains(clientName);
 
-    if (isPdoClient &&
-        (vehicleStatus != 'Valid' || driverStatus != 'Valid')) {
+    if (isPdoClient && (vehicleStatus != 'Valid' || driverStatus != 'Valid')) {
       return 'Assignment blocked: PDO client requires strict compliance (Valid documents only).';
     }
 
@@ -646,13 +652,15 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
     }
 
     final updatedOrders = current.workOrders
-        .map((item) => item.woId == orderId ? WorkOrderFlowItem(
-          woId: item.woId,
-          customer: item.customer,
-          route: item.route,
-          cargo: item.cargo,
-          status: 'Assigned',
-        ) : item)
+        .map((item) => item.woId == orderId
+            ? WorkOrderFlowItem(
+                woId: item.woId,
+                customer: item.customer,
+                route: item.route,
+                cargo: item.cargo,
+                status: 'Assigned',
+              )
+            : item)
         .toList();
 
     state = AsyncData(
@@ -665,14 +673,110 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
         driverDocStatus: driverStatus,
         complianceChecklist: {
           ...current.complianceChecklist,
-          'vehicleDocsValid': vehicleStatus == 'Valid' || vehicleStatus == 'Expiring Soon',
-          'driverDocsValid': driverStatus == 'Valid' || driverStatus == 'Expiring Soon',
+          'vehicleDocsValid':
+              vehicleStatus == 'Valid' || vehicleStatus == 'Expiring Soon',
+          'driverDocsValid':
+              driverStatus == 'Valid' || driverStatus == 'Expiring Soon',
         },
         timelineStep: max(current.timelineStep, 4),
         lastUpdated: DateTime.now(),
       ),
     );
     return 'Fleet and driver assigned.';
+  }
+
+  String addDriver({
+    required String driverCode,
+    required String name,
+    required String phone,
+    required String licenseNo,
+    required String licenseExpiry,
+    required String availability,
+  }) {
+    final current = state.valueOrNull;
+    if (current == null) {
+      return 'Data not loaded.';
+    }
+
+    final code = driverCode.trim();
+    if (code.isEmpty) {
+      return 'Driver code is required.';
+    }
+    final exists = current.drivers.any((d) => d.driverId == code);
+    if (exists) {
+      return 'Driver code already exists.';
+    }
+
+    final next = DriverData(
+      driverId: code,
+      name: name.trim().isEmpty ? 'New Driver' : name.trim(),
+      licenseNo: licenseNo.trim().isEmpty ? 'N/A' : licenseNo.trim(),
+      expiryDate: licenseExpiry.trim().isEmpty
+          ? DateTime.now()
+              .add(const Duration(days: 180))
+              .toIso8601String()
+              .split('T')
+              .first
+          : licenseExpiry.trim(),
+      phone: phone.trim().isEmpty ? '-' : phone.trim(),
+      experience: 0,
+      dfmsDeviceId: 'DFMS-${code.replaceAll(' ', '')}',
+      status: availability.trim().isEmpty ? 'Available' : availability.trim(),
+    );
+
+    state = AsyncData(
+      current.copyWith(
+        drivers: [next, ...current.drivers],
+        lastUpdated: DateTime.now(),
+      ),
+    );
+    return 'Driver $code added.';
+  }
+
+  String updateDriver({
+    required String driverCode,
+    required String name,
+    required String phone,
+    required String licenseNo,
+    required String licenseExpiry,
+    required String availability,
+  }) {
+    final current = state.valueOrNull;
+    if (current == null) {
+      return 'Data not loaded.';
+    }
+
+    final idx = current.drivers.indexWhere((d) => d.driverId == driverCode);
+    if (idx < 0) {
+      return 'Driver not found.';
+    }
+
+    final existing = current.drivers[idx];
+    final updated = DriverData(
+      driverId: existing.driverId,
+      name: name.trim().isEmpty ? existing.name : name.trim(),
+      licenseNo:
+          licenseNo.trim().isEmpty ? existing.licenseNo : licenseNo.trim(),
+      expiryDate: licenseExpiry.trim().isEmpty
+          ? existing.expiryDate
+          : licenseExpiry.trim(),
+      phone: phone.trim().isEmpty ? existing.phone : phone.trim(),
+      experience: existing.experience,
+      dfmsDeviceId: existing.dfmsDeviceId,
+      status:
+          availability.trim().isEmpty ? existing.status : availability.trim(),
+    );
+
+    final nextDrivers = [...current.drivers];
+    nextDrivers[idx] = updated;
+
+    state = AsyncData(
+      current.copyWith(
+        drivers: nextDrivers,
+        lastUpdated: DateTime.now(),
+      ),
+    );
+    return 'Driver ${existing.driverId} updated.';
   }
 
   void updateChecklist(String key, bool value) {
@@ -701,7 +805,9 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
       timelineStep: max(current.timelineStep, 7),
       lastUpdated: DateTime.now(),
     ));
-    return passed ? 'Pre-trip inspection passed.' : 'Pre-trip inspection failed.';
+    return passed
+        ? 'Pre-trip inspection passed.'
+        : 'Pre-trip inspection failed.';
   }
 
   void setJourney(String? journeyId) {
@@ -734,7 +840,8 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
     }
     state = AsyncData(current.copyWith(
       journeyApproved: approved,
-      timelineStep: approved ? max(current.timelineStep, 6) : current.timelineStep,
+      timelineStep:
+          approved ? max(current.timelineStep, 6) : current.timelineStep,
       lastUpdated: DateTime.now(),
     ));
   }
@@ -745,7 +852,8 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
       return 'Data not loaded.';
     }
     if (!current.canStartTrip) {
-      if (current.vehicleDocStatus == 'Expired' || current.driverDocStatus == 'Expired') {
+      if (current.vehicleDocStatus == 'Expired' ||
+          current.driverDocStatus == 'Expired') {
         return 'Trip blocked: vehicle/driver documents expired.';
       }
       if (!current.journeyApproved) {

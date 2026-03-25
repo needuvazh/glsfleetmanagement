@@ -3,8 +3,10 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/entities/inspection.dart';
 import '../../domain/entities/logistics_flow.dart';
 import '../../routes/route_paths.dart';
+import '../viewmodels/inspection_viewmodel.dart';
 import '../viewmodels/logistics_viewmodel.dart';
 import '../widgets/ops_shell.dart';
 import '../widgets/ops_ui.dart';
@@ -15,6 +17,7 @@ class OpsDashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(logisticsViewModelProvider);
+    final inspectionState = ref.watch(inspectionViewModelProvider);
 
     return OpsShell(
       title: 'Dashboard',
@@ -26,6 +29,22 @@ class OpsDashboardScreen extends ConsumerWidget {
           final dashboard = data.dashboard;
           final width = MediaQuery.sizeOf(context).width;
           final isMobile = width < 800;
+          final inspections = inspectionState.items;
+          final now = DateTime.now();
+
+          final failedInspections = inspections
+              .where((item) => item.overallResult == InspectionResult.failed)
+              .length;
+          final overdueInspections = inspections.where((item) {
+            final due = item.nextInspectionDate ??
+                item.inspectedAt.add(const Duration(days: 30));
+            return due.isBefore(DateTime(now.year, now.month, now.day));
+          }).length;
+          final dispatchBlocked =
+              inspections.where((item) => item.dispatchBlocked).length;
+          final delayedTrips = data.workOrders
+              .where((item) => item.status.toLowerCase().contains('delay'))
+              .length;
 
           return RefreshIndicator(
             onRefresh: ref.read(logisticsViewModelProvider.notifier).refresh,
@@ -49,16 +68,20 @@ class OpsDashboardScreen extends ConsumerWidget {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(child: _ActiveOrdersCard(orders: data.workOrders)),
+                      Expanded(
+                          child: _ActiveOrdersCard(orders: data.workOrders)),
                       const SizedBox(width: 16),
-                      Expanded(child: _RoutePerformanceCard(journeys: data.journeyMaster)),
+                      Expanded(
+                          child: _RoutePerformanceCard(
+                              journeys: data.journeyMaster)),
                     ],
                   ),
                 const SizedBox(height: 16),
                 if (isMobile)
                   Column(
                     children: [
-                      _ActiveFleetTable(vehicles: data.vehicles, ivms: data.ivms),
+                      _ActiveFleetTable(
+                          vehicles: data.vehicles, ivms: data.ivms),
                       const SizedBox(height: 16),
                       _WeeklyTripCard(ivms: data.ivms),
                       const SizedBox(height: 16),
@@ -70,7 +93,8 @@ class OpsDashboardScreen extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
-                        child: _ActiveFleetTable(vehicles: data.vehicles, ivms: data.ivms),
+                        child: _ActiveFleetTable(
+                            vehicles: data.vehicles, ivms: data.ivms),
                       ),
                       const SizedBox(width: 16),
                       Expanded(child: _WeeklyTripCard(ivms: data.ivms)),
@@ -91,9 +115,18 @@ class OpsDashboardScreen extends ConsumerWidget {
                     children: [
                       Expanded(child: _ComplianceCard(state: data)),
                       const SizedBox(width: 16),
-                      Expanded(child: _SmartAlertsCard(alerts: data.executionAlerts)),
+                      Expanded(
+                          child:
+                              _SmartAlertsCard(alerts: data.executionAlerts)),
                     ],
                   ),
+                const SizedBox(height: 16),
+                _CriticalAlertsDashboardWidget(
+                  failedInspections: failedInspections,
+                  overdueInspections: overdueInspections,
+                  dispatchBlockedItems: dispatchBlocked,
+                  delayedTrips: delayedTrips,
+                ),
                 const SizedBox(height: 16),
                 _FleetStatusCard(vehicles: data.vehicles),
               ],
@@ -188,7 +221,8 @@ class _KpiBand extends StatelessWidget {
         final width = constraints.maxWidth;
         final crossAxisCount = width >= 1100 ? 4 : (width >= 800 ? 2 : 1);
         final gap = 16.0;
-        final itemWidth = (width - ((crossAxisCount - 1) * gap)) / crossAxisCount;
+        final itemWidth =
+            (width - ((crossAxisCount - 1) * gap)) / crossAxisCount;
         const itemHeight = 140.0;
         final childAspectRatio = itemWidth / itemHeight;
 
@@ -320,7 +354,8 @@ class _PipelineCard extends StatelessWidget {
                   const SizedBox(height: 3),
                   Text(
                     '${stage.$2}',
-                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w800, fontSize: 18),
                   ),
                 ],
               ),
@@ -391,7 +426,15 @@ class _WeeklyTripCard extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 6),
-                          Text(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i]),
+                          Text([
+                            'Mon',
+                            'Tue',
+                            'Wed',
+                            'Thu',
+                            'Fri',
+                            'Sat',
+                            'Sun'
+                          ][i]),
                         ],
                       ),
                     ),
@@ -417,8 +460,11 @@ class _WeeklyTripCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
-          Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+          Text(title,
+              style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+          Text(value,
+              style:
+                  const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
         ],
       ),
     );
@@ -432,9 +478,11 @@ class _FleetStatusCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final onTrip = vehicles.where((e) => e.status.toLowerCase().contains('trip')).length;
-    final available =
-        vehicles.where((e) => e.status.toLowerCase().contains('available')).length;
+    final onTrip =
+        vehicles.where((e) => e.status.toLowerCase().contains('trip')).length;
+    final available = vehicles
+        .where((e) => e.status.toLowerCase().contains('available'))
+        .length;
     final maintenance =
         vehicles.where((e) => e.status.toLowerCase().contains('maint')).length;
     final total = max(1, vehicles.length);
@@ -495,7 +543,10 @@ class _FleetStatusCard extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 5),
       child: Row(
         children: [
-          Container(width: 10, height: 10, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+          Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
           const SizedBox(width: 8),
           Expanded(child: Text(label)),
           Text('$value'),
@@ -521,15 +572,25 @@ class _ActiveFleetTable extends StatelessWidget {
       icon: Icons.table_chart_outlined,
       accent: const Color(0xFF2563EB),
       child: rows.isEmpty
-          ? const SizedBox(height: 120, child: Center(child: Text('No fleet records')))
+          ? const SizedBox(
+              height: 120, child: Center(child: Text('No fleet records')))
           : Column(
               children: [
                 Row(
                   children: const [
-                    Expanded(child: Text('Fleet', style: TextStyle(fontWeight: FontWeight.w700))),
-                    Expanded(child: Text('Type', style: TextStyle(fontWeight: FontWeight.w700))),
-                    Expanded(child: Text('Status', style: TextStyle(fontWeight: FontWeight.w700))),
-                    SizedBox(width: 64, child: Text('Speed', style: TextStyle(fontWeight: FontWeight.w700))),
+                    Expanded(
+                        child: Text('Fleet',
+                            style: TextStyle(fontWeight: FontWeight.w700))),
+                    Expanded(
+                        child: Text('Type',
+                            style: TextStyle(fontWeight: FontWeight.w700))),
+                    Expanded(
+                        child: Text('Status',
+                            style: TextStyle(fontWeight: FontWeight.w700))),
+                    SizedBox(
+                        width: 64,
+                        child: Text('Speed',
+                            style: TextStyle(fontWeight: FontWeight.w700))),
                   ],
                 ),
                 const SizedBox(height: 6),
@@ -539,7 +600,9 @@ class _ActiveFleetTable extends StatelessWidget {
                   Row(
                     children: [
                       Expanded(child: Text(rows[i].vehicleNo)),
-                      Expanded(child: Text(_hardcodedVehicleClass(rows[i].vehicleNo))),
+                      Expanded(
+                          child:
+                              Text(_hardcodedVehicleClass(rows[i].vehicleNo))),
                       Expanded(child: Text(rows[i].status)),
                       SizedBox(
                         width: 64,
@@ -604,7 +667,8 @@ class _ComplianceCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _progressRow('JMP Compliance', percent / 100, const Color(0xFF16A34A)),
+          _progressRow(
+              'JMP Compliance', percent / 100, const Color(0xFF16A34A)),
           _progressRow('IVMS / DFMS Coverage', 0.88, const Color(0xFF2563EB)),
           _progressRow('License Validity', 0.95, const Color(0xFF10B981)),
           _progressRow('PDO SP-2000', 0.76, const Color(0xFFD97706)),
@@ -697,6 +761,98 @@ class _SmartAlertsCard extends StatelessWidget {
   }
 }
 
+class _CriticalAlertsDashboardWidget extends StatelessWidget {
+  const _CriticalAlertsDashboardWidget({
+    required this.failedInspections,
+    required this.overdueInspections,
+    required this.dispatchBlockedItems,
+    required this.delayedTrips,
+  });
+
+  final int failedInspections;
+  final int overdueInspections;
+  final int dispatchBlockedItems;
+  final int delayedTrips;
+
+  @override
+  Widget build(BuildContext context) {
+    final metrics = [
+      _SummaryMetric(
+        title: 'Failed Inspections',
+        value: '$failedInspections',
+        subtitle: 'Immediate review required',
+        icon: Icons.report_problem_outlined,
+        color: const Color(0xFFB91C1C),
+      ),
+      _SummaryMetric(
+        title: 'Overdue Inspections',
+        value: '$overdueInspections',
+        subtitle: 'Due dates exceeded',
+        icon: Icons.event_busy_outlined,
+        color: const Color(0xFFD97706),
+      ),
+      _SummaryMetric(
+        title: 'Dispatch Blocked',
+        value: '$dispatchBlockedItems',
+        subtitle: 'Critical compliance blocks',
+        icon: Icons.block_outlined,
+        color: const Color(0xFFB91C1C),
+      ),
+      _SummaryMetric(
+        title: 'Delayed Trips',
+        value: '$delayedTrips',
+        subtitle: 'Active delay exceptions',
+        icon: Icons.timer_outlined,
+        color: const Color(0xFF7C3AED),
+      ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final crossAxisCount = width >= 1100 ? 4 : (width >= 800 ? 2 : 1);
+        final gap = 16.0;
+        final itemWidth =
+            (width - ((crossAxisCount - 1) * gap)) / crossAxisCount;
+        const itemHeight = 130.0;
+        final childAspectRatio = itemWidth / itemHeight;
+
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Critical Alerts',
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 10),
+                GridView.builder(
+                  itemCount: metrics.length,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: crossAxisCount,
+                    crossAxisSpacing: gap,
+                    mainAxisSpacing: gap,
+                    childAspectRatio: childAspectRatio,
+                  ),
+                  itemBuilder: (context, index) =>
+                      _SummaryCard(metric: metrics[index]),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
 class _ActiveOrdersCard extends StatelessWidget {
   const _ActiveOrdersCard({required this.orders});
 
@@ -712,7 +868,8 @@ class _ActiveOrdersCard extends StatelessWidget {
       icon: Icons.assignment_outlined,
       accent: const Color(0xFF2563EB),
       child: items.isEmpty
-          ? const SizedBox(height: 120, child: Center(child: Text('No work orders')))
+          ? const SizedBox(
+              height: 120, child: Center(child: Text('No work orders')))
           : Column(
               children: [
                 for (int i = 0; i < items.length; i++) ...[
@@ -732,7 +889,8 @@ class _ActiveOrdersCard extends StatelessWidget {
                             Expanded(
                               child: Text(
                                 items[i].woId,
-                                style: const TextStyle(fontWeight: FontWeight.w700),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w700),
                               ),
                             ),
                             Text(items[i].status),
@@ -850,7 +1008,8 @@ class _LiveMapCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(ivms[i].vehicleId, style: const TextStyle(fontSize: 10)),
+                    Text(ivms[i].vehicleId,
+                        style: const TextStyle(fontSize: 10)),
                   ],
                 ),
               ),
@@ -912,7 +1071,10 @@ class _MapLegend extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Container(width: 10, height: 10, decoration: BoxDecoration(shape: BoxShape.circle, color: color)),
+        Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(shape: BoxShape.circle, color: color)),
         const SizedBox(width: 4),
         Text(label, style: const TextStyle(fontSize: 11)),
       ],
@@ -970,7 +1132,9 @@ class _AiAssistantCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+          Text(title,
+              style:
+                  const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
           const SizedBox(height: 3),
           Text(message),
         ],
