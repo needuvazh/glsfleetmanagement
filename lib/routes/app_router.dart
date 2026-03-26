@@ -24,7 +24,8 @@ import '../presentation/screens/document_management_screen.dart';
 import '../presentation/screens/document_submission_screen.dart';
 import '../presentation/screens/driver_detail_screen.dart';
 import '../presentation/screens/driver_management_screen.dart';
-import '../presentation/screens/feasibility_quotation_screen.dart';
+import '../presentation/screens/feasibility_review_detail_screen.dart';
+import '../presentation/screens/feasibility_review_list_screen.dart';
 import '../presentation/screens/fleet_detail_screen.dart';
 import '../presentation/screens/fleet_management_screen.dart';
 import '../presentation/screens/forgot_password_screen.dart';
@@ -135,8 +136,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const EnquiryDetailsScreen(),
       ),
       GoRoute(
-        path: RoutePaths.feasibilityQuotation,
-        builder: (context, state) => const FeasibilityQuotationScreen(),
+        path: RoutePaths.feasibilityReview,
+        builder: (context, state) => const FeasibilityReviewListScreen(),
+        routes: [
+          GoRoute(
+            path: ':enquiryNumber',
+            builder: (context, state) => FeasibilityReviewDetailScreen(
+              enquiryNumber: state.pathParameters['enquiryNumber']!,
+            ),
+          ),
+        ],
       ),
       GoRoute(
         path: RoutePaths.workOrderFlow,

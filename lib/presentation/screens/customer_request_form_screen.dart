@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../domain/cargo_model.dart';
+import '../../domain/entities/customer.dart';
 import '../../domain/entities/logistics_flow.dart';
 import '../../domain/route_model.dart';
 import '../../routes/route_paths.dart';
 import '../viewmodels/cargo_viewmodel.dart';
+import '../viewmodels/customer_viewmodel.dart';
 import '../viewmodels/logistics_viewmodel.dart';
 import '../viewmodels/route_viewmodel.dart';
 import '../widgets/ops_shell.dart';
@@ -22,22 +24,30 @@ class CustomerRequestFormScreen extends ConsumerStatefulWidget {
       _CustomerRequestFormScreenState();
 }
 
-class _CustomerRequestFormScreenState
-    extends ConsumerState<CustomerRequestFormScreen> {
+class _CustomerRequestFormScreenState extends ConsumerState<CustomerRequestFormScreen> {
   final _formKey = GlobalKey<FormState>();
 
+  // Basic Request Info
   final _requestSource = TextEditingController(text: 'Phone');
-  final _customerName = TextEditingController();
-  final _requestType = TextEditingController(text: 'Transport Request');
-  final _emailOrReference = TextEditingController();
+  String? _selectedCustomerId;
+  final _customerName = TextEditingController(); // Fallback if no master
   final _contact = TextEditingController();
+  final _emailOrReference = TextEditingController();
+
+  // Transport Requirement
+  String? _selectedCargoCode;
   final _cargoType = TextEditingController();
-  final _weightVolume = TextEditingController();
+  String _pdoSpec = 'Non-PDO';
   final _pickup = TextEditingController();
   final _delivery = TextEditingController();
-  final _notes = TextEditingController();
   String? _selectedRouteId;
-  String? _selectedCargoCode;
+  final _quantity = TextEditingController();
+  final _weightVolume = TextEditingController();
+  final _dimensions = TextEditingController();
+  DateTime? _tentativeDispatchDate;
+
+  // Notes
+  final _notes = TextEditingController();
 
   DateTime _requestDate = DateTime.now();
   bool _hydrated = false;
@@ -48,13 +58,14 @@ class _CustomerRequestFormScreenState
   void dispose() {
     _requestSource.dispose();
     _customerName.dispose();
-    _requestType.dispose();
-    _emailOrReference.dispose();
     _contact.dispose();
+    _emailOrReference.dispose();
     _cargoType.dispose();
-    _weightVolume.dispose();
     _pickup.dispose();
     _delivery.dispose();
+    _quantity.dispose();
+    _weightVolume.dispose();
+    _dimensions.dispose();
     _notes.dispose();
     super.dispose();
   }
@@ -64,6 +75,7 @@ class _CustomerRequestFormScreenState
     final state = ref.watch(logisticsViewModelProvider);
     final routeData = ref.watch(routeViewModelProvider).valueOrNull;
     final cargoData = ref.watch(cargoViewModelProvider).valueOrNull;
+    final customerData = ref.watch(customerViewModelProvider).customers;
 
     return OpsShell(
       title: _isEdit ? 'Edit Enquiry' : 'Add New Enquiry',
@@ -71,7 +83,7 @@ class _CustomerRequestFormScreenState
       actions: [
         TextButton(
           onPressed: () => context.go(RoutePaths.customerRequest),
-          child: const Text('Back to Register'),
+          child: const Text('Cancel / Back'),
         ),
       ],
       child: state.when(
@@ -81,219 +93,263 @@ class _CustomerRequestFormScreenState
           final selectableCargo = (cargoData?.items ?? const <CargoModel>[])
               .where((item) => item.isSelectable)
               .toList();
+          
           final source = _findEditingEnquiry(data.customerRequests);
           if (_isEdit && source == null) {
             return const Center(child: Text('Enquiry not found for edit.'));
           }
           if (!_hydrated && source != null) {
-            _hydrate(source);
+            _hydrate(source, customerData);
           }
 
           CargoModel? selectedCargo;
           if (_selectedCargoCode != null) {
-            selectedCargo = ref
-                .read(cargoViewModelProvider.notifier)
-                .findByCode(_selectedCargoCode);
-          }
-          selectedCargo ??= ref
-              .read(cargoViewModelProvider.notifier)
-              .findByName(_cargoType.text);
-          if (selectedCargo != null) {
-            _selectedCargoCode = selectedCargo.cargoCode;
-            _cargoType.text = selectedCargo.cargoName;
+            selectedCargo = ref.read(cargoViewModelProvider.notifier).findByCode(_selectedCargoCode);
           }
 
           final cargoDropdownItems = <CargoModel>[...selectableCargo];
-          if (_isEdit &&
-              selectedCargo != null &&
-              !cargoDropdownItems.any(
-                (entry) => entry.cargoCode == selectedCargo?.cargoCode,
-              )) {
+          if (_isEdit && selectedCargo != null && !cargoDropdownItems.any((entry) => entry.cargoCode == selectedCargo?.cargoCode)) {
             cargoDropdownItems.add(selectedCargo);
           }
+
+          final activeCustomers = customerData.where((c) => c.status == 'Active').toList();
 
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              OpsSectionCard(
-                title: _isEdit ? 'Edit Enquiry Form' : 'Add New Enquiry Form',
-                subtitle:
-                    'Complete enquiry fields and save. Edit opens auto-populated values.',
-                icon: _isEdit ? Icons.edit_note : Icons.note_add_outlined,
-                accent: const Color(0xFF0284C7),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    children: [
-                      _row(
-                        TextFormField(
-                          controller: _requestSource,
-                          decoration: const InputDecoration(
-                              labelText: 'Request Source'),
-                          validator: _required,
-                        ),
-                        TextFormField(
-                          controller: _requestType,
-                          decoration:
-                              const InputDecoration(labelText: 'Request Type'),
-                          validator: _required,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      _row(
-                        TextFormField(
-                          controller: _customerName,
-                          decoration:
-                              const InputDecoration(labelText: 'Customer Name'),
-                          validator: _required,
-                        ),
-                        TextFormField(
-                          controller: _emailOrReference,
-                          decoration: const InputDecoration(
-                            labelText: 'Email / Reference',
-                          ),
-                          validator: _required,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      _row(
-                        TextFormField(
-                          controller: _contact,
-                          decoration:
-                              const InputDecoration(labelText: 'Contact'),
-                          validator: _required,
-                        ),
-                        InkWell(
-                          onTap: _pickDate,
-                          child: InputDecorator(
-                            decoration: const InputDecoration(
-                              labelText: 'Request Date',
-                              suffixIcon: Icon(Icons.date_range_outlined),
-                            ),
-                            child: Text(_formatDate(_requestDate)),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      _row(
-                        DropdownButtonFormField<String>(
-                          value: _selectedCargoCode,
-                          decoration:
-                              const InputDecoration(labelText: 'Cargo Type *'),
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return 'Required';
-                            }
-                            return null;
-                          },
-                          items: [
-                            for (final cargo in cargoDropdownItems)
-                              DropdownMenuItem(
-                                value: cargo.cargoCode,
-                                child: Text(
-                                  '${cargo.cargoName} (${cargo.cargoCode})',
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+              Form(
+                key: _formKey,
+                child: Column(
+                  children: [
+                    // Section 1: Basic Request Info
+                    OpsSectionCard(
+                      title: 'Basic Request Info',
+                      subtitle: 'Customer and reference details.',
+                      icon: Icons.person_outline,
+                      accent: const Color(0xFF0284C7),
+                      child: Column(
+                        children: [
+                          if (_isEdit)
+                            _row(
+                              TextFormField(
+                                initialValue: widget.enquiryNumber,
+                                readOnly: true,
+                                decoration: const InputDecoration(labelText: 'Enquiry No', filled: true),
                               ),
-                          ],
-                          onChanged: cargoDropdownItems.isEmpty
-                              ? null
-                              : (value) {
-                                  if (value == null) {
-                                    return;
-                                  }
-                                  final selected = ref
-                                      .read(cargoViewModelProvider.notifier)
-                                      .findByCode(value);
-                                  if (selected == null) {
-                                    return;
-                                  }
-                                  setState(() {
-                                    _selectedCargoCode = selected.cargoCode;
-                                    _cargoType.text = selected.cargoName;
-                                    if (_notes.text.trim().isEmpty &&
-                                        selected.handlingInstructions
-                                            .trim()
-                                            .isNotEmpty) {
-                                      _notes.text =
-                                          selected.handlingInstructions.trim();
-                                    }
-                                  });
-                                },
-                        ),
-                        TextFormField(
-                          controller: _weightVolume,
-                          decoration: const InputDecoration(
-                            labelText: 'Weight / Volume',
-                          ),
-                        ),
-                      ),
-                      if (selectedCargo != null) ...[
-                        const SizedBox(height: 10),
-                        _cargoGuidanceCard(selectedCargo),
-                      ],
-                      const SizedBox(height: 10),
-                      DropdownButtonFormField<String?>(
-                        value: _selectedRouteId,
-                        decoration:
-                            const InputDecoration(labelText: 'Route Master'),
-                        items: [
-                          const DropdownMenuItem<String?>(
-                            value: null,
-                            child: Text('None'),
-                          ),
-                          for (final route in (routeData?.routes ??
-                              const <RouteLocationModel>[]))
-                            DropdownMenuItem<String?>(
-                              value: route.routeId,
-                              child: Text(
-                                  '${route.routeCode} • ${route.routeName}'),
+                              _dateField(
+                                label: 'Request Date',
+                                date: _requestDate,
+                                onSelect: (d) => setState(() => _requestDate = d),
+                              ),
+                            )
+                          else
+                            _row(
+                              _dateField(
+                                label: 'Request Date',
+                                date: _requestDate,
+                                onSelect: (d) => setState(() => _requestDate = d),
+                              ),
+                              TextFormField(
+                                controller: _requestSource,
+                                decoration: const InputDecoration(labelText: 'Request Source'),
+                                validator: _required,
+                              ),
                             ),
+                          const SizedBox(height: 10),
+                          _row(
+                            DropdownButtonFormField<String?>(
+                              value: _selectedCustomerId,
+                              decoration: const InputDecoration(labelText: 'Customer *'),
+                              validator: (val) {
+                                if (val == null && _customerName.text.isEmpty) {
+                                  return 'Required';
+                                }
+                                return null;
+                              },
+                              items: [
+                                const DropdownMenuItem<String?>(value: null, child: Text('Manual Entry')),
+                                for (final c in activeCustomers)
+                                  DropdownMenuItem(value: c.id, child: Text('${c.name} (${c.shortCode})')),
+                              ],
+                              onChanged: (val) {
+                                setState(() {
+                                  _selectedCustomerId = val;
+                                  if (val != null) {
+                                    final cust = activeCustomers.firstWhere((c) => c.id == val);
+                                    _customerName.text = cust.name;
+                                    if (_contact.text.isEmpty) _contact.text = cust.primaryContactPerson;
+                                  }
+                                });
+                              },
+                            ),
+                            TextFormField(
+                              controller: _contact,
+                              decoration: const InputDecoration(labelText: 'Contact Person'),
+                            ),
+                          ),
+                          if (_selectedCustomerId == null) ...[
+                            const SizedBox(height: 10),
+                            TextFormField(
+                              controller: _customerName,
+                              decoration: const InputDecoration(labelText: 'Customer Name (Manual) *'),
+                              validator: (val) {
+                                if (_selectedCustomerId == null && (val == null || val.trim().isEmpty)) {
+                                  return 'Required';
+                                }
+                                return null;
+                              },
+                            ),
+                          ],
+                          const SizedBox(height: 10),
+                          TextFormField(
+                            controller: _emailOrReference,
+                            decoration: const InputDecoration(labelText: 'Reference No / Email'),
+                          ),
                         ],
-                        onChanged: (value) {
-                          setState(() => _selectedRouteId = value);
-                          _applySelectedRoute(
-                            value,
-                            routeData?.routes ?? const <RouteLocationModel>[],
-                          );
-                        },
                       ),
-                      const SizedBox(height: 10),
-                      _row(
-                        TextFormField(
-                          controller: _pickup,
-                          decoration: const InputDecoration(
-                            labelText: 'Pickup Location',
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Section 2: Transport Requirement
+                    OpsSectionCard(
+                      title: 'Transport Requirement',
+                      subtitle: 'Cargo, route, and volume logic.',
+                      icon: Icons.local_shipping_outlined,
+                      accent: const Color(0xFF16A34A),
+                      child: Column(
+                        children: [
+                          _row(
+                            DropdownButtonFormField<String>(
+                              value: _selectedCargoCode,
+                              decoration: const InputDecoration(labelText: 'Cargo Type *'),
+                              validator: _required,
+                              items: [
+                                for (final cargo in cargoDropdownItems)
+                                  DropdownMenuItem(
+                                    value: cargo.cargoCode,
+                                    child: Text('${cargo.cargoName} (${cargo.cargoCode})', overflow: TextOverflow.ellipsis),
+                                  ),
+                              ],
+                              onChanged: (value) {
+                                if (value != null) {
+                                  final selected = ref.read(cargoViewModelProvider.notifier).findByCode(value);
+                                  if (selected != null) {
+                                    setState(() {
+                                      _selectedCargoCode = selected.cargoCode;
+                                      _cargoType.text = selected.cargoName;
+                                    });
+                                  }
+                                }
+                              },
+                            ),
+                            DropdownButtonFormField<String>(
+                              value: _pdoSpec,
+                              decoration: const InputDecoration(labelText: 'PDO / Non-PDO'),
+                              items: const [
+                                DropdownMenuItem(value: 'Non-PDO', child: Text('Non-PDO')),
+                                DropdownMenuItem(value: 'PDO', child: Text('PDO')),
+                              ],
+                              onChanged: (val) => setState(() => _pdoSpec = val ?? 'Non-PDO'),
+                            ),
                           ),
-                          validator: _required,
-                        ),
-                        TextFormField(
-                          controller: _delivery,
-                          decoration: const InputDecoration(
-                            labelText: 'Delivery Location',
+                          const SizedBox(height: 10),
+                          DropdownButtonFormField<String?>(
+                            value: _selectedRouteId,
+                            decoration: const InputDecoration(labelText: 'Route Master'),
+                            items: [
+                              const DropdownMenuItem<String?>(value: null, child: Text('Custom/Manual Route')),
+                              for (final route in (routeData?.routes ?? const <RouteLocationModel>[]))
+                                DropdownMenuItem<String?>(
+                                  value: route.routeId,
+                                  child: Text('${route.routeCode} • ${route.routeName}'),
+                                ),
+                            ],
+                            onChanged: (value) {
+                              setState(() => _selectedRouteId = value);
+                              _applySelectedRoute(value, routeData?.routes ?? const <RouteLocationModel>[]);
+                            },
                           ),
-                          validator: _required,
-                        ),
+                          const SizedBox(height: 10),
+                          _row(
+                            TextFormField(
+                              controller: _pickup,
+                              decoration: const InputDecoration(labelText: 'Pickup Location *'),
+                              validator: _required,
+                            ),
+                            TextFormField(
+                              controller: _delivery,
+                              decoration: const InputDecoration(labelText: 'Delivery Location *'),
+                              validator: _required,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          _row(
+                            TextFormField(
+                              controller: _quantity,
+                              decoration: const InputDecoration(labelText: 'Quantity'),
+                              validator: (val) => _validateVolumeFields(),
+                            ),
+                            TextFormField(
+                              controller: _weightVolume,
+                              decoration: const InputDecoration(labelText: 'Weight / Volume'),
+                              validator: (val) => _validateVolumeFields(),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          _row(
+                            TextFormField(
+                              controller: _dimensions,
+                              decoration: const InputDecoration(labelText: 'Dimensions (LxWxH)'),
+                            ),
+                            _dateField(
+                              label: 'Tentative Dispatch Date',
+                              date: _tentativeDispatchDate,
+                              onSelect: (d) => setState(() => _tentativeDispatchDate = d),
+                              allowNull: true,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 10),
-                      TextFormField(
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Section 3: Notes
+                    OpsSectionCard(
+                      title: 'Notes',
+                      subtitle: 'Additional remarks and instructions.',
+                      icon: Icons.note_outlined,
+                      accent: const Color(0xFFF59E0B),
+                      child: TextFormField(
                         controller: _notes,
                         maxLines: 3,
-                        decoration: const InputDecoration(labelText: 'Notes'),
+                        decoration: const InputDecoration(labelText: 'Remarks'),
                       ),
-                      const SizedBox(height: 14),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: FilledButton.icon(
-                          onPressed: _save,
-                          icon: Icon(_isEdit ? Icons.save_outlined : Icons.add),
-                          label: Text(
-                            _isEdit ? 'Update Enquiry' : 'Create Enquiry',
-                          ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Actions
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      alignment: WrapAlignment.end,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        TextButton(
+                          onPressed: () => context.go(RoutePaths.customerRequest),
+                          child: const Text('Cancel'),
                         ),
-                      ),
-                    ],
-                  ),
+                        OutlinedButton(
+                          onPressed: () => _save('Draft'),
+                          child: const Text('Save Draft'),
+                        ),
+                        FilledButton.icon(
+                          onPressed: () => _save('Submit'),
+                          icon: const Icon(Icons.check),
+                          label: const Text('Submit'),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -303,56 +359,52 @@ class _CustomerRequestFormScreenState
     );
   }
 
-  Widget _cargoGuidanceCard(CargoModel cargo) {
-    final notes = <String>[];
-    if (cargo.hazardous) {
-      notes.add('Hazardous cargo. Compliance checks should be planned early.');
+  String? _validateVolumeFields() {
+    if (_quantity.text.trim().isEmpty && _weightVolume.text.trim().isEmpty && _dimensions.text.trim().isEmpty) {
+      return 'At least one size field required';
     }
-    if (cargo.riskLevel == CargoRiskLevel.high ||
-        cargo.riskLevel == CargoRiskLevel.critical) {
-      notes.add('High risk cargo. Add extra planning attention.');
-    }
-    if (cargo.specialComplianceRequired) {
-      final certs = cargo.requiredCertifications.join(', ');
-      notes.add(certs.isEmpty
-          ? 'Special compliance required.'
-          : 'Certifications likely needed: $certs');
-    }
-    if (cargo.inspectionRequired) {
-      notes.add(
-          'Inspection profile: ${cargo.inspectionTemplateType.isEmpty ? 'General' : cargo.inspectionTemplateType}.');
-    }
+    return null;
+  }
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF7ED),
-        border: Border.all(color: const Color(0xFFF59E0B)),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Cargo Guidance',
-            style: TextStyle(fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 6),
-          for (final note in notes)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Text('- $note'),
-            ),
-        ],
+  Widget _row(Widget left, Widget right) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: left),
+        const SizedBox(width: 16),
+        Expanded(child: right),
+      ],
+    );
+  }
+
+  Widget _dateField({
+    required String label,
+    required DateTime? date,
+    required Function(DateTime) onSelect,
+    bool allowNull = false,
+  }) {
+    return InkWell(
+      onTap: () async {
+        final selected = await showDatePicker(
+          context: context,
+          firstDate: DateTime(2020),
+          lastDate: DateTime(2100),
+          initialDate: date ?? DateTime.now(),
+        );
+        if (selected != null) onSelect(selected);
+      },
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: label,
+          suffixIcon: const Icon(Icons.date_range_outlined),
+        ),
+        child: Text(date != null ? _formatDate(date) : (allowNull ? 'Not set' : '')),
       ),
     );
   }
 
   CustomerRequestData? _findEditingEnquiry(List<CustomerRequestData> all) {
-    if (!_isEdit) {
-      return null;
-    }
+    if (!_isEdit) return null;
     for (final item in all) {
       if (item.enquiryNumber == widget.enquiryNumber) {
         return item;
@@ -361,29 +413,45 @@ class _CustomerRequestFormScreenState
     return null;
   }
 
-  void _hydrate(CustomerRequestData source) {
+  void _hydrate(CustomerRequestData source, List<Customer> customers) {
     _requestSource.text = source.requestSource;
     _customerName.text = source.customerName;
-    _requestType.text = source.requestType;
-    _emailOrReference.text = source.emailOrReference;
+    
+    // Attempt to match customer name to a master customer ID
+    for (var c in customers) {
+      if (c.name.toLowerCase() == source.customerName.toLowerCase()) {
+        _selectedCustomerId = c.id;
+        break;
+      }
+    }
+
     _contact.text = source.contact;
+    _emailOrReference.text = source.emailOrReference;
+    
     _cargoType.text = source.cargoType;
-    _selectedCargoCode = ref
-        .read(cargoViewModelProvider.notifier)
-        .findByName(source.cargoType)
-        ?.cargoCode;
-    _weightVolume.text = source.weightVolume;
+    _selectedCargoCode = ref.read(cargoViewModelProvider.notifier).findByName(source.cargoType)?.cargoCode;
+    
+    _pdoSpec = source.pdoSpec;
+    if (_pdoSpec.isEmpty) _pdoSpec = 'Non-PDO';
+
     _pickup.text = source.pickup;
     _delivery.text = source.delivery;
+    _selectedRouteId = source.routeMasterId.isEmpty ? null : source.routeMasterId;
+    
+    _quantity.text = source.quantity;
+    _weightVolume.text = source.weightVolume;
+    _dimensions.text = source.dimensions;
+    _tentativeDispatchDate = DateTime.tryParse(source.tentativeDispatchDate);
+
     _notes.text = source.notes;
-    _selectedRouteId =
-        source.routeMasterId.isEmpty ? null : source.routeMasterId;
+    
     _requestDate = DateTime.tryParse(source.requestDate) ?? DateTime.now();
     _hydrated = true;
   }
 
   void _applySelectedRoute(String? routeId, List<RouteLocationModel> routes) {
     if (routeId == null) {
+      // Unlink
       return;
     }
     RouteLocationModel? selected;
@@ -393,33 +461,19 @@ class _CustomerRequestFormScreenState
         break;
       }
     }
-    if (selected == null) {
-      return;
-    }
-    _pickup.text = selected.startLocation.locationName;
-    _delivery.text = selected.endLocation.locationName;
-  }
-
-  Future<void> _pickDate() async {
-    final selected = await showDatePicker(
-      context: context,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2100),
-      initialDate: _requestDate,
-    );
     if (selected != null) {
-      setState(() => _requestDate = selected);
+      _pickup.text = selected.startLocation.locationName;
+      _delivery.text = selected.endLocation.locationName;
     }
   }
 
-  void _save() {
+  void _save(String action) {
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
     RouteLocationModel? selectedRoute;
-    final routeList =
-        ref.read(routeViewModelProvider).valueOrNull?.routes ?? const [];
+    final routeList = ref.read(routeViewModelProvider).valueOrNull?.routes ?? const [];
     for (final route in routeList) {
       if (route.routeId == _selectedRouteId) {
         selectedRoute = route;
@@ -428,22 +482,24 @@ class _CustomerRequestFormScreenState
     }
 
     final now = DateTime.now();
+    final status = action == 'Submit' ? 'New Enquiry' : 'Draft';
+
     final payload = CustomerRequestData(
       enquiryNumber: _isEdit ? (widget.enquiryNumber ?? '') : '',
       requestSource: _requestSource.text.trim(),
       customerName: _customerName.text.trim(),
-      requestType: _requestType.text.trim(),
+      requestType: 'Transport Request',
       emailOrReference: _emailOrReference.text.trim(),
       contact: _contact.text.trim(),
       cargoType: (_selectedCargoCode == null
               ? _cargoType.text.trim()
-              : (ref
-                      .read(cargoViewModelProvider.notifier)
-                      .findByCode(_selectedCargoCode)
-                      ?.cargoName ??
-                  _cargoType.text.trim()))
+              : (ref.read(cargoViewModelProvider.notifier).findByCode(_selectedCargoCode)?.cargoName ?? _cargoType.text.trim()))
           .trim(),
+      pdoSpec: _pdoSpec,
+      quantity: _quantity.text.trim(),
       weightVolume: _weightVolume.text.trim(),
+      dimensions: _dimensions.text.trim(),
+      tentativeDispatchDate: _tentativeDispatchDate != null ? _formatDate(_tentativeDispatchDate!) : '',
       pickup: _pickup.text.trim(),
       delivery: _delivery.text.trim(),
       requestDate: _formatDate(_requestDate),
@@ -456,10 +512,9 @@ class _CustomerRequestFormScreenState
           : '${selectedRoute.routeCode} • ${selectedRoute.routeName}',
       routeRiskLevel: selectedRoute?.riskLevel.label ?? 'Low',
       routeOperationalStatus: selectedRoute?.status.label ?? 'Active',
-      routeRestricted: selectedRoute != null
-          ? !selectedRoute.isSelectableForNewOperations
-          : false,
+      routeRestricted: selectedRoute != null ? !selectedRoute.isSelectableForNewOperations : false,
       routeRestrictionReason: selectedRoute?.restrictionReason ?? '',
+      status: _isEdit ? (_findEditingEnquiry(ref.read(logisticsViewModelProvider).valueOrNull?.customerRequests ?? [])?.status ?? status) : status,
       createdAt: now,
       updatedAt: now,
     );
@@ -469,22 +524,10 @@ class _CustomerRequestFormScreenState
         ? notifier.updateEnquiry(payload)
         : notifier.addCustomerRequest(payload);
 
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
-
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
     if (message.contains('created.') || message.contains('updated.')) {
       context.go(RoutePaths.customerRequest);
     }
-  }
-
-  Widget _row(Widget left, Widget right) {
-    return Row(
-      children: [
-        Expanded(child: left),
-        const SizedBox(width: 10),
-        Expanded(child: right),
-      ],
-    );
   }
 
   String _formatDate(DateTime value) {
@@ -494,9 +537,7 @@ class _CustomerRequestFormScreenState
   }
 
   String? _required(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'Required';
-    }
+    if (value == null || value.trim().isEmpty) return 'Required';
     return null;
   }
 }

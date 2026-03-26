@@ -13,7 +13,8 @@ class RoutePaths {
   static const customerRequestForm = '/customer-request/form';
   static const customerRequestView = '/customer-request/view/:enquiryNumber';
   static const enquiryDetails = '/enquiry-details';
-  static const feasibilityQuotation = '/feasibility-quotation';
+  static const feasibilityReview = '/feasibility-review';
+  static const feasibilityReviewDetail = '/feasibility-review/:enquiryNumber';
   static const workOrderFlow = '/work-order-flow';
   static const fleetManagement = '/fleet-management';
   static const fleetDetail = '/fleet-management/:fleetId';
@@ -134,4 +135,6 @@ class RoutePaths {
 
   static String mediaPreviewById(String evidenceId) =>
       '/media-preview/$evidenceId';
+  static String feasibilityReviewById(String enquiryNumber) =>
+      '/feasibility-review/$enquiryNumber';
 }
