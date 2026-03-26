@@ -14,7 +14,7 @@ abstract class UserMockDataSource {
 class UserMockDataSourceImpl implements UserMockDataSource {
   UserMockDataSourceImpl();
 
-  static const _cacheKey = 'user_master_records_v1';
+  static const _cacheKey = 'user_master_records_v2';
   List<UserModel>? _users;
   int _sequence = 7;
 
@@ -125,6 +125,8 @@ class UserMockDataSourceImpl implements UserMockDataSource {
       employeeId: map['employeeId'] as String? ?? '',
       joiningDate: DateTime.tryParse(map['joiningDate'] as String? ?? '') ??
           DateTime.now(),
+      username: map['username'] as String? ?? '',
+      password: map['password'] as String? ?? '',
       firstName: map['firstName'] as String? ?? '',
       lastName: map['lastName'] as String? ?? '',
       role: _userRoleFromName(map['role'] as String?),
@@ -150,6 +152,8 @@ class UserMockDataSourceImpl implements UserMockDataSource {
       'department': user.department.name,
       'employeeId': user.employeeId,
       'joiningDate': user.joiningDate.toIso8601String(),
+      'username': user.username,
+      'password': user.password,
       'firstName': user.firstName,
       'lastName': user.lastName,
       'role': user.role.name,
@@ -211,6 +215,8 @@ List<UserModel> _seedUsers() {
       department: DepartmentType.administration,
       employeeId: 'EMP-1001',
       joiningDate: DateTime(2023, 1, 10),
+      username: 'haris.admin',
+      password: 'Admin@123',
       firstName: 'Haris',
       lastName: 'Khan',
       role: UserRoleType.admin,
@@ -230,6 +236,8 @@ List<UserModel> _seedUsers() {
       department: DepartmentType.dispatch,
       employeeId: 'EMP-1002',
       joiningDate: DateTime(2023, 3, 4),
+      username: 'amina.dispatch',
+      password: 'Dispatch@123',
       firstName: 'Amina',
       lastName: 'Rahman',
       role: UserRoleType.dispatcher,
@@ -249,6 +257,8 @@ List<UserModel> _seedUsers() {
       department: DepartmentType.transport,
       employeeId: 'EMP-1003',
       joiningDate: DateTime(2022, 11, 18),
+      username: 'ravi.driver',
+      password: 'Driver@123',
       firstName: 'Ravi',
       lastName: 'Menon',
       role: UserRoleType.driver,
@@ -268,6 +278,8 @@ List<UserModel> _seedUsers() {
       department: DepartmentType.dispatch,
       employeeId: 'EMP-1004',
       joiningDate: DateTime(2024, 2, 12),
+      username: 'fatima.dispatch',
+      password: 'Dispatch@456',
       firstName: 'Fatima',
       lastName: 'Ali',
       role: UserRoleType.dispatcher,
@@ -287,6 +299,8 @@ List<UserModel> _seedUsers() {
       department: DepartmentType.transport,
       employeeId: 'EMP-1005',
       joiningDate: DateTime(2021, 8, 7),
+      username: 'suresh.driver',
+      password: 'Driver@456',
       firstName: 'Suresh',
       lastName: 'Nair',
       role: UserRoleType.driver,
@@ -306,6 +320,8 @@ List<UserModel> _seedUsers() {
       department: DepartmentType.operations,
       employeeId: 'EMP-1006',
       joiningDate: DateTime(2022, 5, 20),
+      username: 'noor.admin',
+      password: 'Admin@456',
       firstName: 'Noor',
       lastName: 'Hassan',
       role: UserRoleType.admin,

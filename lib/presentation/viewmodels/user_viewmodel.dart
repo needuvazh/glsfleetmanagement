@@ -137,6 +137,9 @@ class UserViewModel extends AsyncNotifier<UserUiState> {
     if (user.lastName.trim().isEmpty) {
       return 'Last name is required.';
     }
+    if (user.username.trim().isEmpty) {
+      return 'Username is required.';
+    }
     if (user.phoneNumber.trim().isEmpty) {
       return 'Phone number is required.';
     }
@@ -172,6 +175,13 @@ class UserViewModel extends AsyncNotifier<UserUiState> {
     );
     if (duplicateEmployeeId) {
       return 'Employee ID already exists.';
+    }
+
+    final duplicateUsername = existingUsers.any(
+      (entry) => entry.username.toLowerCase() == user.username.toLowerCase(),
+    );
+    if (duplicateUsername) {
+      return 'Username already exists.';
     }
 
     final duplicatePhone = existingUsers.any(
@@ -220,6 +230,9 @@ class UserFormState {
     required this.department,
     required this.employeeId,
     required this.joiningDate,
+    required this.username,
+    required this.password,
+    required this.confirmPassword,
     required this.firstName,
     required this.lastName,
     required this.role,
@@ -238,6 +251,9 @@ class UserFormState {
   final DepartmentType department;
   final String employeeId;
   final DateTime? joiningDate;
+  final String username;
+  final String password;
+  final String confirmPassword;
   final String firstName;
   final String lastName;
   final UserRoleType role;
@@ -259,6 +275,8 @@ class UserFormState {
       department: department,
       employeeId: employeeId.trim(),
       joiningDate: joiningDate ?? DateTime.now(),
+      username: username.trim(),
+      password: password,
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       role: role,
@@ -283,6 +301,9 @@ class UserFormState {
     String? employeeId,
     DateTime? joiningDate,
     bool clearJoiningDate = false,
+    String? username,
+    String? password,
+    String? confirmPassword,
     String? firstName,
     String? lastName,
     UserRoleType? role,
@@ -303,6 +324,9 @@ class UserFormState {
       department: department ?? this.department,
       employeeId: employeeId ?? this.employeeId,
       joiningDate: clearJoiningDate ? null : (joiningDate ?? this.joiningDate),
+      username: username ?? this.username,
+      password: password ?? this.password,
+      confirmPassword: confirmPassword ?? this.confirmPassword,
       firstName: firstName ?? this.firstName,
       lastName: lastName ?? this.lastName,
       role: role ?? this.role,
@@ -334,6 +358,9 @@ class UserFormNotifier extends AutoDisposeNotifier<UserFormState> {
       department: DepartmentType.operations,
       employeeId: '',
       joiningDate: null,
+      username: '',
+      password: '',
+      confirmPassword: '',
       firstName: '',
       lastName: '',
       role: UserRoleType.dispatcher,
@@ -364,6 +391,9 @@ class UserFormNotifier extends AutoDisposeNotifier<UserFormState> {
       department: user.department,
       employeeId: user.employeeId,
       joiningDate: user.joiningDate,
+      username: user.username,
+      password: user.password,
+      confirmPassword: user.password,
       firstName: user.firstName,
       lastName: user.lastName,
       role: user.role,
@@ -383,6 +413,10 @@ class UserFormNotifier extends AutoDisposeNotifier<UserFormState> {
   void setEmployeeId(String value) => state = state.copyWith(employeeId: value);
   void setJoiningDate(DateTime value) =>
       state = state.copyWith(joiningDate: value);
+  void setUsername(String value) => state = state.copyWith(username: value);
+  void setPassword(String value) => state = state.copyWith(password: value);
+  void setConfirmPassword(String value) =>
+      state = state.copyWith(confirmPassword: value);
   void setFirstName(String value) => state = state.copyWith(firstName: value);
   void setLastName(String value) => state = state.copyWith(lastName: value);
   void setRole(UserRoleType value) => state = state.copyWith(role: value);

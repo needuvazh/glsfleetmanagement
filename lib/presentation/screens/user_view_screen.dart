@@ -77,6 +77,13 @@ class UserViewScreen extends ConsumerWidget {
                       ],
                     ),
                     const SizedBox(height: 20),
+                    _sectionTitle(context, 'Authentication'),
+                    _DetailGrid(
+                      items: [
+                        _DetailItem(label: 'Username', value: user.username),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
                     _sectionTitle(context, 'Personal Information'),
                     _DetailGrid(items: _buildPersonalItems(user)),
                     const SizedBox(height: 20),

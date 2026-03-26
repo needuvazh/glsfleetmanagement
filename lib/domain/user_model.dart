@@ -44,6 +44,8 @@ class UserModel {
     required this.department,
     required this.employeeId,
     required this.joiningDate,
+    required this.username,
+    required this.password,
     required this.firstName,
     required this.lastName,
     required this.role,
@@ -63,6 +65,8 @@ class UserModel {
   final DepartmentType department;
   final String employeeId;
   final DateTime joiningDate;
+  final String username;
+  final String password;
   final String firstName;
   final String lastName;
   final UserRoleType role;
@@ -88,6 +92,8 @@ class UserModel {
     DepartmentType? department,
     String? employeeId,
     DateTime? joiningDate,
+    String? username,
+    String? password,
     String? firstName,
     String? lastName,
     UserRoleType? role,
@@ -108,6 +114,8 @@ class UserModel {
       department: department ?? this.department,
       employeeId: employeeId ?? this.employeeId,
       joiningDate: joiningDate ?? this.joiningDate,
+      username: username ?? this.username,
+      password: password ?? this.password,
       firstName: firstName ?? this.firstName,
       lastName: lastName ?? this.lastName,
       role: role ?? this.role,

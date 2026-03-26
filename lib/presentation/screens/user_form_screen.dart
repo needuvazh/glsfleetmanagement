@@ -153,7 +153,7 @@ class _UserFormScreenState extends ConsumerState<UserFormScreen> {
                             _UserGridItem(
                               child: DropdownButtonFormField<UserStatusType>(
                                 key: const ValueKey('status'),
-                                value: form.status,
+                                initialValue: form.status,
                                 decoration:
                                     const InputDecoration(labelText: 'Status'),
                                 items: [
@@ -171,6 +171,11 @@ class _UserFormScreenState extends ConsumerState<UserFormScreen> {
                               ),
                             ),
                           ],
+                        ),
+                        const SizedBox(height: 20),
+                        _sectionTitle(context, 'Authentication'),
+                        _ResponsiveUserGrid(
+                          items: _buildAuthenticationItems(form, notifier),
                         ),
                         const SizedBox(height: 20),
                         AnimatedSwitcher(
@@ -279,6 +284,48 @@ class _UserFormScreenState extends ConsumerState<UserFormScreen> {
     return items;
   }
 
+  List<_UserGridItem> _buildAuthenticationItems(
+    UserFormState form,
+    UserFormNotifier notifier,
+  ) {
+    return [
+      _UserGridItem(
+        child: _UserTextField(
+          key: const ValueKey('username'),
+          label: 'Username',
+          initialValue: form.username,
+          onChanged: notifier.setUsername,
+          validator: _usernameValidator,
+        ),
+      ),
+      _UserGridItem(
+        child: _UserTextField(
+          key: const ValueKey('password'),
+          label: form.isEditMode ? 'Password' : 'Temporary Password',
+          initialValue: form.password,
+          onChanged: notifier.setPassword,
+          validator: (value) =>
+              _passwordValidator(value, required: !form.isEditMode),
+          obscureText: true,
+        ),
+      ),
+      _UserGridItem(
+        child: _UserTextField(
+          key: const ValueKey('confirmPassword'),
+          label: form.isEditMode ? 'Confirm Password' : 'Confirm Password',
+          initialValue: form.confirmPassword,
+          onChanged: notifier.setConfirmPassword,
+          validator: (value) => _confirmPasswordValidator(
+            value,
+            password: form.password,
+            required: !form.isEditMode || form.password.trim().isNotEmpty,
+          ),
+          obscureText: true,
+        ),
+      ),
+    ];
+  }
+
   List<_UserGridItem> _buildContactInfoItems(
     UserFormState form,
     UserFormNotifier notifier,
@@ -381,6 +428,49 @@ class _UserFormScreenState extends ConsumerState<UserFormScreen> {
   String? _required(String? value) {
     if (value == null || value.trim().isEmpty) {
       return 'Required';
+    }
+    return null;
+  }
+
+  String? _usernameValidator(String? value) {
+    final raw = value?.trim() ?? '';
+    if (raw.isEmpty) {
+      return 'Required';
+    }
+    if (!RegExp(r'^[a-zA-Z0-9._-]{3,30}$').hasMatch(raw)) {
+      return '3-30 letters, numbers, . _ or -';
+    }
+    return null;
+  }
+
+  String? _passwordValidator(String? value, {required bool required}) {
+    final raw = value?.trim() ?? '';
+    if (!required && raw.isEmpty) {
+      return null;
+    }
+    if (raw.isEmpty) {
+      return 'Required';
+    }
+    if (raw.length < 6) {
+      return 'Minimum 6 characters';
+    }
+    return null;
+  }
+
+  String? _confirmPasswordValidator(
+    String? value, {
+    required String password,
+    required bool required,
+  }) {
+    final raw = value?.trim() ?? '';
+    if (!required && raw.isEmpty) {
+      return null;
+    }
+    if (raw.isEmpty) {
+      return 'Required';
+    }
+    if (raw != password.trim()) {
+      return 'Passwords do not match';
     }
     return null;
   }
@@ -524,6 +614,7 @@ class _UserTextField extends StatelessWidget {
     this.validator,
     this.keyboardType,
     this.maxLines = 1,
+    this.obscureText = false,
   });
 
   final String label;
@@ -532,6 +623,7 @@ class _UserTextField extends StatelessWidget {
   final String? Function(String?)? validator;
   final TextInputType? keyboardType;
   final int maxLines;
+  final bool obscureText;
 
   @override
   Widget build(BuildContext context) {
@@ -542,6 +634,7 @@ class _UserTextField extends StatelessWidget {
       validator: validator,
       keyboardType: keyboardType,
       maxLines: maxLines,
+      obscureText: obscureText,
       decoration: InputDecoration(labelText: label),
     );
   }
