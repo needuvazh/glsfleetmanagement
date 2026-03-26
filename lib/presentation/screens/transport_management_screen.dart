@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/utils/responsive.dart';
 import '../../domain/entities/vehicle_type.dart';
 import '../../routes/route_paths.dart';
 import '../viewmodels/access_control_viewmodel.dart';
@@ -87,20 +88,45 @@ class _TransportManagementScreenState
       }
     }
     final hasPdoWarning = _selectedVehicleLoadType == 'PDO' &&
-        _documentRows.any((row) => row.mandatory && _computeStatus(row) != 'Valid');
+        _documentRows
+            .any((row) => row.mandatory && _computeStatus(row) != 'Valid');
 
     return OpsShell(
       title: 'Vehicle Master Module',
       currentRoute: RoutePaths.transportManagement,
-      actions: [
-        TextButton(
-          onPressed: () => context.go(RoutePaths.vehicleTypes),
-          child: const Text('Vehicle Types'),
-        ),
-      ],
+      actions: const [],
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Responsive.isMobile(context)
+                  ? SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () => context.go(RoutePaths.vehicleTypes),
+                        icon: const Icon(Icons.directions_car_outlined),
+                        label: const Text('Vehicle Types'),
+                      ),
+                    )
+                  : Row(
+                      children: [
+                        Text(
+                          'Transport Master',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const Spacer(),
+                        OutlinedButton.icon(
+                          onPressed: () => context.go(RoutePaths.vehicleTypes),
+                          icon: const Icon(Icons.directions_car_outlined),
+                          label: const Text('Vehicle Types'),
+                        ),
+                      ],
+                    ),
+            ),
+          ),
+          const SizedBox(height: 12),
           OpsSectionCard(
             title: 'Create Vehicle',
             subtitle: 'Maintain real vehicle details and dynamic documents',
@@ -123,13 +149,15 @@ class _TransportManagementScreenState
                   const SizedBox(height: 10),
                   TextFormField(
                     controller: _vehicleNameController,
-                    decoration: const InputDecoration(labelText: 'Vehicle Name'),
+                    decoration:
+                        const InputDecoration(labelText: 'Vehicle Name'),
                     validator: _required,
                   ),
                   const SizedBox(height: 10),
                   DropdownButtonFormField<String>(
                     value: _selectedVehicleType,
-                    decoration: const InputDecoration(labelText: 'Vehicle Type'),
+                    decoration:
+                        const InputDecoration(labelText: 'Vehicle Type'),
                     items: [
                       for (final type in vehicleTypeItems)
                         DropdownMenuItem(
@@ -156,20 +184,23 @@ class _TransportManagementScreenState
                     key: ValueKey('cat-$_autoVehicleCategory'),
                     initialValue: _autoVehicleCategory,
                     readOnly: true,
-                    decoration: const InputDecoration(labelText: 'Vehicle Category'),
+                    decoration:
+                        const InputDecoration(labelText: 'Vehicle Category'),
                   ),
                   const SizedBox(height: 10),
                   TextFormField(
                     key: ValueKey('class-$_autoVehicleClass'),
                     initialValue: _autoVehicleClass,
                     readOnly: true,
-                    decoration: const InputDecoration(labelText: 'Vehicle Class'),
+                    decoration:
+                        const InputDecoration(labelText: 'Vehicle Class'),
                   ),
                   const SizedBox(height: 12),
                   _sectionTitle(context, 'Ownership'),
                   DropdownButtonFormField<String>(
                     value: _selectedOwnershipType,
-                    decoration: const InputDecoration(labelText: 'Ownership Type'),
+                    decoration:
+                        const InputDecoration(labelText: 'Ownership Type'),
                     items: [
                       for (final item in _ownershipTypes)
                         DropdownMenuItem(value: item, child: Text(item)),
@@ -203,7 +234,8 @@ class _TransportManagementScreenState
                           keyboardType: const TextInputType.numberWithOptions(
                             decimal: true,
                           ),
-                          decoration: const InputDecoration(labelText: 'Capacity'),
+                          decoration:
+                              const InputDecoration(labelText: 'Capacity'),
                           validator: _positiveDecimal,
                         ),
                       ),
@@ -236,7 +268,8 @@ class _TransportManagementScreenState
                   const SizedBox(height: 10),
                   TextFormField(
                     controller: _manufacturerController,
-                    decoration: const InputDecoration(labelText: 'Manufacturer'),
+                    decoration:
+                        const InputDecoration(labelText: 'Manufacturer'),
                     validator: _required,
                   ),
                   const SizedBox(height: 10),
@@ -331,45 +364,54 @@ class _TransportManagementScreenState
                     padding: EdgeInsets.symmetric(vertical: 18),
                     child: Text('No vehicles created yet.'),
                   )
-                : SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: DataTable(
-                      headingRowColor:
-                          WidgetStateProperty.all(const Color(0xFFEFF4FF)),
-                      columns: const [
-                        DataColumn(label: Text('Vehicle Number')),
-                        DataColumn(label: Text('Vehicle Name')),
-                        DataColumn(label: Text('Type')),
-                        DataColumn(label: Text('Category')),
-                        DataColumn(label: Text('Class')),
-                        DataColumn(label: Text('Ownership')),
-                        DataColumn(label: Text('Vendor')),
-                        DataColumn(label: Text('Status')),
-                        DataColumn(label: Text('Availability')),
-                        DataColumn(label: Text('PDO Compliant')),
-                        DataColumn(label: Text('Documents')),
-                      ],
-                      rows: [
-                        for (final item in state.transports)
-                          DataRow(
-                            cells: [
-                              DataCell(Text(item.vehicleNumber)),
-                              DataCell(Text(item.vehicleName)),
-                              DataCell(Text(item.vehicleType)),
-                              DataCell(Text(item.vehicleCategory)),
-                              DataCell(Text(item.vehicleClass)),
-                              DataCell(Text(item.ownershipType)),
-                              DataCell(Text(item.vendorName.isEmpty
-                                  ? '-'
-                                  : item.vendorName)),
-                              DataCell(Text(item.status)),
-                              DataCell(Text(item.availabilityStatus)),
-                              DataCell(Text(item.pdoCompliant ? 'Yes' : 'No')),
-                              DataCell(Text('${item.documents.length}')),
+                : LayoutBuilder(
+                    builder: (context, constraints) {
+                      return SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: ConstrainedBox(
+                          constraints:
+                              BoxConstraints(minWidth: constraints.maxWidth),
+                          child: DataTable(
+                            headingRowColor: WidgetStateProperty.all(
+                                const Color(0xFFEFF4FF)),
+                            columns: const [
+                              DataColumn(label: Text('Vehicle Number')),
+                              DataColumn(label: Text('Vehicle Name')),
+                              DataColumn(label: Text('Type')),
+                              DataColumn(label: Text('Category')),
+                              DataColumn(label: Text('Class')),
+                              DataColumn(label: Text('Ownership')),
+                              DataColumn(label: Text('Vendor')),
+                              DataColumn(label: Text('Status')),
+                              DataColumn(label: Text('Availability')),
+                              DataColumn(label: Text('PDO Compliant')),
+                              DataColumn(label: Text('Documents')),
+                            ],
+                            rows: [
+                              for (final item in state.transports)
+                                DataRow(
+                                  cells: [
+                                    DataCell(Text(item.vehicleNumber)),
+                                    DataCell(Text(item.vehicleName)),
+                                    DataCell(Text(item.vehicleType)),
+                                    DataCell(Text(item.vehicleCategory)),
+                                    DataCell(Text(item.vehicleClass)),
+                                    DataCell(Text(item.ownershipType)),
+                                    DataCell(Text(item.vendorName.isEmpty
+                                        ? '-'
+                                        : item.vendorName)),
+                                    DataCell(Text(item.status)),
+                                    DataCell(Text(item.availabilityStatus)),
+                                    DataCell(
+                                        Text(item.pdoCompliant ? 'Yes' : 'No')),
+                                    DataCell(Text('${item.documents.length}')),
+                                  ],
+                                ),
                             ],
                           ),
-                      ],
-                    ),
+                        ),
+                      );
+                    },
                   ),
           ),
         ],
@@ -544,7 +586,8 @@ class _TransportManagementScreenState
     if (!context.mounted) {
       return;
     }
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
 
     if (message.startsWith('Vehicle created')) {
       _vehicleNumberController.clear();

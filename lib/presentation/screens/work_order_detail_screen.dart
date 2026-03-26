@@ -85,8 +85,9 @@ class _WorkOrderDetailScreenState extends State<WorkOrderDetailScreen>
                     runSpacing: 8,
                     children: [
                       OutlinedButton.icon(
-                        onPressed: () =>
-                            _notify('Edit Work Order action queued.'),
+                        onPressed: () => context.push(
+                          RoutePaths.editWorkOrderById(widget.workOrderId),
+                        ),
                         icon: const Icon(Icons.edit_outlined),
                         label: const Text('Edit Work Order'),
                       ),

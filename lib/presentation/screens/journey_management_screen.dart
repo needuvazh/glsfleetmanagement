@@ -16,7 +16,8 @@ class JourneyManagementScreen extends ConsumerStatefulWidget {
       _JourneyManagementScreenState();
 }
 
-class _JourneyManagementScreenState extends ConsumerState<JourneyManagementScreen> {
+class _JourneyManagementScreenState
+    extends ConsumerState<JourneyManagementScreen> {
   bool _nightDriving = false;
   final _nightReason = TextEditingController();
 
@@ -33,12 +34,7 @@ class _JourneyManagementScreenState extends ConsumerState<JourneyManagementScree
     return OpsShell(
       title: 'Journey Management (JMP)',
       currentRoute: RoutePaths.journeyManagement,
-      actions: [
-        TextButton(
-          onPressed: () => context.go(RoutePaths.tripExecution),
-          child: const Text('Next'),
-        ),
-      ],
+      actions: const [],
       child: state.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(child: Text(error.toString())),
@@ -55,76 +51,88 @@ class _JourneyManagementScreenState extends ConsumerState<JourneyManagementScree
                 subtitle: 'Auto-filled stops and ETA with approval controls',
                 icon: Icons.alt_route_outlined,
                 accent: const Color(0xFF0EA5E9),
+                trailing: FilledButton(
+                  onPressed: () => context.go(RoutePaths.tripExecution),
+                  child: const Text('Next'),
+                ),
                 child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      DropdownButtonFormField<String>(
-                        value: selected?.journeyId,
-                        decoration: const InputDecoration(labelText: 'Journey ID / Route'),
-                        items: [
-                          for (final j in data.journeyMaster)
-                            DropdownMenuItem(
-                              value: j.journeyId,
-                              child: Text('${j.journeyId} • ${j.origin} -> ${j.destination}'),
-                            ),
-                        ],
-                        onChanged: (value) =>
-                            ref.read(logisticsViewModelProvider.notifier).setJourney(value),
-                      ),
-                      const SizedBox(height: 10),
-                      Text('Vehicle: ${data.vehicles.isEmpty ? '-' : data.vehicles.first.vehicleNo}'),
-                      Text('Driver: ${data.drivers.isEmpty ? '-' : data.drivers.first.name}'),
-                      Text('Start Time: ${DateTime.now()}'),
-                      const SizedBox(height: 8),
-                      Text('Stops (Auto-filled): ${selected?.stops.join(' -> ') ?? '-'}'),
-                      const SizedBox(height: 6),
-                      Text('ETA per stop:'),
-                      const SizedBox(height: 4),
-                      if (selected != null)
-                        for (int i = 0; i < selected.stops.length; i++)
-                          Text('  - ${selected.stops[i]}: +${(i + 1) * 1.5} hrs'),
-                      const SizedBox(height: 6),
-                      Text('Rest Points: ${selected?.restPoints.join(', ') ?? '-'}'),
-                      const SizedBox(height: 10),
-                      SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        value: _nightDriving,
-                        onChanged: (value) {
-                          setState(() => _nightDriving = value);
-                          ref
-                              .read(logisticsViewModelProvider.notifier)
-                              .setNightDriving(value, reason: _nightReason.text.trim());
-                        },
-                        title: const Text('Night Driving'),
-                      ),
-                      if (_nightDriving)
-                        TextField(
-                          controller: _nightReason,
-                          onChanged: (value) => ref
-                              .read(logisticsViewModelProvider.notifier)
-                              .setNightDriving(true, reason: value),
-                          decoration: const InputDecoration(
-                            labelText: 'Reason (required for night driving)',
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    DropdownButtonFormField<String>(
+                      value: selected?.journeyId,
+                      decoration: const InputDecoration(
+                          labelText: 'Journey ID / Route'),
+                      items: [
+                        for (final j in data.journeyMaster)
+                          DropdownMenuItem(
+                            value: j.journeyId,
+                            child: Text(
+                                '${j.journeyId} • ${j.origin} -> ${j.destination}'),
                           ),
-                        ),
-                      const SizedBox(height: 10),
-                      CheckboxListTile(
-                        contentPadding: EdgeInsets.zero,
-                        value: data.journeyApproved,
+                      ],
+                      onChanged: (value) => ref
+                          .read(logisticsViewModelProvider.notifier)
+                          .setJourney(value),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                        'Vehicle: ${data.vehicles.isEmpty ? '-' : data.vehicles.first.vehicleNo}'),
+                    Text(
+                        'Driver: ${data.drivers.isEmpty ? '-' : data.drivers.first.name}'),
+                    Text('Start Time: ${DateTime.now()}'),
+                    const SizedBox(height: 8),
+                    Text(
+                        'Stops (Auto-filled): ${selected?.stops.join(' -> ') ?? '-'}'),
+                    const SizedBox(height: 6),
+                    Text('ETA per stop:'),
+                    const SizedBox(height: 4),
+                    if (selected != null)
+                      for (int i = 0; i < selected.stops.length; i++)
+                        Text('  - ${selected.stops[i]}: +${(i + 1) * 1.5} hrs'),
+                    const SizedBox(height: 6),
+                    Text(
+                        'Rest Points: ${selected?.restPoints.join(', ') ?? '-'}'),
+                    const SizedBox(height: 10),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      value: _nightDriving,
+                      onChanged: (value) {
+                        setState(() => _nightDriving = value);
+                        ref
+                            .read(logisticsViewModelProvider.notifier)
+                            .setNightDriving(value,
+                                reason: _nightReason.text.trim());
+                      },
+                      title: const Text('Night Driving'),
+                    ),
+                    if (_nightDriving)
+                      TextField(
+                        controller: _nightReason,
                         onChanged: (value) => ref
                             .read(logisticsViewModelProvider.notifier)
-                            .approveJourney(value ?? false),
-                        title: const Text('Journey Approval (Required)'),
-                      ),
-                      if (!data.journeyApproved)
-                        const Padding(
-                          padding: EdgeInsets.only(top: 8),
-                          child: Text(
-                            'Trip will be blocked until JMP is approved.',
-                            style: TextStyle(color: Color(0xFFDC2626)),
-                          ),
+                            .setNightDriving(true, reason: value),
+                        decoration: const InputDecoration(
+                          labelText: 'Reason (required for night driving)',
                         ),
-                    ],
+                      ),
+                    const SizedBox(height: 10),
+                    CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      value: data.journeyApproved,
+                      onChanged: (value) => ref
+                          .read(logisticsViewModelProvider.notifier)
+                          .approveJourney(value ?? false),
+                      title: const Text('Journey Approval (Required)'),
+                    ),
+                    if (!data.journeyApproved)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 8),
+                        child: Text(
+                          'Trip will be blocked until JMP is approved.',
+                          style: TextStyle(color: Color(0xFFDC2626)),
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ],

@@ -20,56 +20,93 @@ class VendorListScreen extends ConsumerWidget {
     return OpsShell(
       title: 'Vendor Master',
       currentRoute: RoutePaths.vendorMaster,
-      actions: [
-        TextButton(
-          onPressed: () => context.go(RoutePaths.vendorForm),
-          child: const Text('Create Vendor'),
-        ),
-      ],
+      actions: const [],
       child: state.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(child: Text(error.toString())),
         data: (data) {
           final items = data.filteredVendors;
-          return ListView(
+          return Padding(
             padding: const EdgeInsets.all(16),
-            children: [
-              OpsSectionCard(
-                title: 'Search',
-                subtitle: 'Search by vendor name',
-                icon: Icons.search,
-                accent: const Color(0xFF2563EB),
-                child: TextFormField(
-                  initialValue: data.searchQuery,
-                  decoration: const InputDecoration(
-                    labelText: 'Vendor Name',
-                    prefixIcon: Icon(Icons.search),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                OpsSectionCard(
+                  title: 'Vendor Search',
+                  subtitle: 'Search and manage vendors from one place',
+                  icon: Icons.search,
+                  accent: const Color(0xFF2563EB),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      if (isMobile) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            TextFormField(
+                              initialValue: data.searchQuery,
+                              decoration: const InputDecoration(
+                                labelText: 'Vendor Name',
+                                prefixIcon: Icon(Icons.search),
+                              ),
+                              onChanged: ref
+                                  .read(vendorViewModelProvider.notifier)
+                                  .setSearchQuery,
+                            ),
+                            const SizedBox(height: 10),
+                            FilledButton.icon(
+                              onPressed: () =>
+                                  context.go(RoutePaths.vendorForm),
+                              icon: const Icon(Icons.add),
+                              label: const Text('Create Vendor'),
+                            ),
+                          ],
+                        );
+                      }
+
+                      return Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              initialValue: data.searchQuery,
+                              decoration: const InputDecoration(
+                                labelText: 'Vendor Name',
+                                prefixIcon: Icon(Icons.search),
+                              ),
+                              onChanged: ref
+                                  .read(vendorViewModelProvider.notifier)
+                                  .setSearchQuery,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          FilledButton.icon(
+                            onPressed: () => context.go(RoutePaths.vendorForm),
+                            icon: const Icon(Icons.add),
+                            label: const Text('Create Vendor'),
+                          ),
+                        ],
+                      );
+                    },
                   ),
-                  onChanged:
-                      ref.read(vendorViewModelProvider.notifier).setSearchQuery,
                 ),
-              ),
-              const SizedBox(height: 12),
-              OpsSectionCard(
-                title: 'Vendor List',
-                subtitle: 'Master data for quotation and order creation',
-                icon: Icons.store_outlined,
-                accent: const Color(0xFF16A34A),
-                trailing: FilledButton.icon(
-                  onPressed: () => context.go(RoutePaths.vendorForm),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Create Vendor'),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: OpsSectionCard(
+                    title: 'Vendor List',
+                    subtitle: 'Master data for quotation and order creation',
+                    icon: Icons.store_outlined,
+                    accent: const Color(0xFF16A34A),
+                    child: items.isEmpty
+                        ? const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 20),
+                            child: Text('No vendors found.'),
+                          )
+                        : (isMobile
+                            ? _MobileVendorList(items: items)
+                            : _DesktopVendorTable(items: items)),
+                  ),
                 ),
-                child: items.isEmpty
-                    ? const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 20),
-                        child: Text('No vendors found.'),
-                      )
-                    : (isMobile
-                        ? _MobileVendorList(items: items)
-                        : _DesktopVendorTable(items: items)),
-              ),
-            ],
+              ],
+            ),
           );
         },
       ),
@@ -84,51 +121,61 @@ class _DesktopVendorTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        headingRowColor: WidgetStateProperty.all(const Color(0xFFEFF4FF)),
-        columns: const [
-          DataColumn(label: Text('Vendor Name')),
-          DataColumn(label: Text('Company Name')),
-          DataColumn(label: Text('Contact')),
-          DataColumn(label: Text('Vendor Type')),
-          DataColumn(label: Text('Service Type')),
-          DataColumn(label: Text('Status')),
-          DataColumn(label: Text('Actions')),
-        ],
-        rows: [
-          for (final vendor in items)
-            DataRow(
-              cells: [
-                DataCell(Text(vendor.vendorName)),
-                DataCell(Text(vendor.companyName.isEmpty ? '-' : vendor.companyName)),
-                DataCell(Text(vendor.contactNumber)),
-                DataCell(Text(vendor.vendorType.label)),
-                DataCell(Text(vendor.serviceType.label)),
-                DataCell(Text(vendor.status.label)),
-                DataCell(
-                  Row(
-                    children: [
-                      TextButton(
-                        onPressed: () => context.go(
-                          RoutePaths.vendorViewById(vendor.vendorId),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minWidth: constraints.maxWidth),
+            child: DataTable(
+              headingRowColor: WidgetStateProperty.all(const Color(0xFFEFF4FF)),
+              columns: const [
+                DataColumn(label: Text('Vendor Name')),
+                DataColumn(label: Text('Company Name')),
+                DataColumn(label: Text('Contact')),
+                DataColumn(label: Text('Vendor Type')),
+                DataColumn(label: Text('Service Type')),
+                DataColumn(label: Text('Status')),
+                DataColumn(label: Text('Actions')),
+              ],
+              rows: [
+                for (final vendor in items)
+                  DataRow(
+                    cells: [
+                      DataCell(Text(vendor.vendorName)),
+                      DataCell(Text(vendor.companyName.isEmpty
+                          ? '-'
+                          : vendor.companyName)),
+                      DataCell(Text(vendor.contactNumber)),
+                      DataCell(Text(vendor.vendorType.label)),
+                      DataCell(Text(vendor.serviceType.label)),
+                      DataCell(Text(vendor.status.label)),
+                      DataCell(
+                        Wrap(
+                          spacing: 6,
+                          children: [
+                            TextButton(
+                              onPressed: () => context.go(
+                                RoutePaths.vendorViewById(vendor.vendorId),
+                              ),
+                              child: const Text('View'),
+                            ),
+                            TextButton(
+                              onPressed: () => context.go(
+                                '${RoutePaths.vendorForm}?id=${vendor.vendorId}',
+                              ),
+                              child: const Text('Edit'),
+                            ),
+                          ],
                         ),
-                        child: const Text('View'),
-                      ),
-                      TextButton(
-                        onPressed: () => context.go(
-                          '${RoutePaths.vendorForm}?id=${vendor.vendorId}',
-                        ),
-                        child: const Text('Edit'),
                       ),
                     ],
                   ),
-                ),
               ],
             ),
-        ],
-      ),
+          ),
+        );
+      },
     );
   }
 }
@@ -162,7 +209,8 @@ class _MobileVendorList extends StatelessWidget {
                 style: const TextStyle(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 6),
-              Text('Company: ${vendor.companyName.isEmpty ? '-' : vendor.companyName}'),
+              Text(
+                  'Company: ${vendor.companyName.isEmpty ? '-' : vendor.companyName}'),
               Text('Contact: ${vendor.contactNumber}'),
               Text('Vendor Type: ${vendor.vendorType.label}'),
               Text('Service Type: ${vendor.serviceType.label}'),

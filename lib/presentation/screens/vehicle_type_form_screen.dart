@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/utils/responsive.dart';
 import '../../domain/entities/vehicle_type.dart';
 import '../../routes/route_paths.dart';
 import '../viewmodels/vehicle_type_viewmodel.dart';
@@ -30,12 +31,7 @@ class _VehicleTypeFormScreenState extends ConsumerState<VehicleTypeFormScreen> {
     return OpsShell(
       title: formState.isEditMode ? 'Edit Vehicle Type' : 'Add Vehicle Type',
       currentRoute: RoutePaths.vehicleTypes,
-      actions: [
-        TextButton(
-          onPressed: () => context.go(RoutePaths.vehicleTypes),
-          child: const Text('Back to List'),
-        ),
-      ],
+      actions: const [],
       child: listState.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(child: Text(error.toString())),
@@ -65,6 +61,37 @@ class _VehicleTypeFormScreenState extends ConsumerState<VehicleTypeFormScreen> {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Responsive.isMobile(context)
+                      ? SizedBox(
+                          width: double.infinity,
+                          child: TextButton(
+                            onPressed: () =>
+                                context.go(RoutePaths.vehicleTypes),
+                            child: const Text('Back to List'),
+                          ),
+                        )
+                      : Row(
+                          children: [
+                            Text(
+                              form.isEditMode
+                                  ? 'Edit Vehicle Type'
+                                  : 'Add Vehicle Type',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            const Spacer(),
+                            TextButton(
+                              onPressed: () =>
+                                  context.go(RoutePaths.vehicleTypes),
+                              child: const Text('Back to List'),
+                            ),
+                          ],
+                        ),
+                ),
+              ),
+              const SizedBox(height: 12),
               OpsSectionCard(
                 title: form.isEditMode
                     ? 'Edit Vehicle Type'
@@ -78,7 +105,8 @@ class _VehicleTypeFormScreenState extends ConsumerState<VehicleTypeFormScreen> {
                   child: Stepper(
                     currentStep: _currentStep,
                     type: StepperType.vertical,
-                    onStepTapped: (value) => setState(() => _currentStep = value),
+                    onStepTapped: (value) =>
+                        setState(() => _currentStep = value),
                     onStepContinue: () {
                       if (_currentStep < 2) {
                         setState(() => _currentStep += 1);
@@ -99,7 +127,9 @@ class _VehicleTypeFormScreenState extends ConsumerState<VehicleTypeFormScreen> {
                           children: [
                             FilledButton.icon(
                               onPressed: details.onStepContinue,
-                              icon: Icon(isLast ? Icons.save_outlined : Icons.navigate_next),
+                              icon: Icon(isLast
+                                  ? Icons.save_outlined
+                                  : Icons.navigate_next),
                               label: Text(
                                 isLast
                                     ? (form.isEditMode ? 'Update' : 'Create')
@@ -145,8 +175,10 @@ class _VehicleTypeFormScreenState extends ConsumerState<VehicleTypeFormScreen> {
                               decoration:
                                   const InputDecoration(labelText: 'Category'),
                               items: [
-                                for (final item in VehicleTypeFormNotifier.categories)
-                                  DropdownMenuItem(value: item, child: Text(item)),
+                                for (final item
+                                    in VehicleTypeFormNotifier.categories)
+                                  DropdownMenuItem(
+                                      value: item, child: Text(item)),
                               ],
                               onChanged: (value) {
                                 if (value != null) {
@@ -157,12 +189,13 @@ class _VehicleTypeFormScreenState extends ConsumerState<VehicleTypeFormScreen> {
                             const SizedBox(height: 10),
                             DropdownButtonFormField<String>(
                               value: form.vehicleClass,
-                              decoration:
-                                  const InputDecoration(labelText: 'Vehicle Class'),
+                              decoration: const InputDecoration(
+                                  labelText: 'Vehicle Class'),
                               items: [
                                 for (final item
                                     in VehicleTypeFormNotifier.vehicleClasses)
-                                  DropdownMenuItem(value: item, child: Text(item)),
+                                  DropdownMenuItem(
+                                      value: item, child: Text(item)),
                               ],
                               onChanged: (value) {
                                 if (value != null) {
@@ -185,11 +218,13 @@ class _VehicleTypeFormScreenState extends ConsumerState<VehicleTypeFormScreen> {
                             SwitchListTile(
                               contentPadding: EdgeInsets.zero,
                               title: const Text('Vendor Required'),
-                              subtitle: const Text('Enable when Vendor Owned is selected'),
+                              subtitle: const Text(
+                                  'Enable when Vendor Owned is selected'),
                               value: form.vendorRequired,
-                              onChanged: form.ownershipTypes.contains('Vendor Owned')
-                                  ? notifier.setVendorRequired
-                                  : null,
+                              onChanged:
+                                  form.ownershipTypes.contains('Vendor Owned')
+                                      ? notifier.setVendorRequired
+                                      : null,
                             ),
                             const SizedBox(height: 8),
                             _sectionTitle(context, 'Operation Details'),
@@ -198,8 +233,10 @@ class _VehicleTypeFormScreenState extends ConsumerState<VehicleTypeFormScreen> {
                               decoration:
                                   const InputDecoration(labelText: 'Load Type'),
                               items: [
-                                for (final item in VehicleTypeFormNotifier.loadTypes)
-                                  DropdownMenuItem(value: item, child: Text(item)),
+                                for (final item
+                                    in VehicleTypeFormNotifier.loadTypes)
+                                  DropdownMenuItem(
+                                      value: item, child: Text(item)),
                               ],
                               onChanged: (value) {
                                 if (value != null) {
@@ -216,7 +253,8 @@ class _VehicleTypeFormScreenState extends ConsumerState<VehicleTypeFormScreen> {
                               items: [
                                 for (final item
                                     in VehicleTypeFormNotifier.transportTypes)
-                                  DropdownMenuItem(value: item, child: Text(item)),
+                                  DropdownMenuItem(
+                                      value: item, child: Text(item)),
                               ],
                               onChanged: (value) {
                                 if (value != null) {
@@ -297,7 +335,8 @@ class _VehicleTypeFormScreenState extends ConsumerState<VehicleTypeFormScreen> {
                                 labelText: 'Default Capacity',
                               ),
                               keyboardType:
-                                  const TextInputType.numberWithOptions(decimal: true),
+                                  const TextInputType.numberWithOptions(
+                                      decimal: true),
                               onChanged: notifier.setDefaultCapacity,
                               validator: _capacityValidator,
                             ),
@@ -310,7 +349,8 @@ class _VehicleTypeFormScreenState extends ConsumerState<VehicleTypeFormScreen> {
                               items: [
                                 for (final item
                                     in VehicleTypeFormNotifier.capacityUnits)
-                                  DropdownMenuItem(value: item, child: Text(item)),
+                                  DropdownMenuItem(
+                                      value: item, child: Text(item)),
                               ],
                               onChanged: (value) {
                                 if (value != null) {
@@ -329,7 +369,8 @@ class _VehicleTypeFormScreenState extends ConsumerState<VehicleTypeFormScreen> {
                                   FilterChip(
                                     label: Text(feature),
                                     selected: form.features.contains(feature),
-                                    onSelected: (_) => notifier.toggleFeature(feature),
+                                    onSelected: (_) =>
+                                        notifier.toggleFeature(feature),
                                   ),
                               ],
                             ),
@@ -340,8 +381,10 @@ class _VehicleTypeFormScreenState extends ConsumerState<VehicleTypeFormScreen> {
                               decoration:
                                   const InputDecoration(labelText: 'Status'),
                               items: [
-                                for (final item in VehicleTypeFormNotifier.statuses)
-                                  DropdownMenuItem(value: item, child: Text(item)),
+                                for (final item
+                                    in VehicleTypeFormNotifier.statuses)
+                                  DropdownMenuItem(
+                                      value: item, child: Text(item)),
                               ],
                               onChanged: (value) {
                                 if (value != null) {
@@ -392,12 +435,13 @@ class _VehicleTypeFormScreenState extends ConsumerState<VehicleTypeFormScreen> {
                             const SizedBox(height: 10),
                             DropdownButtonFormField<String>(
                               value: form.complianceMode,
-                              decoration:
-                                  const InputDecoration(labelText: 'Compliance Mode'),
+                              decoration: const InputDecoration(
+                                  labelText: 'Compliance Mode'),
                               items: [
                                 for (final item
                                     in VehicleTypeFormNotifier.complianceModes)
-                                  DropdownMenuItem(value: item, child: Text(item)),
+                                  DropdownMenuItem(
+                                      value: item, child: Text(item)),
                               ],
                               onChanged: (value) {
                                 if (value != null) {
@@ -427,7 +471,9 @@ class _VehicleTypeFormScreenState extends ConsumerState<VehicleTypeFormScreen> {
                                   'No document requirements yet. PDO/Trailer rules auto-add defaults.',
                                 ),
                               ),
-                            for (int i = 0; i < form.documentRequirements.length; i++)
+                            for (int i = 0;
+                                i < form.documentRequirements.length;
+                                i++)
                               _documentRequirementCard(
                                 context: context,
                                 index: i,
@@ -563,7 +609,8 @@ class _VehicleTypeFormScreenState extends ConsumerState<VehicleTypeFormScreen> {
                   ],
                   onChanged: (value) {
                     if (value != null) {
-                      notifier.updateDocumentRequirementValidityUnit(index, value);
+                      notifier.updateDocumentRequirementValidityUnit(
+                          index, value);
                     }
                   },
                 ),

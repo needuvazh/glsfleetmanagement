@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/utils/responsive.dart';
 import '../../domain/entities/logistics_flow.dart';
 import '../../routes/route_paths.dart';
 import '../viewmodels/logistics_viewmodel.dart';
@@ -22,18 +23,12 @@ class _DriverManagementScreenState
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(logisticsViewModelProvider);
+    final isMobile = Responsive.isMobile(context);
 
     return OpsShell(
       title: 'Driver List',
       currentRoute: RoutePaths.driverManagement,
-      actions: [
-        FilledButton.icon(
-          onPressed: () => _openDriverDialog(context, ref),
-          icon: const Icon(Icons.add),
-          label: const Text('Add Driver'),
-        ),
-        const SizedBox(width: 8),
-      ],
+      actions: const [],
       child: state.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(child: Text(error.toString())),
@@ -48,107 +43,160 @@ class _DriverManagementScreenState
                 .contains(q);
           }).toList();
 
-          return Column(
-            children: [
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: TextField(
-                    onChanged: (value) => setState(() => _search = value),
-                    decoration: const InputDecoration(
-                      hintText:
-                          'Search by driver code, name, phone, current trip',
-                      prefixIcon: Icon(Icons.search),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              Expanded(
-                child: Card(
-                  child: rows.isEmpty
-                      ? const Center(child: Text('No drivers found'))
-                      : SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: DataTable(
-                            columns: const [
-                              DataColumn(label: Text('Driver Code')),
-                              DataColumn(label: Text('Name')),
-                              DataColumn(label: Text('Phone')),
-                              DataColumn(label: Text('License Expiry')),
-                              DataColumn(label: Text('Availability')),
-                              DataColumn(label: Text('Current Trip')),
-                              DataColumn(label: Text('Compliance Status')),
-                              DataColumn(label: Text('Actions')),
+          return Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: isMobile
+                        ? Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              TextField(
+                                onChanged: (value) =>
+                                    setState(() => _search = value),
+                                decoration: const InputDecoration(
+                                  hintText:
+                                      'Search by driver code, name, phone, current trip',
+                                  prefixIcon: Icon(Icons.search),
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              FilledButton.icon(
+                                onPressed: () =>
+                                    _openDriverDialog(context, ref),
+                                icon: const Icon(Icons.add),
+                                label: const Text('Add Driver'),
+                              ),
                             ],
-                            rows: [
-                              for (final row in rows)
-                                DataRow(cells: [
-                                  DataCell(Text(row.driverCode)),
-                                  DataCell(Text(row.name)),
-                                  DataCell(Text(row.phone)),
-                                  DataCell(Text(row.licenseExpiry)),
-                                  DataCell(Text(row.availability)),
-                                  DataCell(Text(row.currentTrip)),
-                                  DataCell(
-                                    Text(
-                                      row.complianceStatus,
-                                      style: TextStyle(
-                                        color: row.complianceStatus == 'Valid'
-                                            ? const Color(0xFF15803D)
-                                            : const Color(0xFFB91C1C),
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
+                          )
+                        : Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  onChanged: (value) =>
+                                      setState(() => _search = value),
+                                  decoration: const InputDecoration(
+                                    hintText:
+                                        'Search by driver code, name, phone, current trip',
+                                    prefixIcon: Icon(Icons.search),
                                   ),
-                                  DataCell(
-                                    Wrap(
-                                      spacing: 2,
-                                      children: [
-                                        IconButton(
-                                          tooltip: 'Edit',
-                                          onPressed: () => _openDriverDialog(
-                                            context,
-                                            ref,
-                                            existing: row.source,
-                                          ),
-                                          icon: const Icon(Icons.edit_outlined),
-                                        ),
-                                        IconButton(
-                                          tooltip: 'Open Detail',
-                                          onPressed: () => context.push(
-                                            RoutePaths.driverDetailById(
-                                                row.driverCode),
-                                          ),
-                                          icon: const Icon(
-                                              Icons.open_in_new_rounded),
-                                        ),
-                                        IconButton(
-                                          tooltip: 'View Inspection Links',
-                                          onPressed: () => context.push(
-                                            RoutePaths.inspections,
-                                          ),
-                                          icon: const Icon(
-                                              Icons.fact_check_outlined),
-                                        ),
-                                        IconButton(
-                                          tooltip: 'View Trip History',
-                                          onPressed: () => context.push(
-                                            '${RoutePaths.driverDetailById(row.driverCode)}?tab=history',
-                                          ),
-                                          icon: const Icon(
-                                              Icons.history_outlined),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ]),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              FilledButton.icon(
+                                onPressed: () =>
+                                    _openDriverDialog(context, ref),
+                                icon: const Icon(Icons.add),
+                                label: const Text('Add Driver'),
+                              ),
                             ],
                           ),
-                        ),
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 10),
+                Expanded(
+                  child: Card(
+                    child: rows.isEmpty
+                        ? const Center(child: Text('No drivers found'))
+                        : LayoutBuilder(
+                            builder: (context, constraints) {
+                              return SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                      minWidth: constraints.maxWidth),
+                                  child: DataTable(
+                                    columns: const [
+                                      DataColumn(label: Text('Driver Code')),
+                                      DataColumn(label: Text('Name')),
+                                      DataColumn(label: Text('Phone')),
+                                      DataColumn(label: Text('License Expiry')),
+                                      DataColumn(label: Text('Availability')),
+                                      DataColumn(label: Text('Current Trip')),
+                                      DataColumn(
+                                          label: Text('Compliance Status')),
+                                      DataColumn(label: Text('Actions')),
+                                    ],
+                                    rows: [
+                                      for (final row in rows)
+                                        DataRow(cells: [
+                                          DataCell(Text(row.driverCode)),
+                                          DataCell(Text(row.name)),
+                                          DataCell(Text(row.phone)),
+                                          DataCell(Text(row.licenseExpiry)),
+                                          DataCell(Text(row.availability)),
+                                          DataCell(Text(row.currentTrip)),
+                                          DataCell(
+                                            Text(
+                                              row.complianceStatus,
+                                              style: TextStyle(
+                                                color: row.complianceStatus ==
+                                                        'Valid'
+                                                    ? const Color(0xFF15803D)
+                                                    : const Color(0xFFB91C1C),
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                          DataCell(
+                                            Wrap(
+                                              spacing: 2,
+                                              children: [
+                                                IconButton(
+                                                  tooltip: 'Edit',
+                                                  onPressed: () =>
+                                                      _openDriverDialog(
+                                                    context,
+                                                    ref,
+                                                    existing: row.source,
+                                                  ),
+                                                  icon: const Icon(
+                                                      Icons.edit_outlined),
+                                                ),
+                                                IconButton(
+                                                  tooltip: 'Open Detail',
+                                                  onPressed: () => context.push(
+                                                    RoutePaths.driverDetailById(
+                                                        row.driverCode),
+                                                  ),
+                                                  icon: const Icon(Icons
+                                                      .open_in_new_rounded),
+                                                ),
+                                                IconButton(
+                                                  tooltip:
+                                                      'View Inspection Links',
+                                                  onPressed: () => context.push(
+                                                    RoutePaths.inspections,
+                                                  ),
+                                                  icon: const Icon(Icons
+                                                      .fact_check_outlined),
+                                                ),
+                                                IconButton(
+                                                  tooltip: 'View Trip History',
+                                                  onPressed: () => context.push(
+                                                    '${RoutePaths.driverDetailById(row.driverCode)}?tab=history',
+                                                  ),
+                                                  icon: const Icon(
+                                                      Icons.history_outlined),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ]),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                ),
+              ],
+            ),
           );
         },
       ),
@@ -208,8 +256,10 @@ class _DriverManagementScreenState
       builder: (dialogContext) {
         return AlertDialog(
           title: Text(isEdit ? 'Edit Driver' : 'Add Driver'),
-          content: SizedBox(
-            width: 560,
+          content: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.sizeOf(context).width * 0.75,
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [

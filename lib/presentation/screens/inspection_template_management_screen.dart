@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/utils/responsive.dart';
 import '../../domain/entities/inspection.dart';
 import '../../routes/route_paths.dart';
 import '../widgets/ops_shell.dart';
@@ -24,82 +25,128 @@ class _InspectionTemplateManagementScreenState
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = Responsive.isMobile(context);
+
     return OpsShell(
       title: 'Inspection Checklist Templates',
       currentRoute: RoutePaths.inspectionTemplates,
-      actions: [
-        FilledButton.icon(
-          onPressed: () => _openTemplateDialog(),
-          icon: const Icon(Icons.add),
-          label: const Text('Create Template'),
-        ),
-        const SizedBox(width: 8),
-      ],
-      child: Card(
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: DataTable(
-            columns: const [
-              DataColumn(label: Text('Template Name')),
-              DataColumn(label: Text('Inspection Type')),
-              DataColumn(label: Text('Applicable Vehicle Type')),
-              DataColumn(label: Text('Active Status')),
-              DataColumn(label: Text('Items Count')),
-              DataColumn(label: Text('Updated By')),
-              DataColumn(label: Text('Updated At')),
-              DataColumn(label: Text('Action')),
-            ],
-            rows: [
-              for (final template in _templates)
-                DataRow(
-                  cells: [
-                    DataCell(Text(template.name)),
-                    DataCell(Text(template.inspectionType.label)),
-                    DataCell(Text(template.applicableVehicleType)),
-                    DataCell(
-                      Switch(
-                        value: template.isActive,
-                        onChanged: (value) {
-                          setState(() {
-                            template.isActive = value;
-                            template.updatedAt = DateTime.now();
-                          });
-                        },
-                      ),
-                    ),
-                    DataCell(Text('${template.items.length}')),
-                    DataCell(Text(template.updatedBy)),
-                    DataCell(Text(_fmtDateTime(template.updatedAt))),
-                    DataCell(
-                      Wrap(
+      actions: const [],
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: isMobile
+                    ? SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: () => _openTemplateDialog(),
+                          icon: const Icon(Icons.add),
+                          label: const Text('Create Template'),
+                        ),
+                      )
+                    : Row(
                         children: [
-                          IconButton(
-                            tooltip: 'Edit Template',
-                            onPressed: () =>
-                                _openTemplateDialog(existing: template),
-                            icon: const Icon(Icons.edit_outlined),
+                          Text(
+                            'Template Register',
+                            style: Theme.of(context).textTheme.titleMedium,
                           ),
-                          IconButton(
-                            tooltip: 'Toggle Active',
-                            onPressed: () {
-                              setState(() {
-                                template.isActive = !template.isActive;
-                                template.updatedAt = DateTime.now();
-                              });
-                            },
-                            icon: Icon(
-                              template.isActive
-                                  ? Icons.toggle_on_outlined
-                                  : Icons.toggle_off_outlined,
-                            ),
+                          const Spacer(),
+                          FilledButton.icon(
+                            onPressed: () => _openTemplateDialog(),
+                            icon: const Icon(Icons.add),
+                            label: const Text('Create Template'),
                           ),
                         ],
                       ),
-                    ),
-                  ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            Expanded(
+              child: Card(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    return SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: ConstrainedBox(
+                        constraints:
+                            BoxConstraints(minWidth: constraints.maxWidth),
+                        child: DataTable(
+                          columns: const [
+                            DataColumn(label: Text('Template Name')),
+                            DataColumn(label: Text('Inspection Type')),
+                            DataColumn(label: Text('Applicable Vehicle Type')),
+                            DataColumn(label: Text('Active Status')),
+                            DataColumn(label: Text('Items Count')),
+                            DataColumn(label: Text('Updated By')),
+                            DataColumn(label: Text('Updated At')),
+                            DataColumn(label: Text('Action')),
+                          ],
+                          rows: [
+                            for (final template in _templates)
+                              DataRow(
+                                cells: [
+                                  DataCell(Text(template.name)),
+                                  DataCell(Text(template.inspectionType.label)),
+                                  DataCell(
+                                      Text(template.applicableVehicleType)),
+                                  DataCell(
+                                    Switch(
+                                      value: template.isActive,
+                                      onChanged: (value) {
+                                        setState(() {
+                                          template.isActive = value;
+                                          template.updatedAt = DateTime.now();
+                                        });
+                                      },
+                                    ),
+                                  ),
+                                  DataCell(Text('${template.items.length}')),
+                                  DataCell(Text(template.updatedBy)),
+                                  DataCell(
+                                      Text(_fmtDateTime(template.updatedAt))),
+                                  DataCell(
+                                    Wrap(
+                                      children: [
+                                        IconButton(
+                                          tooltip: 'Edit Template',
+                                          onPressed: () => _openTemplateDialog(
+                                              existing: template),
+                                          icon: const Icon(Icons.edit_outlined),
+                                        ),
+                                        IconButton(
+                                          tooltip: 'Toggle Active',
+                                          onPressed: () {
+                                            setState(() {
+                                              template.isActive =
+                                                  !template.isActive;
+                                              template.updatedAt =
+                                                  DateTime.now();
+                                            });
+                                          },
+                                          icon: Icon(
+                                            template.isActive
+                                                ? Icons.toggle_on_outlined
+                                                : Icons.toggle_off_outlined,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
                 ),
-            ],
-          ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -131,8 +178,10 @@ class _InspectionTemplateManagementScreenState
             return AlertDialog(
               title:
                   Text(existing == null ? 'Create Template' : 'Edit Template'),
-              content: SizedBox(
-                width: 760,
+              content: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: MediaQuery.sizeOf(context).width * 0.85,
+                ),
                 child: SingleChildScrollView(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,

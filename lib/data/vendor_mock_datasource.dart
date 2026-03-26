@@ -1,3 +1,7 @@
+import 'dart:convert';
+
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../domain/vendor_model.dart';
 
 abstract class VendorMockDataSource {
@@ -8,19 +12,54 @@ abstract class VendorMockDataSource {
 }
 
 class VendorMockDataSourceImpl implements VendorMockDataSource {
-  VendorMockDataSourceImpl() : _vendors = _seedVendors();
+  VendorMockDataSourceImpl();
 
-  final List<VendorModel> _vendors;
+  static const _cacheKey = 'vendor_master_records_v1';
+  List<VendorModel>? _vendors;
   int _sequence = 6;
+
+  Future<void> _ensureInitialized() async {
+    if (_vendors != null) {
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_cacheKey);
+
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(raw) as List<dynamic>;
+        final cached = decoded
+            .map((entry) => _vendorFromMap(Map<String, dynamic>.from(entry)))
+            .toList();
+        _vendors = cached;
+      } catch (_) {
+        _vendors = _seedVendors();
+      }
+    } else {
+      _vendors = _seedVendors();
+    }
+
+    _sequence = _nextSequence(_vendors!);
+    await _persist();
+  }
+
+  Future<void> _persist() async {
+    final prefs = await SharedPreferences.getInstance();
+    final payload = _vendors!.map(_vendorToMap).toList();
+    await prefs.setString(_cacheKey, jsonEncode(payload));
+  }
 
   @override
   Future<List<VendorModel>> getVendors() async {
-    return _vendors.map((entry) => entry.copyWith()).toList();
+    await _ensureInitialized();
+    return _vendors!.map((entry) => entry.copyWith()).toList();
   }
 
   @override
   Future<VendorModel?> getVendorById(String vendorId) async {
-    for (final vendor in _vendors) {
+    await _ensureInitialized();
+    for (final vendor in _vendors!) {
       if (vendor.vendorId == vendorId) {
         return vendor.copyWith();
       }
@@ -30,27 +69,33 @@ class VendorMockDataSourceImpl implements VendorMockDataSource {
 
   @override
   Future<List<VendorModel>> addVendor(VendorModel vendor) async {
+    await _ensureInitialized();
     final now = DateTime.now();
     final next = vendor.copyWith(
-      vendorId: vendor.vendorId.trim().isEmpty ? _nextVendorId() : vendor.vendorId,
+      vendorId:
+          vendor.vendorId.trim().isEmpty ? _nextVendorId() : vendor.vendorId,
       createdAt: now,
       updatedAt: now,
     );
-    _vendors.add(next);
+    _vendors!.add(next);
+    await _persist();
     return getVendors();
   }
 
   @override
   Future<List<VendorModel>> updateVendor(VendorModel vendor) async {
-    final index = _vendors.indexWhere((entry) => entry.vendorId == vendor.vendorId);
+    await _ensureInitialized();
+    final index =
+        _vendors!.indexWhere((entry) => entry.vendorId == vendor.vendorId);
     if (index == -1) {
       return getVendors();
     }
-    final existing = _vendors[index];
-    _vendors[index] = vendor.copyWith(
+    final existing = _vendors![index];
+    _vendors![index] = vendor.copyWith(
       createdAt: existing.createdAt,
       updatedAt: DateTime.now(),
     );
+    await _persist();
     return getVendors();
   }
 
@@ -58,6 +103,82 @@ class VendorMockDataSourceImpl implements VendorMockDataSource {
     final id = 'VND-${_sequence.toString().padLeft(3, '0')}';
     _sequence += 1;
     return id;
+  }
+
+  int _nextSequence(List<VendorModel> vendors) {
+    var maxValue = 0;
+    for (final vendor in vendors) {
+      final parts = vendor.vendorId.split('-');
+      if (parts.length < 2) {
+        continue;
+      }
+      final parsed = int.tryParse(parts.last) ?? 0;
+      if (parsed > maxValue) {
+        maxValue = parsed;
+      }
+    }
+    return maxValue + 1;
+  }
+
+  VendorModel _vendorFromMap(Map<String, dynamic> map) {
+    return VendorModel(
+      vendorId: map['vendorId'] as String? ?? '',
+      vendorName: map['vendorName'] as String? ?? '',
+      companyName: map['companyName'] as String? ?? '',
+      contactNumber: map['contactNumber'] as String? ?? '',
+      email: map['email'] as String? ?? '',
+      address: map['address'] as String? ?? '',
+      vendorType: _vendorTypeFromName(map['vendorType'] as String?),
+      serviceType: _serviceTypeFromName(map['serviceType'] as String?),
+      status: _vendorStatusFromName(map['status'] as String?),
+      createdAt: DateTime.tryParse(map['createdAt'] as String? ?? '') ??
+          DateTime.now(),
+      updatedAt: DateTime.tryParse(map['updatedAt'] as String? ?? '') ??
+          DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> _vendorToMap(VendorModel vendor) {
+    return {
+      'vendorId': vendor.vendorId,
+      'vendorName': vendor.vendorName,
+      'companyName': vendor.companyName,
+      'contactNumber': vendor.contactNumber,
+      'email': vendor.email,
+      'address': vendor.address,
+      'vendorType': vendor.vendorType.name,
+      'serviceType': vendor.serviceType.name,
+      'status': vendor.status.name,
+      'createdAt': vendor.createdAt.toIso8601String(),
+      'updatedAt': vendor.updatedAt.toIso8601String(),
+    };
+  }
+
+  VendorType _vendorTypeFromName(String? value) {
+    for (final item in VendorType.values) {
+      if (item.name == value) {
+        return item;
+      }
+    }
+    return VendorType.thirdParty;
+  }
+
+  VendorServiceType _serviceTypeFromName(String? value) {
+    for (final item in VendorServiceType.values) {
+      if (item.name == value) {
+        return item;
+      }
+    }
+    return VendorServiceType.nonPdo;
+  }
+
+  VendorStatus _vendorStatusFromName(String? value) {
+    for (final item in VendorStatus.values) {
+      if (item.name == value) {
+        return item;
+      }
+    }
+    return VendorStatus.active;
   }
 }
 

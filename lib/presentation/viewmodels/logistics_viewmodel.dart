@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../core/providers/data_source_mode_provider.dart';
@@ -310,6 +312,7 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
   Timer? _timer;
   final Random _random = Random();
   static const _pdoClients = {'shell', 'dhl', 'bsc', 'agreeko', 'stc'};
+  static const _workOrdersCacheKey = 'work_order_records_v1';
 
   @override
   Future<LogisticsUiState> build() async {
@@ -334,7 +337,8 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
     final customerRequests =
         _normalizeCustomerRequests(await useCase.getCustomerRequests());
     final quotations = await useCase.getQuotations();
-    final workOrders = await useCase.getFlowWorkOrders();
+    final sourceWorkOrders = await useCase.getFlowWorkOrders();
+    final workOrders = await _loadCachedWorkOrders(sourceWorkOrders);
     final fallbackVehicles = await useCase.getVehicles();
     final fallbackDrivers = await useCase.getDrivers();
     final journeys = await useCase.getJourneyMaster();
@@ -887,34 +891,109 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
     setQuoteStatus(quoteRef, approved ? 'Approved' : 'Pending');
   }
 
-  String createOrderFromQuotation(String quoteRef) {
+  String createWorkOrderJobFile({
+    required String workOrderNumber,
+    required String linkedQuotationRef,
+    required String linkedEnquiryNumber,
+    required String customerPoReference,
+    required String jobFileReference,
+    required String serviceStartDate,
+    required String serviceEndDate,
+    required String internalNotes,
+    required String initialStatus,
+  }) {
     final current = state.valueOrNull;
     if (current == null) {
       return 'Data not loaded.';
     }
 
-    QuotationData? selected;
-    for (final q in current.quotations) {
-      if (q.quoteRef == quoteRef) {
-        selected = q;
+    final woId = workOrderNumber.trim();
+    if (woId.isEmpty) {
+      return 'Work order number is required.';
+    }
+    final duplicateWo = current.workOrders.any(
+      (item) => item.woId.toLowerCase().trim() == woId.toLowerCase(),
+    );
+    if (duplicateWo) {
+      return 'Work order number already exists. Use a unique WO number.';
+    }
+
+    if (linkedQuotationRef.trim().isEmpty) {
+      return 'Linked quotation is required.';
+    }
+    if (linkedEnquiryNumber.trim().isEmpty) {
+      return 'Linked enquiry is required.';
+    }
+    if (customerPoReference.trim().isEmpty) {
+      return 'Customer PO / CWO reference is required.';
+    }
+    if (jobFileReference.trim().isEmpty) {
+      return 'Job file reference is required.';
+    }
+    if (serviceStartDate.trim().isEmpty || serviceEndDate.trim().isEmpty) {
+      return 'Service start and end dates are required.';
+    }
+    final parsedStart = DateTime.tryParse(serviceStartDate.trim());
+    final parsedEnd = DateTime.tryParse(serviceEndDate.trim());
+    if (parsedStart == null || parsedEnd == null) {
+      return 'Service dates are invalid. Use YYYY-MM-DD format.';
+    }
+    if (parsedEnd.isBefore(parsedStart)) {
+      return 'Service end date cannot be before start date.';
+    }
+
+    QuotationData? selectedQuotation;
+    for (final item in current.quotations) {
+      if (item.quoteRef == linkedQuotationRef.trim()) {
+        selectedQuotation = item;
         break;
       }
     }
 
-    if (selected == null) {
-      return 'Quotation not found.';
+    CustomerRequestData? selectedEnquiry;
+    for (final item in current.customerRequests) {
+      if (item.enquiryNumber == linkedEnquiryNumber.trim()) {
+        selectedEnquiry = item;
+        break;
+      }
     }
 
-    if (current.quoteStatusByRef[quoteRef] != 'Approved') {
-      return 'Order creation blocked: customer approval pending.';
+    if (selectedQuotation == null || selectedEnquiry == null) {
+      return 'Linked quotation/enquiry not found.';
+    }
+
+    final customerMatches = selectedQuotation.customer.trim().toLowerCase() ==
+        selectedEnquiry.customerName.trim().toLowerCase();
+    if (!customerMatches) {
+      return 'Linked quotation and enquiry must belong to the same customer.';
+    }
+
+    final quotationAccepted =
+        (current.quoteStatusByRef[linkedQuotationRef.trim()] ?? 'Pending') ==
+            'Approved';
+    if (!quotationAccepted) {
+      return 'WO blocked: linked quotation must be approved.';
+    }
+
+    if (initialStatus != 'Open' && initialStatus != 'Ready for Allocation') {
+      return 'Initial status must be Open or Ready for Allocation.';
     }
 
     final wo = WorkOrderFlowItem(
-      woId: 'ORD-${DateTime.now().millisecondsSinceEpoch % 100000}',
-      customer: selected.customer,
-      route: selected.workDescription,
-      cargo: selected.workDescription,
-      status: 'Created',
+      woId: woId,
+      customer: selectedQuotation.customer,
+      route: selectedEnquiry.route.trim().isEmpty
+          ? '${selectedEnquiry.pickup} -> ${selectedEnquiry.delivery}'
+          : selectedEnquiry.route,
+      cargo: selectedEnquiry.cargoType,
+      status: initialStatus,
+      linkedQuotationRef: linkedQuotationRef.trim(),
+      linkedEnquiryNumber: linkedEnquiryNumber.trim(),
+      customerPoReference: customerPoReference.trim(),
+      jobFileReference: jobFileReference.trim(),
+      serviceStartDate: serviceStartDate.trim(),
+      serviceEndDate: serviceEndDate.trim(),
+      internalNotes: internalNotes.trim(),
     );
 
     state = AsyncData(
@@ -931,8 +1010,74 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
         lastUpdated: DateTime.now(),
       ),
     );
+    unawaited(_persistWorkOrders(state.valueOrNull?.workOrders ?? const []));
 
-    return 'Order created from quotation $quoteRef';
+    return 'Work order ${wo.woId} created and ready for allocation flow.';
+  }
+
+  String createOrderFromQuotation(String quoteRef) {
+    final current = state.valueOrNull;
+    if (current == null) {
+      return 'Data not loaded.';
+    }
+
+    CustomerRequestData? linkedEnquiry;
+    for (final item in current.customerRequests) {
+      if (item.status != 'Cancelled') {
+        linkedEnquiry = item;
+        break;
+      }
+    }
+
+    return createWorkOrderJobFile(
+      workOrderNumber: 'WO-${DateTime.now().millisecondsSinceEpoch % 100000}',
+      linkedQuotationRef: quoteRef,
+      linkedEnquiryNumber: linkedEnquiry?.enquiryNumber ?? '',
+      customerPoReference: 'PO-PENDING',
+      jobFileReference: 'JOB-${DateTime.now().millisecondsSinceEpoch % 100000}',
+      serviceStartDate: _formatDate(DateTime.now()),
+      serviceEndDate: _formatDate(DateTime.now().add(const Duration(days: 1))),
+      internalNotes: 'Generated from approved quotation flow.',
+      initialStatus: 'Open',
+    );
+  }
+
+  String duplicateWorkOrder(String workOrderId) {
+    final current = state.valueOrNull;
+    if (current == null) {
+      return 'Data not loaded.';
+    }
+
+    WorkOrderFlowItem? source;
+    for (final item in current.workOrders) {
+      if (item.woId == workOrderId) {
+        source = item;
+        break;
+      }
+    }
+
+    if (source == null) {
+      return 'Work order not found.';
+    }
+
+    final newWoId = _nextDuplicatedWorkOrderId(current.workOrders, source.woId);
+    final copied = source.copyWith(
+      woId: newWoId,
+      status: 'Open',
+      internalNotes: source.internalNotes.trim().isEmpty
+          ? 'Copied from ${source.woId}'
+          : '${source.internalNotes}\nCopied from ${source.woId}',
+    );
+
+    state = AsyncData(
+      current.copyWith(
+        workOrders: [copied, ...current.workOrders],
+        lastUpdated: DateTime.now(),
+      ),
+    );
+    unawaited(_persistWorkOrders(state.valueOrNull?.workOrders ?? const []));
+
+    return 'Work order copied. New WO created: $newWoId';
   }
 
   String assignFleetDriver({
@@ -965,15 +1110,8 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
     }
 
     final updatedOrders = current.workOrders
-        .map((item) => item.woId == orderId
-            ? WorkOrderFlowItem(
-                woId: item.woId,
-                customer: item.customer,
-                route: item.route,
-                cargo: item.cargo,
-                status: 'Assigned',
-              )
-            : item)
+        .map((item) =>
+            item.woId == orderId ? item.copyWith(status: 'Assigned') : item)
         .toList();
 
     state = AsyncData(
@@ -995,7 +1133,90 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
         lastUpdated: DateTime.now(),
       ),
     );
+    unawaited(_persistWorkOrders(state.valueOrNull?.workOrders ?? const []));
     return 'Fleet and driver assigned.';
+  }
+
+  String upsertWorkOrderFromMaster({
+    required String workOrderNumber,
+    required String enquiryReference,
+    required String customer,
+    required String cargo,
+    required String origin,
+    required String destination,
+    required DateTime? plannedDispatchDate,
+    required DateTime? plannedDeliveryDate,
+    required String internalNotes,
+    required bool isEdit,
+  }) {
+    final current = state.valueOrNull;
+    if (current == null) {
+      return 'Data not loaded.';
+    }
+
+    final woId = workOrderNumber.trim();
+    if (woId.isEmpty) {
+      return 'Work order number is required.';
+    }
+    if (enquiryReference.trim().isEmpty) {
+      return 'Enquiry / reference is required.';
+    }
+    if (customer.trim().isEmpty) {
+      return 'Customer is required.';
+    }
+    if (cargo.trim().isEmpty) {
+      return 'Cargo type is required.';
+    }
+    if (origin.trim().isEmpty || destination.trim().isEmpty) {
+      return 'Origin and destination are required.';
+    }
+    if (plannedDispatchDate == null || plannedDeliveryDate == null) {
+      return 'Planned dispatch and delivery dates are required.';
+    }
+    if (plannedDeliveryDate.isBefore(plannedDispatchDate)) {
+      return 'Planned delivery date cannot be before dispatch date.';
+    }
+
+    final existingIndex =
+        current.workOrders.indexWhere((item) => item.woId == woId);
+    if (!isEdit && existingIndex >= 0) {
+      return 'Work order number already exists. Use a unique WO number.';
+    }
+    if (isEdit && existingIndex < 0) {
+      return 'Work order not found for update.';
+    }
+
+    final nextItem = WorkOrderFlowItem(
+      woId: woId,
+      customer: customer.trim(),
+      route: '${origin.trim()} -> ${destination.trim()}',
+      cargo: cargo.trim(),
+      status: 'Open',
+      linkedQuotationRef: '',
+      linkedEnquiryNumber: enquiryReference.trim(),
+      customerPoReference: '',
+      jobFileReference: '',
+      serviceStartDate: _formatDate(plannedDispatchDate),
+      serviceEndDate: _formatDate(plannedDeliveryDate),
+      internalNotes: internalNotes.trim(),
+    );
+
+    List<WorkOrderFlowItem> updated;
+    if (isEdit) {
+      updated = [...current.workOrders];
+      updated[existingIndex] = nextItem;
+    } else {
+      updated = [nextItem, ...current.workOrders];
+    }
+
+    state = AsyncData(current.copyWith(
+      workOrders: updated,
+      lastUpdated: DateTime.now(),
+    ));
+    unawaited(_persistWorkOrders(updated));
+    return isEdit
+        ? 'Work order $woId updated successfully.'
+        : 'Work order $woId created successfully.';
   }
 
   String addDriver({
@@ -1430,5 +1651,80 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
 
   String _normalizeToken(String value) {
     return value.toLowerCase().replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
+
+  String _nextDuplicatedWorkOrderId(
+    List<WorkOrderFlowItem> existing,
+    String sourceId,
+  ) {
+    final source = sourceId.trim();
+    var counter = 1;
+    while (true) {
+      final candidate = '$source-COPY-$counter';
+      final taken = existing.any((item) => item.woId == candidate);
+      if (!taken) {
+        return candidate;
+      }
+      counter += 1;
+    }
+  }
+
+  Future<List<WorkOrderFlowItem>> _loadCachedWorkOrders(
+    List<WorkOrderFlowItem> fallback,
+  ) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_workOrdersCacheKey);
+      if (raw != null && raw.isNotEmpty) {
+        final decoded = jsonDecode(raw) as List<dynamic>;
+        return decoded
+            .map((entry) => _workOrderFromMap(Map<String, dynamic>.from(entry)))
+            .toList();
+      }
+      await _persistWorkOrders(fallback);
+      return fallback;
+    } catch (_) {
+      return fallback;
+    }
+  }
+
+  Future<void> _persistWorkOrders(List<WorkOrderFlowItem> items) async {
+    final prefs = await SharedPreferences.getInstance();
+    final payload = items.map(_workOrderToMap).toList();
+    await prefs.setString(_workOrdersCacheKey, jsonEncode(payload));
+  }
+
+  WorkOrderFlowItem _workOrderFromMap(Map<String, dynamic> map) {
+    return WorkOrderFlowItem(
+      woId: map['woId'] as String? ?? '',
+      customer: map['customer'] as String? ?? '',
+      route: map['route'] as String? ?? '',
+      cargo: map['cargo'] as String? ?? '',
+      status: map['status'] as String? ?? 'Open',
+      linkedQuotationRef: map['linkedQuotationRef'] as String? ?? '',
+      linkedEnquiryNumber: map['linkedEnquiryNumber'] as String? ?? '',
+      customerPoReference: map['customerPoReference'] as String? ?? '',
+      jobFileReference: map['jobFileReference'] as String? ?? '',
+      serviceStartDate: map['serviceStartDate'] as String? ?? '',
+      serviceEndDate: map['serviceEndDate'] as String? ?? '',
+      internalNotes: map['internalNotes'] as String? ?? '',
+    );
+  }
+
+  Map<String, dynamic> _workOrderToMap(WorkOrderFlowItem item) {
+    return {
+      'woId': item.woId,
+      'customer': item.customer,
+      'route': item.route,
+      'cargo': item.cargo,
+      'status': item.status,
+      'linkedQuotationRef': item.linkedQuotationRef,
+      'linkedEnquiryNumber': item.linkedEnquiryNumber,
+      'customerPoReference': item.customerPoReference,
+      'jobFileReference': item.jobFileReference,
+      'serviceStartDate': item.serviceStartDate,
+      'serviceEndDate': item.serviceEndDate,
+      'internalNotes': item.internalNotes,
+    };
   }
 }

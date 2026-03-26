@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/providers/data_source_mode_provider.dart';
 import '../../core/utils/responsive.dart';
 import '../../routes/route_paths.dart';
 import '../viewmodels/auth_viewmodel.dart';
@@ -24,6 +23,50 @@ class OpsShell extends ConsumerWidget {
   final String currentRoute;
   final Widget child;
   final List<Widget> actions;
+
+  static const Map<String, String> _routeDisplayNames = {
+    RoutePaths.home: 'Dashboard',
+    RoutePaths.dashboard: 'Dashboard',
+    RoutePaths.workOrders: 'Work Orders',
+    RoutePaths.workOrderFlow: 'Work Order Flow',
+    RoutePaths.customerManagement: 'Customer Management',
+    RoutePaths.customerForm: 'Customer Management',
+    RoutePaths.customerView: 'Customer Management',
+    RoutePaths.customerRequest: 'Customer Requests',
+    RoutePaths.enquiryDetails: 'Enquiry Details',
+    RoutePaths.feasibilityQuotation: 'Feasibility & Quotation',
+    RoutePaths.fleetManagement: 'Fleet Management',
+    RoutePaths.driverManagement: 'Driver Management',
+    RoutePaths.complianceInspection: 'Compliance Inspection',
+    RoutePaths.complianceDashboard: 'Compliance Dashboard',
+    RoutePaths.dispatchReadiness: 'Dispatch Readiness',
+    RoutePaths.inspections: 'Inspections',
+    RoutePaths.inspectionTemplates: 'Inspection Templates',
+    RoutePaths.inspectionFailedQueue: 'Failed Inspections',
+    RoutePaths.inspectionCalendar: 'Inspection Calendar',
+    RoutePaths.mediaGallery: 'Media Gallery',
+    RoutePaths.journeyManagement: 'Journey Management',
+    RoutePaths.tripMonitoring: 'Trip Monitoring',
+    RoutePaths.tripExecution: 'Trip Execution',
+    RoutePaths.deliveryPod: 'Delivery POD',
+    RoutePaths.documentSubmission: 'Document Submission',
+    RoutePaths.closure: 'Closure',
+    RoutePaths.invoice: 'Invoices',
+    RoutePaths.reports: 'Reports',
+    RoutePaths.assignments: 'Assignments',
+    RoutePaths.alerts: 'Alerts',
+    RoutePaths.roleManagement: 'Role Management',
+    RoutePaths.userManagement: 'User Management',
+    RoutePaths.transportManagement: 'Vehicle Master',
+    RoutePaths.vehicleTypes: 'Vehicle Types',
+    RoutePaths.vendorMaster: 'Vendor Master',
+    RoutePaths.documentManagement: 'Document Type',
+    RoutePaths.locationMaster: 'Location Master',
+    RoutePaths.routeLocationMaster: 'Route Location Master',
+    RoutePaths.roleDocumentMapping: 'Role Document Mapping',
+    RoutePaths.userProfile: 'User Profile',
+    RoutePaths.changePassword: 'Change Password',
+  };
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -50,14 +93,14 @@ class OpsShell extends ConsumerWidget {
             right: -60,
             child: _GlowBlob(
                 size: 220,
-                color: colorScheme.primaryContainer.withOpacity(0.3)),
+                color: colorScheme.primaryContainer.withValues(alpha: 0.3)),
           ),
           Positioned(
             bottom: -100,
             left: -70,
             child: _GlowBlob(
                 size: 260,
-                color: colorScheme.secondaryContainer.withOpacity(0.3)),
+                color: colorScheme.secondaryContainer.withValues(alpha: 0.3)),
           ),
           isDesktop
               ? Row(
@@ -71,28 +114,152 @@ class OpsShell extends ConsumerWidget {
                     ),
                     VerticalDivider(
                         width: 1, color: colorScheme.outlineVariant),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: child,
-                      ),
-                    ),
+                    Expanded(child: _buildContentPanel(context)),
                   ],
                 )
-              : Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: child,
-                ),
+              : _buildContentPanel(context),
         ],
       ),
     );
   }
 
+  Widget _buildContentPanel(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final breadcrumbs = _breadcrumbsForPage();
+
+    return SelectionArea(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color:
+                    colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: colorScheme.outlineVariant),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      for (var i = 0; i < breadcrumbs.length; i++) ...[
+                        Text(
+                          breadcrumbs[i],
+                          style: textTheme.labelMedium?.copyWith(
+                            color: i == breadcrumbs.length - 1
+                                ? colorScheme.onSurface
+                                : colorScheme.onSurfaceVariant,
+                            fontWeight: i == breadcrumbs.length - 1
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                          ),
+                        ),
+                        if (i < breadcrumbs.length - 1)
+                          Icon(
+                            Icons.chevron_right_rounded,
+                            size: 16,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    title,
+                    style: textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  if (actions.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        const Spacer(),
+                        Flexible(
+                          child: Wrap(
+                            alignment: WrapAlignment.end,
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: actions,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Expanded(child: child),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<String> _breadcrumbsForPage() {
+    final routeLabel = _routeLabel(currentRoute);
+    final crumbs = <String>['Dashboard'];
+
+    if (routeLabel.isNotEmpty && routeLabel != 'Dashboard') {
+      crumbs.add(routeLabel);
+    }
+    if (title != routeLabel && title != 'Dashboard') {
+      crumbs.add(title);
+    } else if (crumbs.length == 1 && title != 'Dashboard') {
+      crumbs.add(title);
+    }
+
+    return crumbs;
+  }
+
+  String _routeLabel(String route) {
+    final normalizedRoute =
+        route.split('?').first.replaceAll(RegExp(r'/+$'), '');
+    final exactMatch =
+        _routeDisplayNames[normalizedRoute.isEmpty ? '/' : normalizedRoute];
+    if (exactMatch != null) {
+      return exactMatch;
+    }
+
+    final partialMatch = _routeDisplayNames.entries
+        .where((entry) =>
+            entry.key != '/' && normalizedRoute.startsWith('${entry.key}/'))
+        .map((entry) => entry.value)
+        .cast<String?>()
+        .firstWhere((value) => value != null, orElse: () => null);
+    if (partialMatch != null) {
+      return partialMatch;
+    }
+
+    final segments = normalizedRoute
+        .split('/')
+        .where((segment) => segment.isNotEmpty && !segment.startsWith(':'))
+        .toList();
+    if (segments.isEmpty) {
+      return 'Dashboard';
+    }
+
+    final slug = segments.last;
+    return slug
+        .split(RegExp(r'[-_]'))
+        .where((part) => part.isNotEmpty)
+        .map((part) => part[0].toUpperCase() + part.substring(1))
+        .join(' ');
+  }
+
   PreferredSizeWidget _buildAppBar(
       BuildContext context, WidgetRef ref, bool isDesktop, bool isCollapsed) {
     final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-    final useLiveApi = ref.watch(useLiveApiProvider);
 
     return AppBar(
       elevation: 0,
@@ -113,34 +280,8 @@ class OpsShell extends ConsumerWidget {
               },
             )
           : null,
-      title: Row(
-        children: [
-          Text(
-            title,
-            style: textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
+      title: const _TopBarLogo(),
       actions: [
-        // Data source chip
-        Container(
-          margin: const EdgeInsets.only(right: 8),
-          child: ActionChip(
-            avatar: Icon(
-              useLiveApi ? Icons.cloud_done_outlined : Icons.dataset_outlined,
-              size: 16,
-              color: colorScheme.onPrimaryContainer,
-            ),
-            label: Text(useLiveApi ? 'Live API' : 'Mock JSON'),
-            labelStyle: textTheme.labelMedium?.copyWith(
-              color: colorScheme.onPrimaryContainer,
-            ),
-            backgroundColor: colorScheme.primaryContainer,
-            onPressed: () => ref.read(useLiveApiProvider.notifier).toggle(),
-          ),
-        ),
         // Theme toggle
         IconButton(
           tooltip: 'Toggle Theme',
@@ -154,8 +295,40 @@ class OpsShell extends ConsumerWidget {
         // User Profile Menu
         _UserProfileMenu(),
         const SizedBox(width: 8),
-        ...actions,
       ],
+    );
+  }
+}
+
+class _TopBarLogo extends StatelessWidget {
+  const _TopBarLogo();
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: Image.asset(
+        'assets/images/gls_logo.jpg',
+        width: 48,
+        height: 48,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => Container(
+          width: 48,
+          height: 48,
+          color: colorScheme.primaryContainer,
+          alignment: Alignment.center,
+          child: Text(
+            'GLS',
+            style: TextStyle(
+              color: colorScheme.onPrimaryContainer,
+              fontWeight: FontWeight.w700,
+              fontSize: 11,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -176,7 +349,7 @@ class _UserProfileMenu extends ConsumerWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
+          color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: colorScheme.outlineVariant),
         ),
@@ -468,6 +641,10 @@ class _SidebarState extends State<_Sidebar> {
                   route: RoutePaths.documentManagement),
               _OpsMenuItem('Customer Management', Icons.business_outlined,
                   route: RoutePaths.customerManagement),
+              _OpsMenuItem('Location Master', Icons.location_on_outlined,
+                  route: RoutePaths.locationMaster),
+              _OpsMenuItem('Route Location Master', Icons.alt_route_outlined,
+                  route: RoutePaths.routeLocationMaster),
             ],
           ),
         ],
@@ -488,38 +665,20 @@ class _SidebarState extends State<_Sidebar> {
                 color: Colors.white,
                 boxShadow: [
                   BoxShadow(
-                    color: colorScheme.shadow.withOpacity(0.1),
+                    color: colorScheme.shadow.withValues(alpha: 0.1),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
                 ],
               ),
               child: widget.isCollapsed
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.asset(
-                        'assets/images/gls_logo.jpg',
-                        width: 48,
-                        height: 48,
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) =>
-                            _buildFallbackLogo(context, true),
-                      ),
+                  ? Icon(
+                      Icons.menu_rounded,
+                      color: colorScheme.onSurfaceVariant,
+                      size: 28,
                     )
                   : Row(
                       children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
-                          child: Image.asset(
-                            'assets/images/gls_logo.jpg',
-                            width: 56,
-                            height: 56,
-                            fit: BoxFit.contain,
-                            errorBuilder: (_, __, ___) =>
-                                _buildFallbackLogo(context, false),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -622,51 +781,6 @@ class _SidebarState extends State<_Sidebar> {
       }
     });
   }
-
-  Widget _buildFallbackLogo(BuildContext context, bool small) {
-    const gold = Color(0xFFD4AF37);
-    const green = Color(0xFF2E7D32);
-    final size = small ? 48.0 : 56.0;
-
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: const Color(0xFFF9F7EF),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-            decoration: BoxDecoration(
-              color: gold,
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.chevron_right,
-                    color: Colors.white, size: small ? 12 : 14),
-                Icon(Icons.chevron_right,
-                    color: Colors.white, size: small ? 12 : 14),
-              ],
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'GLS',
-            style: TextStyle(
-              color: green,
-              fontWeight: FontWeight.w900,
-              fontSize: small ? 12 : 14,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _MenuTile extends StatelessWidget {
@@ -693,10 +807,10 @@ class _MenuTile extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         color: selected
-            ? colorScheme.primary.withOpacity(0.12)
+            ? colorScheme.primary.withValues(alpha: 0.12)
             : Colors.transparent,
         border: selected
-            ? Border.all(color: colorScheme.primary.withOpacity(0.3))
+            ? Border.all(color: colorScheme.primary.withValues(alpha: 0.3))
             : null,
       ),
       child: Material(
@@ -801,7 +915,7 @@ class _ParentMenuTile extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         color: selected
-            ? colorScheme.primary.withOpacity(0.08)
+            ? colorScheme.primary.withValues(alpha: 0.08)
             : Colors.transparent,
       ),
       child: Material(

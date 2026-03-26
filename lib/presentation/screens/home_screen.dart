@@ -35,12 +35,12 @@ class HomeScreen extends ConsumerWidget {
       return Scaffold(
         body: Row(
           children: [
-            SizedBox(
-              width: 270,
+            Expanded(
+              flex: 23,
               child: _OpsSidebar(useLiveApi: useLiveApi),
             ),
             const VerticalDivider(width: 1),
-            const Expanded(child: _OperationsHubContent()),
+            const Expanded(flex: 77, child: _OperationsHubContent()),
           ],
         ),
       );
@@ -50,15 +50,6 @@ class HomeScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Transport Operations Hub'),
         actions: [
-          IconButton(
-            tooltip: useLiveApi ? 'Switch to Mock JSON' : 'Switch to Live API',
-            onPressed: () {
-              ref.read(useLiveApiProvider.notifier).toggle();
-            },
-            icon: Icon(
-              useLiveApi ? Icons.cloud_done_outlined : Icons.dataset_outlined,
-            ),
-          ),
           IconButton(
             tooltip: 'Toggle Theme',
             onPressed: () => ref.read(themeModeProvider.notifier).toggleTheme(),
@@ -89,13 +80,17 @@ class _OpsSidebar extends ConsumerWidget {
 
     final items = [
       _NavItem('Live Dashboard', Icons.dashboard_rounded, RoutePaths.home),
-      _NavItem('Fleet Tracker', Icons.local_shipping_outlined, RoutePaths.fleet),
+      _NavItem(
+          'Fleet Tracker', Icons.local_shipping_outlined, RoutePaths.fleet),
       _NavItem('Work Orders', Icons.assignment_outlined, RoutePaths.workOrders,
           badge: workOrders?.items.length),
-      _NavItem('Journey Plans', Icons.alt_route_outlined, RoutePaths.journeyPlans),
-      _NavItem('Alerts', Icons.notification_important_outlined, RoutePaths.alerts,
+      _NavItem(
+          'Journey Plans', Icons.alt_route_outlined, RoutePaths.journeyPlans),
+      _NavItem(
+          'Alerts', Icons.notification_important_outlined, RoutePaths.alerts,
           badge: alerts?.unreadCount),
-      _NavItem('Compliance', Icons.verified_user_outlined, RoutePaths.compliance),
+      _NavItem(
+          'Compliance', Icons.verified_user_outlined, RoutePaths.compliance),
       _NavItem('Live Tracking', Icons.map_outlined, RoutePaths.tracking),
     ];
 
@@ -161,7 +156,8 @@ class _OpsSidebar extends ConsumerWidget {
                     context.go(item.route);
                   },
                   child: Ink(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
                       color: selected
@@ -222,19 +218,12 @@ class _OpsSidebar extends ConsumerWidget {
                       children: [
                         Expanded(
                           child: OutlinedButton.icon(
-                            onPressed: () =>
-                                ref.read(themeModeProvider.notifier).toggleTheme(),
-                            icon: const Icon(Icons.dark_mode_outlined, size: 16),
+                            onPressed: () => ref
+                                .read(themeModeProvider.notifier)
+                                .toggleTheme(),
+                            icon:
+                                const Icon(Icons.dark_mode_outlined, size: 16),
                             label: const Text('Theme'),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () =>
-                                ref.read(useLiveApiProvider.notifier).toggle(),
-                            icon: const Icon(Icons.swap_horiz, size: 16),
-                            label: const Text('Source'),
                           ),
                         ),
                       ],
@@ -273,7 +262,8 @@ class _OperationsHubContent extends ConsumerWidget {
 
     final kpis = dashboard?.data.kpis;
 
-    final List<MileagePoint> mileagePoints = dashboard?.mileageByRange ?? const [];
+    final List<MileagePoint> mileagePoints =
+        dashboard?.mileageByRange ?? const [];
     final List<StatusShare> statusShare =
         dashboard?.data.vehicleStatusShare ?? const [];
 
@@ -316,14 +306,16 @@ class _OperationsHubContent extends ConsumerWidget {
               ),
               KpiCard(
                 title: 'On-Time KPI',
-                value: '${(84 + ((kpis?.activeVehicles ?? 0) % 12)).toStringAsFixed(0)}%',
+                value:
+                    '${(84 + ((kpis?.activeVehicles ?? 0) % 12)).toStringAsFixed(0)}%',
                 subtitle: '+2.1% this week',
                 icon: Icons.schedule_outlined,
                 color: const Color(0xFF16A34A),
               ),
               KpiCard(
                 title: 'Fleet Utilization',
-                value: '${(kpis == null ? 0 : ((kpis.activeVehicles / max(1, kpis.totalVehicles)) * 100)).toStringAsFixed(0)}%',
+                value:
+                    '${(kpis == null ? 0 : ((kpis.activeVehicles / max(1, kpis.totalVehicles)) * 100)).toStringAsFixed(0)}%',
                 subtitle: 'Target 80%',
                 icon: Icons.pie_chart_outline,
                 color: const Color(0xFFF59E0B),
@@ -396,7 +388,8 @@ class _OperationsHubContent extends ConsumerWidget {
           if (isMobile)
             Column(
               children: [
-                _ActiveFleetStatusCard(fleets: fleet?.filteredItems ?? const []),
+                _ActiveFleetStatusCard(
+                    fleets: fleet?.filteredItems ?? const []),
                 const SizedBox(height: 12),
                 _CompliancePanel(compliance: compliance),
                 const SizedBox(height: 12),
@@ -408,8 +401,8 @@ class _OperationsHubContent extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  child:
-                      _ActiveFleetStatusCard(fleets: fleet?.filteredItems ?? const []),
+                  child: _ActiveFleetStatusCard(
+                      fleets: fleet?.filteredItems ?? const []),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -417,7 +410,8 @@ class _OperationsHubContent extends ConsumerWidget {
                     children: [
                       _CompliancePanel(compliance: compliance),
                       const SizedBox(height: 12),
-                      _SmartAlertsPanel(alerts: alerts?.filteredItems ?? const []),
+                      _SmartAlertsPanel(
+                          alerts: alerts?.filteredItems ?? const []),
                     ],
                   ),
                 ),
@@ -427,9 +421,11 @@ class _OperationsHubContent extends ConsumerWidget {
           if (isMobile)
             Column(
               children: [
-                _ActiveOrdersPanel(orders: workOrders?.filteredItems ?? const []),
+                _ActiveOrdersPanel(
+                    orders: workOrders?.filteredItems ?? const []),
                 const SizedBox(height: 12),
-                _RoutePerformancePanel(plans: journeyPlans?.filteredItems ?? const []),
+                _RoutePerformancePanel(
+                    plans: journeyPlans?.filteredItems ?? const []),
               ],
             )
           else
@@ -437,7 +433,8 @@ class _OperationsHubContent extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  child: _ActiveOrdersPanel(orders: workOrders?.filteredItems ?? const []),
+                  child: _ActiveOrdersPanel(
+                      orders: workOrders?.filteredItems ?? const []),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -661,7 +658,8 @@ class _ActiveFleetStatusCard extends StatelessWidget {
     return _CardSection(
       title: 'Active Fleet Status',
       child: list.isEmpty
-          ? const SizedBox(height: 120, child: Center(child: Text('No fleet data')))
+          ? const SizedBox(
+              height: 120, child: Center(child: Text('No fleet data')))
           : Column(
               children: [
                 Row(
@@ -708,11 +706,21 @@ class _CompliancePanel extends StatelessWidget {
     final overdue = compliance?.overdueCount ?? 0;
 
     final rates = [
-      ('JMP Compliance', total == 0 ? 0.0 : compliant / total, const Color(0xFF16A34A)),
-      ('IVMS/DFMS Coverage', total == 0 ? 0.0 : (1 - (overdue / max(1, total))),
-          const Color(0xFF2563EB)),
-      ('License Validity', total == 0 ? 0.0 : (1 - (expiring / max(1, total))),
-          const Color(0xFF0EA5E9)),
+      (
+        'JMP Compliance',
+        total == 0 ? 0.0 : compliant / total,
+        const Color(0xFF16A34A)
+      ),
+      (
+        'IVMS/DFMS Coverage',
+        total == 0 ? 0.0 : (1 - (overdue / max(1, total))),
+        const Color(0xFF2563EB)
+      ),
+      (
+        'License Validity',
+        total == 0 ? 0.0 : (1 - (expiring / max(1, total))),
+        const Color(0xFF0EA5E9)
+      ),
       ('PDO SP-2000', 0.76, const Color(0xFFD97706)),
       ('RAS Inspections', 0.89, const Color(0xFF059669)),
     ];
@@ -769,7 +777,8 @@ class _SmartAlertsPanel extends StatelessWidget {
     return _CardSection(
       title: 'Smart Alerts',
       child: top.isEmpty
-          ? const SizedBox(height: 110, child: Center(child: Text('No active alerts')))
+          ? const SizedBox(
+              height: 110, child: Center(child: Text('No active alerts')))
           : Column(
               children: [
                 for (int i = 0; i < top.length; i++) ...[
@@ -815,7 +824,8 @@ class _ActiveOrdersPanel extends StatelessWidget {
     return _CardSection(
       title: 'Active Work Orders',
       child: top.isEmpty
-          ? const SizedBox(height: 120, child: Center(child: Text('No active work orders')))
+          ? const SizedBox(
+              height: 120, child: Center(child: Text('No active work orders')))
           : Column(
               children: [
                 for (int i = 0; i < top.length; i++) ...[
@@ -837,7 +847,8 @@ class _ActiveOrdersPanel extends StatelessWidget {
                         const SizedBox(height: 4),
                         Text(top[i].title),
                         const SizedBox(height: 4),
-                        Text('Vehicle ${top[i].vehicleId} • ${top[i].status.label}'),
+                        Text(
+                            'Vehicle ${top[i].vehicleId} • ${top[i].status.label}'),
                       ],
                     ),
                   ),

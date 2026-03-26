@@ -7,9 +7,11 @@ import '../presentation/screens/alerts_screen.dart';
 import '../presentation/screens/assignments_screen.dart';
 import '../presentation/screens/closure_screen.dart';
 import '../presentation/screens/customer_management_screen.dart';
+import '../presentation/screens/customer_form_screen.dart';
 import '../presentation/screens/customer_request_screen.dart';
 import '../presentation/screens/customer_request_form_screen.dart';
 import '../presentation/screens/customer_request_view_screen.dart';
+import '../presentation/screens/customer_view_screen.dart';
 import '../presentation/screens/enquiry_details_screen.dart';
 import '../presentation/screens/create_work_order_screen.dart';
 import '../presentation/screens/compliance_dashboard_screen.dart';
@@ -33,12 +35,18 @@ import '../presentation/screens/inspection_list_screen.dart';
 import '../presentation/screens/inspection_template_management_screen.dart';
 import '../presentation/screens/journey_management_screen.dart';
 import '../presentation/screens/login_screen.dart';
+import '../presentation/screens/location_form_screen.dart';
+import '../presentation/screens/location_list_screen.dart';
+import '../presentation/screens/location_view_screen.dart';
 import '../presentation/screens/media_gallery_screen.dart';
 import '../presentation/screens/media_preview_screen.dart';
 import '../presentation/screens/ops_dashboard_screen.dart';
 import '../presentation/screens/reports_screen.dart';
 import '../presentation/screens/role_form_screen.dart';
 import '../presentation/screens/role_list_screen.dart';
+import '../presentation/screens/route_form_screen.dart';
+import '../presentation/screens/route_list_screen.dart';
+import '../presentation/screens/route_view_screen.dart';
 import '../presentation/screens/transport_management_screen.dart';
 import '../presentation/screens/trip_monitoring_screen.dart';
 import '../presentation/screens/trip_execution_screen.dart';
@@ -92,6 +100,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const CustomerManagementScreen(),
       ),
       GoRoute(
+        path: RoutePaths.customerForm,
+        builder: (context, state) => CustomerFormScreen(
+          customerId: state.uri.queryParameters['id'],
+        ),
+      ),
+      GoRoute(
+        path: RoutePaths.customerView,
+        builder: (context, state) => CustomerViewScreen(
+          customerId: state.pathParameters['customerId'] ?? '',
+        ),
+      ),
+      GoRoute(
         path: RoutePaths.customerRequest,
         builder: (context, state) => const CustomerRequestScreen(),
       ),
@@ -129,7 +149,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: RoutePaths.createWorkOrder,
-        builder: (context, state) => const CreateWorkOrderScreen(),
+        builder: (context, state) => CreateWorkOrderScreen(
+          editWorkOrderId: state.uri.queryParameters['id'],
+        ),
       ),
       GoRoute(
         path: RoutePaths.workOrderDetail,
@@ -191,18 +213,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const InspectionCreateScreen(),
       ),
       GoRoute(
-        path: RoutePaths.inspectionApproval,
-        builder: (context, state) => InspectionApprovalScreen(
-          inspectionId: state.pathParameters['inspectionId'] ?? 'Unknown',
-        ),
-      ),
-      GoRoute(
-        path: RoutePaths.inspectionDetail,
-        builder: (context, state) => InspectionDetailScreen(
-          inspectionId: state.pathParameters['inspectionId'] ?? 'Unknown',
-        ),
-      ),
-      GoRoute(
         path: RoutePaths.inspectionTemplates,
         builder: (context, state) => const InspectionTemplateManagementScreen(),
       ),
@@ -213,6 +223,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: RoutePaths.inspectionCalendar,
         builder: (context, state) => const InspectionCalendarScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.inspectionApproval,
+        builder: (context, state) => InspectionApprovalScreen(
+          inspectionId: state.pathParameters['inspectionId'] ?? 'Unknown',
+        ),
+      ),
+      GoRoute(
+        path: RoutePaths.inspectionDetail,
+        builder: (context, state) => InspectionDetailScreen(
+          inspectionId: state.pathParameters['inspectionId'] ?? 'Unknown',
+        ),
       ),
       GoRoute(
         path: RoutePaths.complianceInspection,
@@ -310,6 +332,38 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: RoutePaths.vendorView,
         builder: (context, state) => VendorViewScreen(
           vendorId: state.pathParameters['vendorId'] ?? '',
+        ),
+      ),
+      GoRoute(
+        path: RoutePaths.locationMaster,
+        builder: (context, state) => const LocationListScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.locationForm,
+        builder: (context, state) => LocationFormScreen(
+          editCode: state.uri.queryParameters['code'],
+        ),
+      ),
+      GoRoute(
+        path: RoutePaths.locationView,
+        builder: (context, state) => LocationViewScreen(
+          locationCode: state.pathParameters['locationCode'] ?? '',
+        ),
+      ),
+      GoRoute(
+        path: RoutePaths.routeLocationMaster,
+        builder: (context, state) => const RouteListScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.routeLocationForm,
+        builder: (context, state) => RouteFormScreen(
+          editRouteId: state.uri.queryParameters['id'],
+        ),
+      ),
+      GoRoute(
+        path: RoutePaths.routeLocationView,
+        builder: (context, state) => RouteViewScreen(
+          routeId: state.pathParameters['routeId'] ?? '',
         ),
       ),
       GoRoute(

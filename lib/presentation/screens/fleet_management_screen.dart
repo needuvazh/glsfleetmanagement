@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/utils/responsive.dart';
 import '../../domain/entities/fleet.dart';
 import '../../routes/route_paths.dart';
 import '../viewmodels/fleet_viewmodel.dart';
@@ -13,18 +14,12 @@ class FleetManagementScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final fleetState = ref.watch(fleetViewModelProvider);
+    final isMobile = Responsive.isMobile(context);
 
     return OpsShell(
       title: 'Fleet List',
       currentRoute: RoutePaths.fleetManagement,
-      actions: [
-        FilledButton.icon(
-          onPressed: () => _openFleetDialog(context, ref),
-          icon: const Icon(Icons.add),
-          label: const Text('Add Fleet'),
-        ),
-        const SizedBox(width: 8),
-      ],
+      actions: const [],
       child: fleetState.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(child: Text(error.toString())),
@@ -32,152 +27,221 @@ class FleetManagementScreen extends ConsumerWidget {
           final rows =
               state.filteredItems.map(_FleetListRow.fromFleet).toList();
 
-          return Column(
-            children: [
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          onChanged: ref
-                              .read(fleetViewModelProvider.notifier)
-                              .setQuery,
-                          decoration: const InputDecoration(
-                            hintText: 'Search by fleet number, type, driver',
-                            prefixIcon: Icon(Icons.search),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      SizedBox(
-                        width: 180,
-                        child: DropdownButtonFormField<FleetFilter>(
-                          value: state.filter,
-                          decoration:
-                              const InputDecoration(labelText: 'Status'),
-                          items: [
-                            for (final value in FleetFilter.values)
-                              DropdownMenuItem(
-                                value: value,
-                                child: Text(value.label),
+          return Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: isMobile
+                        ? Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              TextField(
+                                onChanged: ref
+                                    .read(fleetViewModelProvider.notifier)
+                                    .setQuery,
+                                decoration: const InputDecoration(
+                                  hintText:
+                                      'Search by fleet number, type, driver',
+                                  prefixIcon: Icon(Icons.search),
+                                ),
                               ),
-                          ],
-                          onChanged: (value) {
-                            if (value != null) {
-                              ref
-                                  .read(fleetViewModelProvider.notifier)
-                                  .setFilter(value);
-                            }
-                          },
-                        ),
-                      ),
-                    ],
+                              const SizedBox(height: 10),
+                              DropdownButtonFormField<FleetFilter>(
+                                value: state.filter,
+                                decoration:
+                                    const InputDecoration(labelText: 'Status'),
+                                items: [
+                                  for (final value in FleetFilter.values)
+                                    DropdownMenuItem(
+                                      value: value,
+                                      child: Text(value.label),
+                                    ),
+                                ],
+                                onChanged: (value) {
+                                  if (value != null) {
+                                    ref
+                                        .read(fleetViewModelProvider.notifier)
+                                        .setFilter(value);
+                                  }
+                                },
+                              ),
+                              const SizedBox(height: 10),
+                              FilledButton.icon(
+                                onPressed: () => _openFleetDialog(context, ref),
+                                icon: const Icon(Icons.add),
+                                label: const Text('Add Fleet'),
+                              ),
+                            ],
+                          )
+                        : Row(
+                            children: [
+                              Expanded(
+                                flex: 2,
+                                child: TextField(
+                                  onChanged: ref
+                                      .read(fleetViewModelProvider.notifier)
+                                      .setQuery,
+                                  decoration: const InputDecoration(
+                                    hintText:
+                                        'Search by fleet number, type, driver',
+                                    prefixIcon: Icon(Icons.search),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: DropdownButtonFormField<FleetFilter>(
+                                  value: state.filter,
+                                  decoration: const InputDecoration(
+                                      labelText: 'Status'),
+                                  items: [
+                                    for (final value in FleetFilter.values)
+                                      DropdownMenuItem(
+                                        value: value,
+                                        child: Text(value.label),
+                                      ),
+                                  ],
+                                  onChanged: (value) {
+                                    if (value != null) {
+                                      ref
+                                          .read(fleetViewModelProvider.notifier)
+                                          .setFilter(value);
+                                    }
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              FilledButton.icon(
+                                onPressed: () => _openFleetDialog(context, ref),
+                                icon: const Icon(Icons.add),
+                                label: const Text('Add Fleet'),
+                              ),
+                            ],
+                          ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 10),
-              Expanded(
-                child: Card(
-                  child: rows.isEmpty
-                      ? const Center(child: Text('No fleet records found'))
-                      : SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: DataTable(
-                            columns: const [
-                              DataColumn(label: Text('Fleet Number')),
-                              DataColumn(label: Text('Type')),
-                              DataColumn(label: Text('Registration')),
-                              DataColumn(label: Text('Insurance Expiry')),
-                              DataColumn(label: Text('Inspection Due Date')),
-                              DataColumn(label: Text('Current Status')),
-                              DataColumn(label: Text('Current Work Order')),
-                              DataColumn(label: Text('Current Trip')),
-                              DataColumn(label: Text('Compliance Warning')),
-                              DataColumn(label: Text('Actions')),
-                            ],
-                            rows: [
-                              for (final row in rows)
-                                DataRow(cells: [
-                                  DataCell(Text(row.fleetNumber)),
-                                  DataCell(Text(row.type)),
-                                  DataCell(Text(row.registration)),
-                                  DataCell(Text(_fmtDate(row.insuranceExpiry))),
-                                  DataCell(
-                                      Text(_fmtDate(row.inspectionDueDate))),
-                                  DataCell(Text(row.currentStatus)),
-                                  DataCell(Text(row.currentWorkOrder)),
-                                  DataCell(Text(row.currentTrip)),
-                                  DataCell(
-                                    Text(
-                                      row.complianceWarning,
-                                      style: TextStyle(
-                                        color: row.complianceWarning == 'None'
-                                            ? const Color(0xFF15803D)
-                                            : const Color(0xFFB91C1C),
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
+                const SizedBox(height: 10),
+                Expanded(
+                  child: Card(
+                    child: rows.isEmpty
+                        ? const Center(child: Text('No fleet records found'))
+                        : LayoutBuilder(
+                            builder: (context, constraints) {
+                              return SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                      minWidth: constraints.maxWidth),
+                                  child: DataTable(
+                                    columns: const [
+                                      DataColumn(label: Text('Fleet Number')),
+                                      DataColumn(label: Text('Type')),
+                                      DataColumn(label: Text('Registration')),
+                                      DataColumn(
+                                          label: Text('Insurance Expiry')),
+                                      DataColumn(
+                                          label: Text('Inspection Due Date')),
+                                      DataColumn(label: Text('Current Status')),
+                                      DataColumn(
+                                          label: Text('Current Work Order')),
+                                      DataColumn(label: Text('Current Trip')),
+                                      DataColumn(
+                                          label: Text('Compliance Warning')),
+                                      DataColumn(label: Text('Actions')),
+                                    ],
+                                    rows: [
+                                      for (final row in rows)
+                                        DataRow(cells: [
+                                          DataCell(Text(row.fleetNumber)),
+                                          DataCell(Text(row.type)),
+                                          DataCell(Text(row.registration)),
+                                          DataCell(Text(
+                                              _fmtDate(row.insuranceExpiry))),
+                                          DataCell(Text(
+                                              _fmtDate(row.inspectionDueDate))),
+                                          DataCell(Text(row.currentStatus)),
+                                          DataCell(Text(row.currentWorkOrder)),
+                                          DataCell(Text(row.currentTrip)),
+                                          DataCell(
+                                            Text(
+                                              row.complianceWarning,
+                                              style: TextStyle(
+                                                color: row.complianceWarning ==
+                                                        'None'
+                                                    ? const Color(0xFF15803D)
+                                                    : const Color(0xFFB91C1C),
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                          DataCell(
+                                            Wrap(
+                                              spacing: 2,
+                                              children: [
+                                                IconButton(
+                                                  tooltip: 'Edit',
+                                                  onPressed: () =>
+                                                      _openFleetDialog(
+                                                    context,
+                                                    ref,
+                                                    existing: row.source,
+                                                  ),
+                                                  icon: const Icon(
+                                                      Icons.edit_outlined),
+                                                ),
+                                                IconButton(
+                                                  tooltip: 'Open Details',
+                                                  onPressed: () => context.push(
+                                                    RoutePaths.fleetDetailById(
+                                                        row.fleetNumber),
+                                                  ),
+                                                  icon: const Icon(Icons
+                                                      .open_in_new_rounded),
+                                                ),
+                                                IconButton(
+                                                  tooltip: 'View Inspections',
+                                                  onPressed: () => context.push(
+                                                    RoutePaths.inspections,
+                                                  ),
+                                                  icon: const Icon(Icons
+                                                      .fact_check_outlined),
+                                                ),
+                                                IconButton(
+                                                  tooltip: 'View Media',
+                                                  onPressed: () =>
+                                                      _showMediaPlaceholder(
+                                                    context,
+                                                    row.fleetNumber,
+                                                  ),
+                                                  icon: const Icon(Icons
+                                                      .perm_media_outlined),
+                                                ),
+                                                IconButton(
+                                                  tooltip: 'View History',
+                                                  onPressed: () => context.push(
+                                                    '${RoutePaths.fleetDetailById(row.fleetNumber)}?tab=history',
+                                                  ),
+                                                  icon: const Icon(
+                                                      Icons.history_outlined),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ]),
+                                    ],
                                   ),
-                                  DataCell(
-                                    Wrap(
-                                      spacing: 2,
-                                      children: [
-                                        IconButton(
-                                          tooltip: 'Edit',
-                                          onPressed: () => _openFleetDialog(
-                                            context,
-                                            ref,
-                                            existing: row.source,
-                                          ),
-                                          icon: const Icon(Icons.edit_outlined),
-                                        ),
-                                        IconButton(
-                                          tooltip: 'Open Details',
-                                          onPressed: () => context.push(
-                                            RoutePaths.fleetDetailById(
-                                                row.fleetNumber),
-                                          ),
-                                          icon: const Icon(
-                                              Icons.open_in_new_rounded),
-                                        ),
-                                        IconButton(
-                                          tooltip: 'View Inspections',
-                                          onPressed: () => context.push(
-                                            RoutePaths.inspections,
-                                          ),
-                                          icon: const Icon(
-                                              Icons.fact_check_outlined),
-                                        ),
-                                        IconButton(
-                                          tooltip: 'View Media',
-                                          onPressed: () =>
-                                              _showMediaPlaceholder(
-                                            context,
-                                            row.fleetNumber,
-                                          ),
-                                          icon: const Icon(
-                                              Icons.perm_media_outlined),
-                                        ),
-                                        IconButton(
-                                          tooltip: 'View History',
-                                          onPressed: () => context.push(
-                                            '${RoutePaths.fleetDetailById(row.fleetNumber)}?tab=history',
-                                          ),
-                                          icon: const Icon(
-                                              Icons.history_outlined),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ]),
-                            ],
+                                ),
+                              );
+                            },
                           ),
-                        ),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           );
         },
       ),
@@ -216,8 +280,10 @@ class FleetManagementScreen extends ConsumerWidget {
           builder: (context, setInnerState) {
             return AlertDialog(
               title: Text(isEdit ? 'Edit Fleet' : 'Add Fleet'),
-              content: SizedBox(
-                width: 560,
+              content: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: MediaQuery.sizeOf(context).width * 0.75,
+                ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [

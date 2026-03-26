@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/utils/responsive.dart';
 import '../../domain/entities/driver.dart';
 import '../viewmodels/driver_viewmodel.dart';
 import '../widgets/ops_shell.dart';
@@ -11,10 +12,12 @@ class DriverManagementScreenV2 extends ConsumerStatefulWidget {
   const DriverManagementScreenV2({super.key});
 
   @override
-  ConsumerState<DriverManagementScreenV2> createState() => _DriverManagementScreenV2State();
+  ConsumerState<DriverManagementScreenV2> createState() =>
+      _DriverManagementScreenV2State();
 }
 
-class _DriverManagementScreenV2State extends ConsumerState<DriverManagementScreenV2> {
+class _DriverManagementScreenV2State
+    extends ConsumerState<DriverManagementScreenV2> {
   String _searchQuery = '';
   String _filterStatus = 'All';
   String _sortBy = 'Name';
@@ -24,6 +27,8 @@ class _DriverManagementScreenV2State extends ConsumerState<DriverManagementScree
     final driverState = ref.watch(driverViewModelProvider);
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final isMobile = Responsive.isMobile(context);
+    final isTablet = Responsive.isTablet(context);
 
     return OpsShell(
       title: 'Driver Management',
@@ -46,14 +51,16 @@ class _DriverManagementScreenV2State extends ConsumerState<DriverManagementScree
             final matchesSearch = _searchQuery.isEmpty ||
                 d.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
                 d.licenseNo.toLowerCase().contains(_searchQuery.toLowerCase());
-            final matchesStatus = _filterStatus == 'All' || d.status == _filterStatus;
+            final matchesStatus =
+                _filterStatus == 'All' || d.status == _filterStatus;
             return matchesSearch && matchesStatus;
           }).toList();
 
           if (_sortBy == 'Name') {
             filteredDrivers.sort((a, b) => a.name.compareTo(b.name));
           } else if (_sortBy == 'Experience') {
-            filteredDrivers.sort((a, b) => b.experience.compareTo(a.experience));
+            filteredDrivers
+                .sort((a, b) => b.experience.compareTo(a.experience));
           }
 
           return ListView(
@@ -61,7 +68,7 @@ class _DriverManagementScreenV2State extends ConsumerState<DriverManagementScree
             children: [
               // Summary Cards
               GridView.count(
-                crossAxisCount: MediaQuery.of(context).size.width < 720 ? 2 : 4,
+                crossAxisCount: isMobile ? 2 : (isTablet ? 3 : 4),
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 mainAxisSpacing: 12,
@@ -76,19 +83,28 @@ class _DriverManagementScreenV2State extends ConsumerState<DriverManagementScree
                   ),
                   _SummaryCard(
                     title: 'Active',
-                    value: drivers.items.where((d) => d.status == 'Active').length.toString(),
+                    value: drivers.items
+                        .where((d) => d.status == 'Active')
+                        .length
+                        .toString(),
                     icon: Icons.check_circle_outlined,
                     color: colorScheme.tertiary,
                   ),
                   _SummaryCard(
                     title: 'On Leave',
-                    value: drivers.items.where((d) => d.status == 'On Leave').length.toString(),
+                    value: drivers.items
+                        .where((d) => d.status == 'On Leave')
+                        .length
+                        .toString(),
                     icon: Icons.event_busy_outlined,
                     color: colorScheme.secondary,
                   ),
                   _SummaryCard(
                     title: 'Inactive',
-                    value: drivers.items.where((d) => d.status == 'Inactive').length.toString(),
+                    value: drivers.items
+                        .where((d) => d.status == 'Inactive')
+                        .length
+                        .toString(),
                     icon: Icons.block_outlined,
                     color: colorScheme.error,
                   ),
@@ -98,7 +114,8 @@ class _DriverManagementScreenV2State extends ConsumerState<DriverManagementScree
               // Search and Filter Section
               Card(
                 elevation: 2,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
@@ -114,14 +131,17 @@ class _DriverManagementScreenV2State extends ConsumerState<DriverManagementScree
                       const SizedBox(height: 12),
                       // Search Field
                       TextField(
-                        onChanged: (value) => setState(() => _searchQuery = value),
+                        onChanged: (value) =>
+                            setState(() => _searchQuery = value),
                         decoration: InputDecoration(
                           hintText: 'Search by name or license number...',
-                          prefixIcon: Icon(Icons.search_outlined, color: colorScheme.onSurfaceVariant),
+                          prefixIcon: Icon(Icons.search_outlined,
+                              color: colorScheme.onSurfaceVariant),
                           suffixIcon: _searchQuery.isNotEmpty
                               ? IconButton(
                                   icon: const Icon(Icons.clear_outlined),
-                                  onPressed: () => setState(() => _searchQuery = ''),
+                                  onPressed: () =>
+                                      setState(() => _searchQuery = ''),
                                 )
                               : null,
                         ),
@@ -144,7 +164,8 @@ class _DriverManagementScreenV2State extends ConsumerState<DriverManagementScree
                                       ))
                                   .toList(),
                               onChanged: (value) {
-                                if (value != null) setState(() => _filterStatus = value);
+                                if (value != null)
+                                  setState(() => _filterStatus = value);
                               },
                             ),
                           ),
@@ -163,7 +184,8 @@ class _DriverManagementScreenV2State extends ConsumerState<DriverManagementScree
                                       ))
                                   .toList(),
                               onChanged: (value) {
-                                if (value != null) setState(() => _sortBy = value);
+                                if (value != null)
+                                  setState(() => _sortBy = value);
                               },
                             ),
                           ),
@@ -189,11 +211,13 @@ class _DriverManagementScreenV2State extends ConsumerState<DriverManagementScree
                     padding: const EdgeInsets.all(32),
                     child: Column(
                       children: [
-                        Icon(Icons.badge_outlined, size: 48, color: colorScheme.outline),
+                        Icon(Icons.badge_outlined,
+                            size: 48, color: colorScheme.outline),
                         const SizedBox(height: 12),
                         Text(
                           'No drivers found',
-                          style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
+                          style: textTheme.bodyMedium
+                              ?.copyWith(color: colorScheme.onSurfaceVariant),
                         ),
                       ],
                     ),
@@ -339,7 +363,8 @@ class _DriverCard extends StatelessWidget {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: statusColor.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(20),
