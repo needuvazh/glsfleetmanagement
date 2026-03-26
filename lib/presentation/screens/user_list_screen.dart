@@ -89,6 +89,7 @@ class UserListScreen extends ConsumerWidget {
                         'Enterprise user directory with list-first workflow',
                     icon: Icons.manage_accounts_outlined,
                     accent: const Color(0xFF16A34A),
+                    expandChild: true,
                     child: users.isEmpty
                         ? const Padding(
                             padding: EdgeInsets.symmetric(vertical: 18),
@@ -108,68 +109,132 @@ class UserListScreen extends ConsumerWidget {
   }
 }
 
-class _DesktopUserTable extends StatelessWidget {
+class _DesktopUserTable extends StatefulWidget {
   const _DesktopUserTable({required this.users});
 
   final List<UserModel> users;
 
   @override
+  State<_DesktopUserTable> createState() => _DesktopUserTableState();
+}
+
+class _DesktopUserTableState extends State<_DesktopUserTable> {
+  final _horizontalController = ScrollController();
+
+  @override
+  void dispose() {
+    _horizontalController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        return SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minWidth: constraints.maxWidth),
-            child: DataTable(
-              headingRowColor: WidgetStateProperty.all(const Color(0xFFEFF4FF)),
-              columns: const [
-                DataColumn(label: Text('First Name')),
-                DataColumn(label: Text('Last Name')),
-                DataColumn(label: Text('Role')),
-                DataColumn(label: Text('Phone')),
-                DataColumn(label: Text('Email')),
-                DataColumn(label: Text('Status')),
-                DataColumn(label: Text('Actions')),
-              ],
-              rows: [
-                for (final user in users)
-                  DataRow(
-                    cells: [
-                      DataCell(Text(user.firstName)),
-                      DataCell(Text(user.lastName)),
-                      DataCell(Text(user.role.label)),
-                      DataCell(Text(user.fullPhone)),
-                      DataCell(Text(user.email)),
-                      DataCell(
-                        OpsPill(
-                          label: user.status.label,
-                          color: user.status == UserStatusType.active
-                              ? const Color(0xFF16A34A)
-                              : const Color(0xFFDC2626),
-                        ),
-                      ),
-                      DataCell(
-                        Wrap(
-                          spacing: 6,
-                          children: [
-                            TextButton(
-                              onPressed: () => context
-                                  .go(RoutePaths.userViewById(user.userId)),
-                              child: const Text('View'),
+        return Scrollbar(
+          thumbVisibility: true,
+          controller: _horizontalController,
+          notificationPredicate: (notification) =>
+              notification.metrics.axis == Axis.horizontal,
+          child: SingleChildScrollView(
+            child: SingleChildScrollView(
+              controller: _horizontalController,
+              scrollDirection: Axis.horizontal,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                child: DataTable(
+                headingRowColor:
+                    WidgetStateProperty.all(const Color(0xFFEFF4FF)),
+                horizontalMargin: 14,
+                columnSpacing: 20,
+                dataRowMinHeight: 62,
+                dataRowMaxHeight: 72,
+                columns: const [
+                  DataColumn(label: Text('First Name')),
+                  DataColumn(label: Text('Last Name')),
+                  DataColumn(label: Text('Role')),
+                  DataColumn(label: Text('Phone')),
+                  DataColumn(label: Text('Email')),
+                  DataColumn(label: Text('Status')),
+                  DataColumn(label: Text('Actions')),
+                ],
+                rows: [
+                  for (final user in widget.users)
+                    DataRow(
+                      cells: [
+                        DataCell(
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 140),
+                            child: Text(
+                              user.firstName,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            TextButton(
-                              onPressed: () => context.go(
-                                '${RoutePaths.userForm}?id=${user.userId}',
-                              ),
-                              child: const Text('Edit'),
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-              ],
+                        DataCell(
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 140),
+                            child: Text(
+                              user.lastName,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ),
+                        DataCell(Text(user.role.label)),
+                        DataCell(Text(user.fullPhone)),
+                        DataCell(
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 220),
+                            child: Text(
+                              user.email,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ),
+                        DataCell(
+                          OpsPill(
+                            label: user.status.label,
+                            color: user.status == UserStatusType.active
+                                ? const Color(0xFF16A34A)
+                                : const Color(0xFFDC2626),
+                          ),
+                        ),
+                        DataCell(
+                          SizedBox(
+                            width: 168,
+                            child: Row(
+                              children: [
+                                FilledButton.tonal(
+                                  style: FilledButton.styleFrom(
+                                    minimumSize: const Size(64, 36),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10),
+                                  ),
+                                  onPressed: () => context
+                                      .go(RoutePaths.userViewById(user.userId)),
+                                  child: const Text('View'),
+                                ),
+                                const SizedBox(width: 8),
+                                OutlinedButton(
+                                  style: OutlinedButton.styleFrom(
+                                    minimumSize: const Size(64, 36),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10),
+                                  ),
+                                  onPressed: () => context.go(
+                                    '${RoutePaths.userForm}?id=${user.userId}',
+                                  ),
+                                  child: const Text('Edit'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
+                ),
+              ),
             ),
           ),
         );
@@ -186,8 +251,6 @@ class _MobileUserList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
       itemCount: users.length,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {

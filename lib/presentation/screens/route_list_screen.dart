@@ -166,6 +166,7 @@ class RouteListScreen extends ConsumerWidget {
                         'Master routes with planning, risk and dispatch usability indicators',
                     icon: Icons.alt_route_outlined,
                     accent: const Color(0xFF16A34A),
+                    expandChild: true,
                     child: items.isEmpty
                         ? const Padding(
                             padding: EdgeInsets.symmetric(vertical: 20),
@@ -197,10 +198,17 @@ class RouteListScreen extends ConsumerWidget {
       width: 210,
       child: DropdownButtonFormField<T>(
         value: value,
+        isExpanded: true,
         decoration: InputDecoration(labelText: label),
         items: [
           for (final option in options)
-            DropdownMenuItem(value: option, child: Text(itemLabel(option))),
+            DropdownMenuItem(
+              value: option,
+              child: Text(
+                itemLabel(option),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
         ],
         onChanged: (value) => onChanged(value as T),
       ),
@@ -208,112 +216,157 @@ class RouteListScreen extends ConsumerWidget {
   }
 }
 
-class _DesktopRouteTable extends ConsumerWidget {
+class _DesktopRouteTable extends ConsumerStatefulWidget {
   const _DesktopRouteTable({required this.items, required this.logistics});
 
   final List<RouteLocationModel> items;
   final LogisticsUiState? logistics;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_DesktopRouteTable> createState() => _DesktopRouteTableState();
+}
+
+class _DesktopRouteTableState extends ConsumerState<_DesktopRouteTable> {
+  final _horizontalController = ScrollController();
+
+  @override
+  void dispose() {
+    _horizontalController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        return SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minWidth: constraints.maxWidth),
-            child: DataTable(
-              headingRowColor: WidgetStateProperty.all(const Color(0xFFEFF4FF)),
-              columns: const [
-                DataColumn(label: Text('Code')),
-                DataColumn(label: Text('Route')),
-                DataColumn(label: Text('ETA')),
-                DataColumn(label: Text('Distance')),
-                DataColumn(label: Text('Risk')),
-                DataColumn(label: Text('Status')),
-                DataColumn(label: Text('Active WO')),
-                DataColumn(label: Text('Delayed Trips')),
-                DataColumn(label: Text('Actions')),
-              ],
-              rows: [
-                for (final route in items)
-                  DataRow(
-                    cells: [
-                      DataCell(Text(route.routeCode)),
-                      DataCell(Text(route.routeName)),
-                      DataCell(Text(route.estimatedTime)),
-                      DataCell(
-                          Text('${route.distanceKm.toStringAsFixed(1)} km')),
-                      DataCell(_RiskChip(level: route.riskLevel)),
-                      DataCell(_StatusChip(route: route)),
-                      DataCell(Text('${_activeWorkOrders(route, logistics)}')),
-                      DataCell(Text('${_delayedTrips(route, logistics)}')),
-                      DataCell(
-                        Wrap(
-                          spacing: 6,
-                          children: [
-                            TextButton(
-                              onPressed: () => context.go(
-                                RoutePaths.routeLocationViewById(route.routeId),
-                              ),
-                              child: const Text('View'),
-                            ),
-                            TextButton(
-                              onPressed: () => context.go(
-                                '${RoutePaths.routeLocationForm}?id=${route.routeId}',
-                              ),
-                              child: const Text('Edit'),
-                            ),
-                            PopupMenuButton<String>(
-                              itemBuilder: (_) => const [
-                                PopupMenuItem(
-                                    value: 'deactivate',
-                                    child: Text('Deactivate')),
-                                PopupMenuItem(
-                                    value: 'restrict',
-                                    child: Text('Mark Restricted')),
-                                PopupMenuItem(
-                                    value: 'activate',
-                                    child: Text('Mark Active')),
+        return Scrollbar(
+          thumbVisibility: true,
+          controller: _horizontalController,
+          notificationPredicate: (notification) =>
+              notification.metrics.axis == Axis.horizontal,
+          child: SingleChildScrollView(
+            child: SingleChildScrollView(
+              controller: _horizontalController,
+              scrollDirection: Axis.horizontal,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                child: DataTable(
+                headingRowColor:
+                    WidgetStateProperty.all(const Color(0xFFEFF4FF)),
+                horizontalMargin: 14,
+                columnSpacing: 20,
+                dataRowMinHeight: 64,
+                dataRowMaxHeight: 74,
+                columns: const [
+                  DataColumn(label: Text('Code')),
+                  DataColumn(label: Text('Route')),
+                  DataColumn(label: Text('ETA')),
+                  DataColumn(label: Text('Distance')),
+                  DataColumn(label: Text('Risk')),
+                  DataColumn(label: Text('Status')),
+                  DataColumn(label: Text('Active WO')),
+                  DataColumn(label: Text('Delayed Trips')),
+                  DataColumn(label: Text('Actions')),
+                ],
+                rows: [
+                  for (final route in widget.items)
+                    DataRow(
+                      cells: [
+                        DataCell(Text(route.routeCode)),
+                        DataCell(Text(route.routeName)),
+                        DataCell(Text(route.estimatedTime)),
+                        DataCell(
+                            Text('${route.distanceKm.toStringAsFixed(1)} km')),
+                        DataCell(_RiskChip(level: route.riskLevel)),
+                        DataCell(_StatusChip(route: route)),
+                        DataCell(
+                            Text('${_activeWorkOrders(route, widget.logistics)}')),
+                        DataCell(
+                            Text('${_delayedTrips(route, widget.logistics)}')),
+                        DataCell(
+                          SizedBox(
+                            width: 250,
+                            child: Row(
+                              children: [
+                                FilledButton.tonal(
+                                  style: FilledButton.styleFrom(
+                                    minimumSize: const Size(64, 36),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10),
+                                  ),
+                                  onPressed: () => context.go(
+                                    RoutePaths.routeLocationViewById(
+                                        route.routeId),
+                                  ),
+                                  child: const Text('View'),
+                                ),
+                                const SizedBox(width: 6),
+                                OutlinedButton(
+                                  style: OutlinedButton.styleFrom(
+                                    minimumSize: const Size(60, 36),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10),
+                                  ),
+                                  onPressed: () => context.go(
+                                    '${RoutePaths.routeLocationForm}?id=${route.routeId}',
+                                  ),
+                                  child: const Text('Edit'),
+                                ),
+                                const SizedBox(width: 6),
+                                PopupMenuButton<String>(
+                                  constraints: const BoxConstraints(minWidth: 140),
+                                  itemBuilder: (_) => const [
+                                    PopupMenuItem(
+                                        value: 'deactivate',
+                                        child: Text('Deactivate')),
+                                    PopupMenuItem(
+                                        value: 'restrict',
+                                        child: Text('Mark Restricted')),
+                                    PopupMenuItem(
+                                        value: 'activate',
+                                        child: Text('Mark Active')),
+                                  ],
+                                  onSelected: (value) async {
+                                    final notifier =
+                                        ref.read(routeViewModelProvider.notifier);
+                                    String message;
+                                    if (value == 'deactivate') {
+                                      message = await notifier.setRouteStatus(
+                                        route.routeId,
+                                        RouteOperationalStatus.inactive,
+                                      );
+                                    } else if (value == 'restrict') {
+                                      message = await notifier.setRouteStatus(
+                                        route.routeId,
+                                        RouteOperationalStatus.restricted,
+                                        temporarilyRestricted: true,
+                                        restrictionReason:
+                                            'Temporarily blocked by operations',
+                                      );
+                                    } else {
+                                      message = await notifier.setRouteStatus(
+                                        route.routeId,
+                                        RouteOperationalStatus.active,
+                                        temporarilyRestricted: false,
+                                        restrictionReason: '',
+                                      );
+                                    }
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text(message)),
+                                      );
+                                    }
+                                  },
+                                ),
                               ],
-                              onSelected: (value) async {
-                                final notifier =
-                                    ref.read(routeViewModelProvider.notifier);
-                                String message;
-                                if (value == 'deactivate') {
-                                  message = await notifier.setRouteStatus(
-                                    route.routeId,
-                                    RouteOperationalStatus.inactive,
-                                  );
-                                } else if (value == 'restrict') {
-                                  message = await notifier.setRouteStatus(
-                                    route.routeId,
-                                    RouteOperationalStatus.restricted,
-                                    temporarilyRestricted: true,
-                                    restrictionReason:
-                                        'Temporarily blocked by operations',
-                                  );
-                                } else {
-                                  message = await notifier.setRouteStatus(
-                                    route.routeId,
-                                    RouteOperationalStatus.active,
-                                    temporarilyRestricted: false,
-                                    restrictionReason: '',
-                                  );
-                                }
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text(message)),
-                                  );
-                                }
-                              },
                             ),
-                          ],
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-              ],
+                      ],
+                    ),
+                ],
+                ),
+              ),
             ),
           ),
         );
@@ -331,8 +384,6 @@ class _MobileRouteList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
       itemCount: items.length,
       separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (context, index) {

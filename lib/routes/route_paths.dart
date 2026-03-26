@@ -19,6 +19,7 @@ class RoutePaths {
   static const fleetManagement = '/fleet-management';
   static const fleetDetail = '/fleet-management/:fleetId';
   static const driverManagement = '/driver-management';
+  static const driverForm = '/driver-management/form';
   static const driverDetail = '/driver-management/:driverId';
   static const complianceInspection = '/compliance-inspection';
   static const complianceDashboard = '/compliance-dashboard';
@@ -29,6 +30,8 @@ class RoutePaths {
   static const inspectionDetail = '/inspections/:inspectionId';
   static const inspectionApproval = '/inspections/:inspectionId/approval';
   static const inspectionTemplates = '/inspections/templates';
+  static const inspectionTemplateForm = '/inspections/templates/form';
+  static const inspectionTemplateView = '/inspections/templates/view/:templateId';
   static const inspectionFailedQueue = '/inspections/failed-queue';
   static const inspectionCalendar = '/inspections/calendar';
   static const mediaGallery = '/media-gallery';
@@ -72,7 +75,6 @@ class RoutePaths {
   static const cargoMasterForm = '/cargo-master/form';
   static const cargoMasterView = '/cargo-master/view/:cargoCode';
   static const documentManagement = '/document-management';
-  static const roleDocumentMapping = '/role-document-mapping';
   static const userProfile = '/user-profile';
   static const changePassword = '/change-password';
 
@@ -95,7 +97,9 @@ class RoutePaths {
   static const photosVideos = '/photos-videos';
   static const auditTrail = '/audit-trail';
   static const statusTimeline = '/status-timeline';
-  static const trailerMaster = '/trailer-master';
+  static const trailerMaster = '/trailer';
+  static const trailerView = '/trailer/view/:trailerCode';
+  static const trailerMasterLegacy = '/trailer-master';
 
 
   static String workOrderDetailById(String workOrderId) =>
@@ -134,11 +138,20 @@ class RoutePaths {
   static String driverDetailById(String driverId) =>
       '/driver-management/$driverId';
 
+  static String editDriverById(String driverId) =>
+      '/driver-management/form?id=$driverId';
+
   static String inspectionDetailById(String inspectionId) =>
       '/inspections/$inspectionId';
 
   static String inspectionApprovalById(String inspectionId) =>
       '/inspections/$inspectionId/approval';
+  static String inspectionTemplateViewById(String templateId) =>
+      '/inspections/templates/view/$templateId';
+  static String editInspectionTemplateById(String templateId) =>
+      '/inspections/templates/form?id=$templateId';
+  static String trailerViewByCode(String trailerCode) =>
+      '/trailer/view/$trailerCode';
 
   static String mediaPreviewById(String evidenceId) =>
       '/media-preview/$evidenceId';

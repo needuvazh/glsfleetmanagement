@@ -2,10 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/constants/oman_fleet_master.dart';
 import '../../core/utils/responsive.dart';
 import '../../domain/cargo_model.dart';
+import '../../domain/entities/inspection.dart';
 import '../../routes/route_paths.dart';
 import '../viewmodels/cargo_viewmodel.dart';
+import '../viewmodels/route_viewmodel.dart';
+import '../viewmodels/vehicle_type_viewmodel.dart';
 import '../widgets/ops_shell.dart';
 import '../widgets/ops_ui.dart';
 
@@ -100,6 +104,8 @@ class _CargoFormScreenState extends ConsumerState<CargoFormScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(cargoViewModelProvider);
+    final vehicleTypeState = ref.watch(vehicleTypeViewModelProvider).valueOrNull;
+    final routeState = ref.watch(routeViewModelProvider).valueOrNull;
 
     return OpsShell(
       title: _isEdit ? 'Edit Cargo' : 'Create Cargo',
@@ -123,6 +129,65 @@ class _CargoFormScreenState extends ConsumerState<CargoFormScreen> {
             }
             _hydrated = true;
           }
+          final categoryOptions = _withCurrent(
+            source: data.items
+                .map((item) => item.category.trim())
+                .where((item) => item.isNotEmpty)
+                .toSet()
+                .toList()
+              ..sort(),
+            current: _category.text.trim(),
+          );
+          final subcategoryOptions = _withCurrent(
+            source: data.items
+                .where(
+                  (item) => item.category.trim().toLowerCase() ==
+                      _category.text.trim().toLowerCase(),
+                )
+                .map((item) => item.subcategory.trim())
+                .where((item) => item.isNotEmpty)
+                .toSet()
+                .toList()
+              ..sort(),
+            current: _subcategory.text.trim(),
+          );
+          final vehicleSource = vehicleTypeState == null ||
+                  vehicleTypeState.items.isEmpty
+              ? <String>[...OmanFleetMaster.fleetTypes]
+              : vehicleTypeState.items
+                  .where((item) => item.status.toLowerCase() == 'active')
+                  .map((item) => item.name.trim())
+                  .where((item) => item.isNotEmpty)
+                  .toSet()
+                  .toList();
+          vehicleSource.sort();
+          final vehicleTypeOptions = _withCurrent(
+            source: vehicleSource,
+            current: _preferredVehicleType.text.trim(),
+          );
+
+          final trailerSource = routeState == null || routeState.routes.isEmpty
+              ? data.items
+                  .map((item) => item.preferredTrailerType.trim())
+                  .where((item) => item.isNotEmpty)
+                  .toSet()
+                  .toList()
+              : routeState.routes
+                  .map((item) => item.trailerTypePreference.trim())
+                  .where((item) => item.isNotEmpty)
+                  .toSet()
+                  .toList();
+          trailerSource.sort();
+          final trailerTypeOptions = _withCurrent(
+            source: trailerSource,
+            current: _preferredTrailerType.text.trim(),
+          );
+          final inspectionTemplateOptions = _withCurrent(
+            source: [
+              for (final item in InspectionType.values) item.label,
+            ],
+            current: _inspectionTemplate.text.trim(),
+          );
 
           return Form(
             key: _formKey,
@@ -148,20 +213,64 @@ class _CargoFormScreenState extends ConsumerState<CargoFormScreen> {
                               const InputDecoration(labelText: 'Cargo Name *'),
                           validator: _required,
                         ),
-                        TextFormField(
-                          controller: _category,
+                        DropdownButtonFormField<String?>(
+                          value: _category.text.trim().isEmpty
+                              ? null
+                              : _category.text.trim(),
                           decoration:
                               const InputDecoration(labelText: 'Category *'),
-                          validator: _required,
+                          validator: (value) {
+                            if ((value ?? '').trim().isEmpty) {
+                              return 'Required';
+                            }
+                            return null;
+                          },
+                          items: [
+                            for (final item in categoryOptions)
+                              DropdownMenuItem<String?>(
+                                value: item,
+                                child: Text(
+                                  item,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                          ],
+                          onChanged: (value) {
+                            final previous = _category.text.trim().toLowerCase();
+                            setState(() {
+                              _category.text = value ?? '';
+                              final next = _category.text.trim().toLowerCase();
+                              if (previous != next) {
+                                _subcategory.clear();
+                              }
+                            });
+                          },
                         ),
                       ),
                       const SizedBox(height: 10),
                       _row(
                         context,
-                        TextFormField(
-                          controller: _subcategory,
+                        DropdownButtonFormField<String?>(
+                          value: _subcategory.text.trim().isEmpty
+                              ? null
+                              : _subcategory.text.trim(),
                           decoration:
                               const InputDecoration(labelText: 'Subcategory'),
+                          items: [
+                            for (final item in subcategoryOptions)
+                              DropdownMenuItem<String?>(
+                                value: item,
+                                child: Text(
+                                  item,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                          ],
+                          onChanged: (value) {
+                            setState(() {
+                              _subcategory.text = value ?? '';
+                            });
+                          },
                         ),
                         DropdownButtonFormField<CargoStatus>(
                           value: _status,
@@ -299,15 +408,47 @@ class _CargoFormScreenState extends ConsumerState<CargoFormScreen> {
                     children: [
                       _row(
                         context,
-                        TextFormField(
-                          controller: _preferredVehicleType,
+                        DropdownButtonFormField<String?>(
+                          value: _preferredVehicleType.text.trim().isEmpty
+                              ? null
+                              : _preferredVehicleType.text.trim(),
                           decoration: const InputDecoration(
-                              labelText: 'Preferred Vehicle Type'),
+                              labelText: 'Preferred Vehicle Type (Master)'),
+                          items: [
+                            for (final item in vehicleTypeOptions)
+                              DropdownMenuItem<String?>(
+                                value: item,
+                                child: Text(
+                                  item,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                          ],
+                          onChanged: (value) {
+                            setState(() => _preferredVehicleType.text =
+                                (value ?? '').trim());
+                          },
                         ),
-                        TextFormField(
-                          controller: _preferredTrailerType,
+                        DropdownButtonFormField<String?>(
+                          value: _preferredTrailerType.text.trim().isEmpty
+                              ? null
+                              : _preferredTrailerType.text.trim(),
                           decoration: const InputDecoration(
-                              labelText: 'Preferred Trailer Type'),
+                              labelText: 'Preferred Trailer Type (Master)'),
+                          items: [
+                            for (final item in trailerTypeOptions)
+                              DropdownMenuItem<String?>(
+                                value: item,
+                                child: Text(
+                                  item,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                          ],
+                          onChanged: (value) {
+                            setState(() => _preferredTrailerType.text =
+                                (value ?? '').trim());
+                          },
                         ),
                         TextFormField(
                           controller: _loadingMethod,
@@ -455,16 +596,32 @@ class _CargoFormScreenState extends ConsumerState<CargoFormScreen> {
                       const SizedBox(height: 10),
                       _row(
                         context,
-                        TextFormField(
-                          controller: _inspectionTemplate,
+                        DropdownButtonFormField<String?>(
+                          value: _inspectionTemplate.text.trim().isEmpty
+                              ? null
+                              : _inspectionTemplate.text.trim(),
                           decoration: const InputDecoration(
-                              labelText: 'Inspection Template Type'),
+                              labelText: 'Inspection Template Type (Master)'),
                           validator: (value) {
                             if (_inspectionRequired &&
                                 (value == null || value.trim().isEmpty)) {
                               return 'Required when inspection is enabled';
                             }
                             return null;
+                          },
+                          items: [
+                            for (final item in inspectionTemplateOptions)
+                              DropdownMenuItem<String?>(
+                                value: item,
+                                child: Text(
+                                  item,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                          ],
+                          onChanged: (value) {
+                            setState(
+                                () => _inspectionTemplate.text = value ?? '');
                           },
                         ),
                         TextFormField(
@@ -649,6 +806,22 @@ class _CargoFormScreenState extends ConsumerState<CargoFormScreen> {
         .map((entry) => entry.trim())
         .where((entry) => entry.isNotEmpty)
         .toList();
+  }
+
+  List<String> _withCurrent({
+    required List<String> source,
+    required String current,
+  }) {
+    final cleaned = source
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
+    if (current.trim().isNotEmpty && !cleaned.contains(current.trim())) {
+      cleaned.insert(0, current.trim());
+    }
+    return cleaned;
   }
 
   Future<void> _submit() async {

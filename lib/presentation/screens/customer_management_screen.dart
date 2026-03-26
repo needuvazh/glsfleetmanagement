@@ -19,6 +19,7 @@ class CustomerManagementScreen extends ConsumerStatefulWidget {
 class _CustomerManagementScreenState
     extends ConsumerState<CustomerManagementScreen> {
   final _searchController = TextEditingController();
+  final _tableHorizontalController = ScrollController();
   String _searchQuery = '';
   String _statusFilter = 'All';
   bool _highRiskOnly = false;
@@ -27,6 +28,7 @@ class _CustomerManagementScreenState
   @override
   void dispose() {
     _searchController.dispose();
+    _tableHorizontalController.dispose();
     super.dispose();
   }
 
@@ -189,76 +191,112 @@ class _CustomerManagementScreenState
     return Card(
       child: LayoutBuilder(
         builder: (context, constraints) {
-          return SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minWidth: constraints.maxWidth),
-              child: DataTable(
-                columns: const [
-                  DataColumn(label: Text('Customer ID')),
-                  DataColumn(label: Text('Short Code')),
-                  DataColumn(label: Text('Name')),
-                  DataColumn(label: Text('Status')),
-                  DataColumn(label: Text('Risk')),
-                  DataColumn(label: Text('Credit Usage')),
-                  DataColumn(label: Text('Indicators')),
-                  DataColumn(label: Text('Actions')),
-                ],
-                rows: [
-                  for (final customer in customers)
-                    DataRow(
-                      cells: [
-                        DataCell(Text(customer.id)),
-                        DataCell(Text(customer.shortCode)),
-                        DataCell(Text(customer.name)),
-                        DataCell(
-                          OpsPill(
-                            label: customer.status,
-                            color: customer.isActive
-                                ? const Color(0xFF16A34A)
-                                : const Color(0xFF6B7280),
-                          ),
-                        ),
-                        DataCell(
-                          OpsPill(
-                            label: '${customer.riskScore}',
-                            color: customer.riskScore >= 70
-                                ? const Color(0xFFDC2626)
-                                : customer.riskScore >= 40
-                                    ? const Color(0xFFF59E0B)
-                                    : const Color(0xFF16A34A),
-                          ),
-                        ),
-                        DataCell(
-                          Text(
-                            '${customer.outstandingAmount.toStringAsFixed(0)} / ${customer.creditLimit.toStringAsFixed(0)} ${customer.currency}',
-                          ),
-                        ),
-                        DataCell(_indicatorWrap(customer)),
-                        DataCell(
-                          Wrap(
-                            spacing: 4,
-                            children: [
-                              TextButton.icon(
-                                onPressed: () => context.go(
-                                  RoutePaths.customerViewById(customer.id),
-                                ),
-                                icon: const Icon(Icons.visibility_outlined),
-                                label: const Text('View'),
+          return Scrollbar(
+            thumbVisibility: true,
+            controller: _tableHorizontalController,
+            notificationPredicate: (notification) =>
+                notification.metrics.axis == Axis.horizontal,
+            child: SingleChildScrollView(
+              controller: _tableHorizontalController,
+              scrollDirection: Axis.horizontal,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                child: DataTable(
+                  headingRowColor:
+                      WidgetStateProperty.all(const Color(0xFFEFF6FF)),
+                  horizontalMargin: 14,
+                  columnSpacing: 20,
+                  dataRowMinHeight: 64,
+                  dataRowMaxHeight: 74,
+                  columns: const [
+                    DataColumn(label: Text('Customer ID')),
+                    DataColumn(label: Text('Short Code')),
+                    DataColumn(label: Text('Name')),
+                    DataColumn(label: Text('Status')),
+                    DataColumn(label: Text('Risk')),
+                    DataColumn(label: Text('Credit Usage')),
+                    DataColumn(label: Text('Indicators')),
+                    DataColumn(label: Text('Actions')),
+                  ],
+                  rows: [
+                    for (final customer in customers)
+                      DataRow(
+                        cells: [
+                          DataCell(Text(customer.id)),
+                          DataCell(Text(customer.shortCode)),
+                          DataCell(
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 240),
+                              child: Text(
+                                customer.name,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              TextButton.icon(
-                                onPressed: () => context.go(
-                                  RoutePaths.editCustomerById(customer.id),
-                                ),
-                                icon: const Icon(Icons.edit_outlined),
-                                label: const Text('Edit'),
-                              ),
-                            ],
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                ],
+                          DataCell(
+                            OpsPill(
+                              label: customer.status,
+                              color: customer.isActive
+                                  ? const Color(0xFF16A34A)
+                                  : const Color(0xFF6B7280),
+                            ),
+                          ),
+                          DataCell(
+                            OpsPill(
+                              label: '${customer.riskScore}',
+                              color: customer.riskScore >= 70
+                                  ? const Color(0xFFDC2626)
+                                  : customer.riskScore >= 40
+                                      ? const Color(0xFFF59E0B)
+                                      : const Color(0xFF16A34A),
+                            ),
+                          ),
+                          DataCell(
+                            Text(
+                              '${customer.outstandingAmount.toStringAsFixed(0)} / ${customer.creditLimit.toStringAsFixed(0)} ${customer.currency}',
+                            ),
+                          ),
+                          DataCell(_indicatorWrap(customer)),
+                          DataCell(
+                            SizedBox(
+                              width: 210,
+                              child: Row(
+                                children: [
+                                  FilledButton.tonalIcon(
+                                    style: FilledButton.styleFrom(
+                                      minimumSize: const Size(66, 36),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 10),
+                                    ),
+                                    onPressed: () => context.go(
+                                      RoutePaths.customerViewById(customer.id),
+                                    ),
+                                    icon: const Icon(Icons.visibility_outlined,
+                                        size: 18),
+                                    label: const Text('View'),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  OutlinedButton.icon(
+                                    style: OutlinedButton.styleFrom(
+                                      minimumSize: const Size(66, 36),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 10),
+                                    ),
+                                    onPressed: () => context.go(
+                                      RoutePaths.editCustomerById(customer.id),
+                                    ),
+                                    icon: const Icon(Icons.edit_outlined,
+                                        size: 18),
+                                    label: const Text('Edit'),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                  ],
+                ),
               ),
             ),
           );
@@ -305,7 +343,11 @@ class _CustomerManagementScreenState
     if (indicators.isEmpty) {
       return const Text('-');
     }
-    return Row(mainAxisSize: MainAxisSize.min, children: indicators);
+    return Wrap(
+      spacing: 6,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: indicators,
+    );
   }
 }
 

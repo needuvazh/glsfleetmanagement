@@ -1,0 +1,406 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../core/constants/oman_fleet_master.dart';
+import '../../domain/entities/logistics_flow.dart';
+import '../../routes/route_paths.dart';
+import '../viewmodels/logistics_viewmodel.dart';
+import '../widgets/ops_shell.dart';
+
+class DriverFormScreen extends ConsumerStatefulWidget {
+  const DriverFormScreen({super.key, this.editDriverId});
+
+  final String? editDriverId;
+
+  @override
+  ConsumerState<DriverFormScreen> createState() => _DriverFormScreenState();
+}
+
+class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
+  final _formKey = GlobalKey<FormState>();
+
+  late final TextEditingController _codeCtrl;
+  late final TextEditingController _nameCtrl;
+  late final TextEditingController _employeeCtrl;
+  late final TextEditingController _phoneCtrl;
+  late final TextEditingController _licenseCtrl;
+  late final TextEditingController _licenseTypeCtrl;
+  late final TextEditingController _licenseIssueCtrl;
+  late final TextEditingController _expiryCtrl;
+  late final TextEditingController _nationalityCtrl;
+  late final TextEditingController _allowedVehicleCtrl;
+  late final TextEditingController _certCtrl;
+  late final TextEditingController _notesCtrl;
+  late final TextEditingController _preferredRouteTypeCtrl;
+  late final TextEditingController _preferredVehicleTypeCtrl;
+
+  bool _initialized = false;
+  bool _saving = false;
+
+  String _availability = 'Available';
+  String _baseLocation = OmanFleetMaster.omanLocations.first;
+  bool _heavyAllowed = false;
+  bool _active = true;
+
+  DriverData? _existingDriver(AsyncValue<LogisticsUiState> state) {
+    final editId = widget.editDriverId;
+    if (editId == null || editId.trim().isEmpty) {
+      return null;
+    }
+    final drivers = state.valueOrNull?.drivers ?? const <DriverData>[];
+    for (final d in drivers) {
+      if (d.driverId == editId) {
+        return d;
+      }
+    }
+    return null;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_initialized) {
+      return;
+    }
+    final state = ref.read(logisticsViewModelProvider);
+    final existing = _existingDriver(state);
+    _codeCtrl = TextEditingController(text: existing?.driverId ?? '');
+    _nameCtrl = TextEditingController(text: existing?.name ?? '');
+    _employeeCtrl = TextEditingController(text: existing?.employeeRef ?? '');
+    _phoneCtrl = TextEditingController(text: existing?.phone ?? '');
+    _licenseCtrl = TextEditingController(text: existing?.licenseNo ?? '');
+    _licenseTypeCtrl =
+        TextEditingController(text: existing?.licenseType ?? 'Light Vehicle');
+    _licenseIssueCtrl =
+        TextEditingController(text: existing?.licenseIssueDate ?? '');
+    _expiryCtrl = TextEditingController(text: existing?.expiryDate ?? '');
+    _nationalityCtrl =
+        TextEditingController(text: existing?.nationality ?? 'Omani');
+    _allowedVehicleCtrl = TextEditingController(
+      text: existing?.allowedVehicleTypes.join(', ') ?? '',
+    );
+    _certCtrl = TextEditingController(
+      text: existing?.certifications.join(', ') ?? '',
+    );
+    _notesCtrl = TextEditingController(text: existing?.specialSkillsNotes ?? '');
+    _preferredRouteTypeCtrl =
+        TextEditingController(text: existing?.preferredRouteType ?? '');
+    _preferredVehicleTypeCtrl =
+        TextEditingController(text: existing?.preferredVehicleType ?? '');
+
+    _availability = existing?.status ?? 'Available';
+    _baseLocation =
+        existing?.baseLocation ?? OmanFleetMaster.omanLocations.first;
+    _heavyAllowed = existing?.heavyVehicleAllowed ?? false;
+    _active = existing?.active ?? true;
+    _initialized = true;
+  }
+
+  @override
+  void dispose() {
+    _codeCtrl.dispose();
+    _nameCtrl.dispose();
+    _employeeCtrl.dispose();
+    _phoneCtrl.dispose();
+    _licenseCtrl.dispose();
+    _licenseTypeCtrl.dispose();
+    _licenseIssueCtrl.dispose();
+    _expiryCtrl.dispose();
+    _nationalityCtrl.dispose();
+    _allowedVehicleCtrl.dispose();
+    _certCtrl.dispose();
+    _notesCtrl.dispose();
+    _preferredRouteTypeCtrl.dispose();
+    _preferredVehicleTypeCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(logisticsViewModelProvider);
+    final isEdit = widget.editDriverId != null;
+    final existing = _existingDriver(state);
+
+    if (isEdit && existing == null && state.valueOrNull != null) {
+      return const OpsShell(
+        title: 'Edit Driver',
+        currentRoute: RoutePaths.driverManagement,
+        child: Center(child: Text('Driver not found.')),
+      );
+    }
+
+    return OpsShell(
+      title: isEdit ? 'Edit Driver' : 'Create Driver',
+      currentRoute: RoutePaths.driverManagement,
+      child: Form(
+        key: _formKey,
+        child: ListView(
+          padding: const EdgeInsets.all(12),
+          children: [
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _sectionTitle('Driver Identity'),
+                    _field(
+                      _codeCtrl,
+                      label: 'Driver Code',
+                      enabled: !isEdit,
+                    ),
+                    const SizedBox(height: 10),
+                    _field(
+                      _nameCtrl,
+                      label: 'Full Name',
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Driver name is required'
+                          : null,
+                    ),
+                    const SizedBox(height: 10),
+                    _field(_employeeCtrl, label: 'Employee ID / Ref'),
+                    const SizedBox(height: 10),
+                    _field(_phoneCtrl, label: 'Mobile Number'),
+                    const SizedBox(height: 10),
+                    _field(_nationalityCtrl, label: 'Nationality'),
+                    const SizedBox(height: 10),
+                    DropdownButtonFormField<String>(
+                      value: _baseLocation,
+                      decoration:
+                          const InputDecoration(labelText: 'Base Location'),
+                      items: [
+                        for (final location in OmanFleetMaster.omanLocations)
+                          DropdownMenuItem(
+                            value: location,
+                            child: Text(location),
+                          ),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() => _baseLocation = value);
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    _sectionTitle('License'),
+                    _field(
+                      _licenseCtrl,
+                      label: 'License Number',
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'License number is required'
+                          : null,
+                    ),
+                    const SizedBox(height: 10),
+                    _field(
+                      _licenseTypeCtrl,
+                      label: 'License Type / Class',
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'License class is required'
+                          : null,
+                    ),
+                    const SizedBox(height: 10),
+                    _field(
+                      _licenseIssueCtrl,
+                      label: 'License Issue Date (YYYY-MM-DD)',
+                    ),
+                    const SizedBox(height: 10),
+                    _field(
+                      _expiryCtrl,
+                      label: 'License Expiry Date (YYYY-MM-DD)',
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) {
+                          return 'License expiry is required';
+                        }
+                        return DateTime.tryParse(v.trim()) == null
+                            ? 'Use YYYY-MM-DD format'
+                            : null;
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    DropdownButtonFormField<String>(
+                      value: _availability,
+                      decoration:
+                          const InputDecoration(labelText: 'Availability'),
+                      items: const [
+                        'Available',
+                        'Assigned',
+                        'On Leave',
+                        'Resting / Off Duty',
+                        'Suspended',
+                        'Inactive',
+                      ]
+                          .map((e) => DropdownMenuItem(
+                                value: e,
+                                child: Text(e),
+                              ))
+                          .toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() => _availability = value);
+                        }
+                      },
+                    ),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Heavy Vehicle Allowed'),
+                      value: _heavyAllowed,
+                      onChanged: (value) =>
+                          setState(() => _heavyAllowed = value),
+                    ),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Active'),
+                      value: _active,
+                      onChanged: (value) => setState(() => _active = value),
+                    ),
+                    const SizedBox(height: 16),
+                    _sectionTitle('Preferences'),
+                    _field(
+                      _allowedVehicleCtrl,
+                      label: 'Allowed Vehicle Types (comma separated)',
+                    ),
+                    const SizedBox(height: 10),
+                    _field(
+                      _preferredRouteTypeCtrl,
+                      label: 'Preferred Route Type',
+                    ),
+                    const SizedBox(height: 10),
+                    _field(
+                      _preferredVehicleTypeCtrl,
+                      label: 'Preferred Vehicle Type',
+                    ),
+                    const SizedBox(height: 10),
+                    _field(
+                      _certCtrl,
+                      label: 'Certifications (comma separated)',
+                    ),
+                    const SizedBox(height: 10),
+                    _field(
+                      _notesCtrl,
+                      label: 'Notes',
+                      maxLines: 2,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                TextButton(
+                  onPressed: _saving
+                      ? null
+                      : () => context.go(RoutePaths.driverManagement),
+                  child: const Text('Cancel'),
+                ),
+                const Spacer(),
+                FilledButton.icon(
+                  onPressed: _saving ? null : () => _save(existing),
+                  icon: const Icon(Icons.save_outlined),
+                  label: Text(isEdit ? 'Save Driver' : 'Create Driver'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _sectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(
+        title,
+        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+      ),
+    );
+  }
+
+  Widget _field(
+    TextEditingController controller, {
+    required String label,
+    bool enabled = true,
+    String? Function(String?)? validator,
+    int maxLines = 1,
+  }) {
+    return TextFormField(
+      controller: controller,
+      enabled: enabled,
+      validator: validator,
+      maxLines: maxLines,
+      decoration: InputDecoration(labelText: label),
+    );
+  }
+
+  Future<void> _save(DriverData? existing) async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    setState(() => _saving = true);
+    final vm = ref.read(logisticsViewModelProvider.notifier);
+    final isEdit = widget.editDriverId != null;
+
+    final message = isEdit
+        ? vm.updateDriver(
+            driverCode: existing!.driverId,
+            name: _nameCtrl.text.trim(),
+            employeeRef: _employeeCtrl.text.trim(),
+            phone: _phoneCtrl.text.trim(),
+            licenseNo: _licenseCtrl.text.trim(),
+            licenseType: _licenseTypeCtrl.text.trim(),
+            licenseIssueDate: _licenseIssueCtrl.text.trim(),
+            licenseExpiry: _expiryCtrl.text.trim(),
+            availability: _availability,
+            nationality: _nationalityCtrl.text.trim(),
+            baseLocation: _baseLocation,
+            heavyVehicleAllowed: _heavyAllowed,
+            allowedVehicleTypes: _csv(_allowedVehicleCtrl.text),
+            preferredRouteType: _preferredRouteTypeCtrl.text.trim(),
+            preferredVehicleType: _preferredVehicleTypeCtrl.text.trim(),
+            specialSkillsNotes: _notesCtrl.text.trim(),
+            certifications: _certCtrl.text.trim(),
+            active: _active,
+          )
+        : vm.addDriver(
+            driverCode: _codeCtrl.text.trim(),
+            name: _nameCtrl.text.trim(),
+            employeeRef: _employeeCtrl.text.trim(),
+            phone: _phoneCtrl.text.trim(),
+            licenseNo: _licenseCtrl.text.trim(),
+            licenseType: _licenseTypeCtrl.text.trim(),
+            licenseIssueDate: _licenseIssueCtrl.text.trim(),
+            licenseExpiry: _expiryCtrl.text.trim(),
+            availability: _availability,
+            nationality: _nationalityCtrl.text.trim(),
+            baseLocation: _baseLocation,
+            heavyVehicleAllowed: _heavyAllowed,
+            allowedVehicleTypes: _csv(_allowedVehicleCtrl.text),
+            preferredRouteType: _preferredRouteTypeCtrl.text.trim(),
+            preferredVehicleType: _preferredVehicleTypeCtrl.text.trim(),
+            specialSkillsNotes: _notesCtrl.text.trim(),
+            certifications: _certCtrl.text.trim(),
+            active: _active,
+          );
+
+    if (!mounted) {
+      return;
+    }
+    setState(() => _saving = false);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    if (message.toLowerCase().contains('added') ||
+        message.toLowerCase().contains('updated')) {
+      context.go(RoutePaths.driverManagement);
+    }
+  }
+
+  List<String> _csv(String raw) {
+    return raw
+        .split(',')
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toList();
+  }
+}

@@ -89,6 +89,7 @@ class RoleListScreen extends ConsumerWidget {
                         'Enterprise role definitions with status and permissions',
                     icon: Icons.admin_panel_settings_outlined,
                     accent: const Color(0xFF16A34A),
+                    expandChild: true,
                     child: roles.isEmpty
                         ? const Padding(
                             padding: EdgeInsets.symmetric(vertical: 18),
@@ -108,67 +109,118 @@ class RoleListScreen extends ConsumerWidget {
   }
 }
 
-class _DesktopRoleTable extends StatelessWidget {
+class _DesktopRoleTable extends StatefulWidget {
   const _DesktopRoleTable({required this.roles});
 
   final List<RoleModel> roles;
 
   @override
+  State<_DesktopRoleTable> createState() => _DesktopRoleTableState();
+}
+
+class _DesktopRoleTableState extends State<_DesktopRoleTable> {
+  final _horizontalController = ScrollController();
+
+  @override
+  void dispose() {
+    _horizontalController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        return SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minWidth: constraints.maxWidth),
-            child: DataTable(
-              headingRowColor: WidgetStateProperty.all(const Color(0xFFEFF4FF)),
-              columns: const [
-                DataColumn(label: Text('Role Name')),
-                DataColumn(label: Text('Description')),
-                DataColumn(label: Text('Status')),
-                DataColumn(label: Text('Actions')),
-              ],
-              rows: [
-                for (final role in roles)
-                  DataRow(
-                    cells: [
-                      DataCell(Text(role.roleName)),
-                      DataCell(
-                        Text(
-                          role.description.isEmpty ? '-' : role.description,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      DataCell(
-                        OpsPill(
-                          label: role.status.label,
-                          color: role.status == RoleStatusType.active
-                              ? const Color(0xFF16A34A)
-                              : const Color(0xFFDC2626),
-                        ),
-                      ),
-                      DataCell(
-                        Wrap(
-                          spacing: 6,
-                          children: [
-                            TextButton(
-                              onPressed: () => context
-                                  .go(RoutePaths.roleViewById(role.roleId)),
-                              child: const Text('View'),
+        return Scrollbar(
+          thumbVisibility: true,
+          controller: _horizontalController,
+          notificationPredicate: (notification) =>
+              notification.metrics.axis == Axis.horizontal,
+          child: SingleChildScrollView(
+            child: SingleChildScrollView(
+              controller: _horizontalController,
+              scrollDirection: Axis.horizontal,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                child: DataTable(
+                headingRowColor:
+                    WidgetStateProperty.all(const Color(0xFFEFF4FF)),
+                horizontalMargin: 14,
+                columnSpacing: 20,
+                dataRowMinHeight: 62,
+                dataRowMaxHeight: 72,
+                columns: const [
+                  DataColumn(label: Text('Role Name')),
+                  DataColumn(label: Text('Description')),
+                  DataColumn(label: Text('Status')),
+                  DataColumn(label: Text('Actions')),
+                ],
+                rows: [
+                  for (final role in widget.roles)
+                    DataRow(
+                      cells: [
+                        DataCell(
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 180),
+                            child: Text(
+                              role.roleName,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            TextButton(
-                              onPressed: () => context.go(
-                                  '${RoutePaths.roleForm}?id=${role.roleId}'),
-                              child: const Text('Edit'),
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-              ],
+                        DataCell(
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 300),
+                            child: Text(
+                              role.description.isEmpty ? '-' : role.description,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ),
+                        DataCell(
+                          OpsPill(
+                            label: role.status.label,
+                            color: role.status == RoleStatusType.active
+                                ? const Color(0xFF16A34A)
+                                : const Color(0xFFDC2626),
+                          ),
+                        ),
+                        DataCell(
+                          SizedBox(
+                            width: 168,
+                            child: Row(
+                              children: [
+                                FilledButton.tonal(
+                                  style: FilledButton.styleFrom(
+                                    minimumSize: const Size(64, 36),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10),
+                                  ),
+                                  onPressed: () => context
+                                      .go(RoutePaths.roleViewById(role.roleId)),
+                                  child: const Text('View'),
+                                ),
+                                const SizedBox(width: 8),
+                                OutlinedButton(
+                                  style: OutlinedButton.styleFrom(
+                                    minimumSize: const Size(64, 36),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10),
+                                  ),
+                                  onPressed: () => context.go(
+                                      '${RoutePaths.roleForm}?id=${role.roleId}'),
+                                  child: const Text('Edit'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
+                ),
+              ),
             ),
           ),
         );
@@ -185,8 +237,6 @@ class _MobileRoleList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
       itemCount: roles.length,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {

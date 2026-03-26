@@ -206,7 +206,10 @@ class _VehicleTypeFormScreenState extends ConsumerState<VehicleTypeFormScreen> {
                             ),
                             const SizedBox(height: 10),
                             DropdownButtonFormField<String>(
-                              value: form.category,
+                              value: _safeDropdownValue(
+                                form.category,
+                                VehicleTypeFormNotifier.categories,
+                              ),
                               decoration:
                                   const InputDecoration(labelText: 'Category'),
                               items: [
@@ -223,7 +226,10 @@ class _VehicleTypeFormScreenState extends ConsumerState<VehicleTypeFormScreen> {
                             ),
                             const SizedBox(height: 10),
                             DropdownButtonFormField<String>(
-                              value: form.vehicleClass,
+                              value: _safeDropdownValue(
+                                form.vehicleClass,
+                                VehicleTypeFormNotifier.vehicleClasses,
+                              ),
                               decoration: const InputDecoration(
                                   labelText: 'Vehicle Class'),
                               items: [
@@ -264,7 +270,10 @@ class _VehicleTypeFormScreenState extends ConsumerState<VehicleTypeFormScreen> {
                             const SizedBox(height: 8),
                             _sectionTitle(context, 'Operation Details'),
                             DropdownButtonFormField<String>(
-                              value: form.loadType,
+                              value: _safeDropdownValue(
+                                form.loadType,
+                                VehicleTypeFormNotifier.loadTypes,
+                              ),
                               decoration:
                                   const InputDecoration(labelText: 'Load Type'),
                               items: [
@@ -281,7 +290,10 @@ class _VehicleTypeFormScreenState extends ConsumerState<VehicleTypeFormScreen> {
                             ),
                             const SizedBox(height: 10),
                             DropdownButtonFormField<String>(
-                              value: form.transportType,
+                              value: _safeDropdownValue(
+                                form.transportType,
+                                VehicleTypeFormNotifier.transportTypes,
+                              ),
                               decoration: const InputDecoration(
                                 labelText: 'Transport Type',
                               ),
@@ -377,7 +389,10 @@ class _VehicleTypeFormScreenState extends ConsumerState<VehicleTypeFormScreen> {
                             ),
                             const SizedBox(height: 10),
                             DropdownButtonFormField<String>(
-                              value: form.capacityUnit,
+                              value: _safeDropdownValue(
+                                form.capacityUnit,
+                                VehicleTypeFormNotifier.capacityUnits,
+                              ),
                               decoration: const InputDecoration(
                                 labelText: 'Capacity Unit',
                               ),
@@ -412,7 +427,10 @@ class _VehicleTypeFormScreenState extends ConsumerState<VehicleTypeFormScreen> {
                             const SizedBox(height: 12),
                             _sectionTitle(context, 'Status'),
                             DropdownButtonFormField<String>(
-                              value: form.status,
+                              value: _safeDropdownValue(
+                                form.status,
+                                VehicleTypeFormNotifier.statuses,
+                              ),
                               decoration:
                                   const InputDecoration(labelText: 'Status'),
                               items: [
@@ -469,7 +487,10 @@ class _VehicleTypeFormScreenState extends ConsumerState<VehicleTypeFormScreen> {
                             ),
                             const SizedBox(height: 10),
                             DropdownButtonFormField<String>(
-                              value: form.complianceMode,
+                              value: _safeDropdownValue(
+                                form.complianceMode,
+                                VehicleTypeFormNotifier.complianceModes,
+                              ),
                               decoration: const InputDecoration(
                                   labelText: 'Compliance Mode'),
                               items: [
@@ -598,7 +619,10 @@ class _VehicleTypeFormScreenState extends ConsumerState<VehicleTypeFormScreen> {
             ],
           ),
           DropdownButtonFormField<String>(
-            value: requirement.documentName,
+            value: _safeDropdownValue(
+              requirement.documentName,
+              VehicleTypeFormNotifier.documentNameOptions,
+            ),
             decoration: const InputDecoration(labelText: 'Document Name'),
             items: [
               for (final option in VehicleTypeFormNotifier.documentNameOptions)
@@ -636,7 +660,10 @@ class _VehicleTypeFormScreenState extends ConsumerState<VehicleTypeFormScreen> {
               Expanded(
                 flex: 3,
                 child: DropdownButtonFormField<String>(
-                  value: requirement.validityUnit,
+                  value: _safeDropdownValue(
+                    requirement.validityUnit,
+                    VehicleTypeFormNotifier.validityUnits,
+                  ),
                   decoration: const InputDecoration(labelText: 'Unit'),
                   items: [
                     for (final unit in VehicleTypeFormNotifier.validityUnits)
@@ -654,7 +681,10 @@ class _VehicleTypeFormScreenState extends ConsumerState<VehicleTypeFormScreen> {
           ),
           const SizedBox(height: 10),
           DropdownButtonFormField<String>(
-            value: requirement.applicableFor,
+            value: _safeDropdownValue(
+              requirement.applicableFor,
+              VehicleTypeFormNotifier.applicableFor,
+            ),
             decoration: const InputDecoration(labelText: 'Applicable For'),
             items: [
               for (final option in VehicleTypeFormNotifier.applicableFor)
@@ -689,6 +719,19 @@ class _VehicleTypeFormScreenState extends ConsumerState<VehicleTypeFormScreen> {
       return 'Required';
     }
     return null;
+  }
+
+  String _safeDropdownValue(String? current, List<String> options) {
+    if (current == null || current.trim().isEmpty) {
+      return options.first;
+    }
+    final uniqueOptions = options.toSet().toList();
+    for (final option in uniqueOptions) {
+      if (option.toLowerCase() == current.toLowerCase()) {
+        return option;
+      }
+    }
+    return uniqueOptions.first;
   }
 
   String? _positiveIntValidator(String? value) {

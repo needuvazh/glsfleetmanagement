@@ -6,6 +6,8 @@ import '../../core/utils/responsive.dart';
 import '../../domain/entities/customer.dart';
 import '../../routes/route_paths.dart';
 import '../viewmodels/customer_viewmodel.dart';
+import '../viewmodels/route_viewmodel.dart';
+import '../viewmodels/vehicle_type_viewmodel.dart';
 import '../widgets/ops_shell.dart';
 import '../widgets/ops_ui.dart';
 
@@ -59,6 +61,8 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
   bool _isBlocked = false;
   bool _hardBlock = true;
   bool _hydrated = false;
+  String? _selectedPreferredVehicleType;
+  String? _selectedPreferredRoute;
 
   bool get _isEdit => (widget.customerId ?? '').trim().isNotEmpty;
 
@@ -94,7 +98,26 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
   @override
   Widget build(BuildContext context) {
     final customerState = ref.watch(customerViewModelProvider);
+    final vehicleTypeState = ref.watch(vehicleTypeViewModelProvider).valueOrNull;
+    final routeState = ref.watch(routeViewModelProvider).valueOrNull;
     final customerViewModel = ref.read(customerViewModelProvider.notifier);
+    final preferredVehicleTypes = vehicleTypeState == null
+        ? <String>[]
+        : vehicleTypeState.items
+            .where((item) => item.status.toLowerCase() == 'active')
+            .map((item) => item.name.trim())
+            .where((item) => item.isNotEmpty)
+            .toSet()
+            .toList();
+    preferredVehicleTypes.sort();
+    final preferredRoutes = routeState == null
+        ? <String>[]
+        : routeState.routes
+            .map((item) => '${item.routeCode} - ${item.routeName}'.trim())
+            .where((item) => item.isNotEmpty)
+            .toSet()
+            .toList();
+    preferredRoutes.sort();
 
     Customer? existingCustomer;
     if (_isEdit) {
@@ -148,7 +171,7 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
                 const SizedBox(height: 12),
                 _financialSection(),
                 const SizedBox(height: 12),
-                _operationalSection(),
+                _operationalSection(preferredVehicleTypes, preferredRoutes),
                 const SizedBox(height: 12),
                 _complianceSection(),
                 const SizedBox(height: 12),
@@ -433,7 +456,23 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
     );
   }
 
-  Widget _operationalSection() {
+  Widget _operationalSection(
+    List<String> preferredVehicleTypes,
+    List<String> preferredRoutes,
+  ) {
+    final vehicleOptions = <String>[
+      ...preferredVehicleTypes,
+      if ((_selectedPreferredVehicleType ?? '').trim().isNotEmpty &&
+          !preferredVehicleTypes.contains(_selectedPreferredVehicleType))
+        _selectedPreferredVehicleType!,
+    ];
+    final routeOptions = <String>[
+      ...preferredRoutes,
+      if ((_selectedPreferredRoute ?? '').trim().isNotEmpty &&
+          !preferredRoutes.contains(_selectedPreferredRoute))
+        _selectedPreferredRoute!,
+    ];
+
     return OpsSectionCard(
       title: 'Operational Rules',
       subtitle: 'Execution constraints for work order and trip closure',
@@ -479,14 +518,57 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
           ),
           const SizedBox(height: 10),
           _buildRow(
-            TextFormField(
-              controller: _vehicleTypeController,
-              decoration:
-                  const InputDecoration(labelText: 'Preferred Vehicle Type'),
+            DropdownButtonFormField<String?>(
+              value: _selectedPreferredVehicleType,
+              decoration: const InputDecoration(
+                labelText: 'Preferred Vehicle Type (Master)',
+              ),
+              items: [
+                const DropdownMenuItem<String?>(
+                  value: null,
+                  child: Text('None'),
+                ),
+                for (final item in vehicleOptions)
+                  DropdownMenuItem<String?>(
+                    value: item,
+                    child: Text(
+                      item,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+              ],
+              onChanged: (value) {
+                setState(() {
+                  _selectedPreferredVehicleType = value;
+                  _vehicleTypeController.text = value ?? '';
+                });
+              },
             ),
-            TextFormField(
-              controller: _routeController,
-              decoration: const InputDecoration(labelText: 'Preferred Route'),
+            DropdownButtonFormField<String?>(
+              value: _selectedPreferredRoute,
+              decoration: const InputDecoration(
+                labelText: 'Preferred Route (Master)',
+              ),
+              items: [
+                const DropdownMenuItem<String?>(
+                  value: null,
+                  child: Text('None'),
+                ),
+                for (final item in routeOptions)
+                  DropdownMenuItem<String?>(
+                    value: item,
+                    child: Text(
+                      item,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+              ],
+              onChanged: (value) {
+                setState(() {
+                  _selectedPreferredRoute = value;
+                  _routeController.text = value ?? '';
+                });
+              },
             ),
           ),
           const SizedBox(height: 10),
@@ -616,6 +698,13 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
     _slaController.text = customer.slaHours.toString();
     _vehicleTypeController.text = customer.preferredVehicleType;
     _routeController.text = customer.preferredRoute;
+    _selectedPreferredVehicleType =
+        customer.preferredVehicleType.trim().isEmpty
+            ? null
+            : customer.preferredVehicleType.trim();
+    _selectedPreferredRoute = customer.preferredRoute.trim().isEmpty
+        ? null
+        : customer.preferredRoute.trim();
     _specialDocumentsController.text =
         customer.specialDocumentsRequired.join(', ');
     _certificationsController.text =

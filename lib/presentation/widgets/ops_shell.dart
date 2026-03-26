@@ -9,6 +9,7 @@ import '../viewmodels/theme_mode_viewmodel.dart';
 
 // Provider for sidebar collapsed state
 final sidebarCollapsedProvider = StateProvider<bool>((ref) => false);
+final sidebarScrollOffsetProvider = StateProvider<double>((ref) => 0);
 
 class OpsShell extends ConsumerWidget {
   const OpsShell({
@@ -70,7 +71,6 @@ class OpsShell extends ConsumerWidget {
     RoutePaths.locationMaster: 'Location Master',
     RoutePaths.routeLocationMaster: 'Route Master',
     RoutePaths.cargoMaster: 'Cargo Master',
-    RoutePaths.roleDocumentMapping: 'Role Document Mapping',
     RoutePaths.userProfile: 'User Profile',
     RoutePaths.changePassword: 'Change Password',
     RoutePaths.dispatch: 'Dispatch',
@@ -521,18 +521,19 @@ class _GlowBlob extends StatelessWidget {
   }
 }
 
-class _Sidebar extends StatefulWidget {
+class _Sidebar extends ConsumerStatefulWidget {
   const _Sidebar({required this.currentRoute, required this.isCollapsed});
 
   final String currentRoute;
   final bool isCollapsed;
 
   @override
-  State<_Sidebar> createState() => _SidebarState();
+  ConsumerState<_Sidebar> createState() => _SidebarState();
 }
 
-class _SidebarState extends State<_Sidebar> {
+class _SidebarState extends ConsumerState<_Sidebar> {
   late final Set<String> _expandedMenus;
+  late final ScrollController _scrollController;
 
   @override
   void initState() {
@@ -544,6 +545,22 @@ class _SidebarState extends State<_Sidebar> {
       'User Access',
       'Master'
     };
+    _scrollController = ScrollController(
+      initialScrollOffset: ref.read(sidebarScrollOffsetProvider),
+    );
+    _scrollController.addListener(_onSidebarScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onSidebarScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onSidebarScroll() {
+    ref.read(sidebarScrollOffsetProvider.notifier).state =
+        _scrollController.offset;
   }
 
   @override
@@ -655,7 +672,6 @@ class _SidebarState extends State<_Sidebar> {
           _OpsMenuItem('Compliance Master', Icons.assignment_outlined, route: RoutePaths.documentManagement),
           _OpsMenuItem('Role Management', Icons.manage_accounts_outlined, route: RoutePaths.roleManagement),
           _OpsMenuItem('User Management', Icons.people_outline, route: RoutePaths.userManagement),
-          _OpsMenuItem('Role Document Mapping', Icons.admin_panel_settings_outlined, route: RoutePaths.roleDocumentMapping),
         ],
       ),
     ];
@@ -716,6 +732,7 @@ class _SidebarState extends State<_Sidebar> {
           const Divider(height: 1),
           Expanded(
             child: ListView(
+              controller: _scrollController,
               padding: EdgeInsets.symmetric(
                   horizontal: widget.isCollapsed ? 8 : 16, vertical: 8),
               children: [
@@ -746,7 +763,7 @@ class _SidebarState extends State<_Sidebar> {
                         for (final child in item.children)
                           _MenuTile(
                             item: child,
-                            selected: widget.currentRoute == child.route,
+                            selected: _isRouteSelected(child.route),
                             isCollapsed: widget.isCollapsed,
                             isChild: true,
                           ),
@@ -754,13 +771,13 @@ class _SidebarState extends State<_Sidebar> {
                       for (final child in item.children)
                         _MenuTile(
                           item: child,
-                          selected: widget.currentRoute == child.route,
+                          selected: _isRouteSelected(child.route),
                           isCollapsed: widget.isCollapsed,
                         ),
                     ] else
                       _MenuTile(
                         item: item,
-                        selected: widget.currentRoute == item.route,
+                        selected: _isRouteSelected(item.route),
                         isCollapsed: widget.isCollapsed,
                       ),
                   ],
@@ -774,7 +791,27 @@ class _SidebarState extends State<_Sidebar> {
   }
 
   bool _isParentSelected(_OpsMenuItem item) {
-    return item.children.any((child) => child.route == widget.currentRoute);
+    return item.children.any((child) => _isRouteSelected(child.route));
+  }
+
+  bool _isRouteSelected(String? menuRoute) {
+    if (menuRoute == null || menuRoute.isEmpty) {
+      return false;
+    }
+    String normalize(String route) {
+      final path = route.split('?').first;
+      if (path.length > 1 && path.endsWith('/')) {
+        return path.substring(0, path.length - 1);
+      }
+      return path;
+    }
+
+    final current = normalize(widget.currentRoute);
+    final target = normalize(menuRoute);
+    if (current == target) {
+      return true;
+    }
+    return current.startsWith('$target/');
   }
 
   bool _isMenuExpanded(_OpsMenuItem item) {

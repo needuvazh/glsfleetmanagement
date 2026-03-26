@@ -126,6 +126,7 @@ class InspectionListScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 10),
           Expanded(
+<<<<<<< Updated upstream
             child: filtered.isEmpty
                 ? const Card(
                     child: Center(
@@ -167,6 +168,80 @@ class InspectionListScreen extends ConsumerWidget {
                             ),
                           );
                       },
+=======
+            child: Card(
+              child: filtered.isEmpty
+                  ? const Center(
+                      child: Text('No inspections match current filters'))
+                  : Scrollbar(
+                      thumbVisibility: true,
+                      child: SingleChildScrollView(
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: DataTable(
+                          horizontalMargin: 14,
+                          columnSpacing: 18,
+                          dataRowMinHeight: 62,
+                          dataRowMaxHeight: 72,
+                          columns: const [
+                            DataColumn(label: Text('Inspection ID')),
+                            DataColumn(label: Text('Inspection Type')),
+                            DataColumn(label: Text('Work Order')),
+                            DataColumn(label: Text('Fleet')),
+                            DataColumn(label: Text('Trailer')),
+                            DataColumn(label: Text('Driver')),
+                            DataColumn(label: Text('Inspector')),
+                            DataColumn(label: Text('Inspected At')),
+                            DataColumn(label: Text('Overall Result')),
+                            DataColumn(label: Text('Approval Status')),
+                            DataColumn(label: Text('Media Count')),
+                            DataColumn(label: Text('Last Updated')),
+                            DataColumn(label: Text('Action')),
+                          ],
+                          rows: [
+                            for (final item in filtered)
+                              DataRow(
+                                cells: [
+                                  DataCell(Text(item.inspectionId)),
+                                  DataCell(Text(item.inspectionType.label)),
+                                  DataCell(Text(item.workOrder)),
+                                  DataCell(Text(item.fleet)),
+                                  DataCell(Text(item.trailer)),
+                                  DataCell(Text(item.driver)),
+                                  DataCell(Text(item.inspector)),
+                                  DataCell(
+                                      Text(_fmtDateTime(item.inspectedAt))),
+                                  DataCell(_resultChip(item.overallResult)),
+                                  DataCell(_approvalChip(item.approvalStatus)),
+                                  DataCell(Text('${item.mediaCount}')),
+                                  DataCell(
+                                      Text(_fmtDateTime(item.lastUpdated))),
+                                  DataCell(
+                                    SizedBox(
+                                      width: 80,
+                                      child: Row(
+                                        children: [
+                                          IconButton(
+                                            tooltip: 'Open Inspection Detail',
+                                            onPressed: () => context.push(
+                                              RoutePaths.inspectionDetailById(
+                                                item.inspectionId,
+                                              ),
+                                            ),
+                                            icon: const Icon(
+                                                Icons.open_in_new_rounded),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                          ],
+                          ),
+                        ),
+                      ),
+>>>>>>> Stashed changes
                     ),
           ),
         ],

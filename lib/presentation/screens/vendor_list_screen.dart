@@ -95,6 +95,7 @@ class VendorListScreen extends ConsumerWidget {
                     subtitle: 'Master data for quotation and order creation',
                     icon: Icons.store_outlined,
                     accent: const Color(0xFF16A34A),
+                    expandChild: true,
                     child: items.isEmpty
                         ? const Padding(
                             padding: EdgeInsets.symmetric(vertical: 20),
@@ -114,64 +115,120 @@ class VendorListScreen extends ConsumerWidget {
   }
 }
 
-class _DesktopVendorTable extends StatelessWidget {
+class _DesktopVendorTable extends StatefulWidget {
   const _DesktopVendorTable({required this.items});
 
   final List<VendorModel> items;
 
   @override
+  State<_DesktopVendorTable> createState() => _DesktopVendorTableState();
+}
+
+class _DesktopVendorTableState extends State<_DesktopVendorTable> {
+  final _horizontalController = ScrollController();
+
+  @override
+  void dispose() {
+    _horizontalController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        return SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minWidth: constraints.maxWidth),
-            child: DataTable(
-              headingRowColor: WidgetStateProperty.all(const Color(0xFFEFF4FF)),
-              columns: const [
-                DataColumn(label: Text('Vendor Name')),
-                DataColumn(label: Text('Company Name')),
-                DataColumn(label: Text('Contact')),
-                DataColumn(label: Text('Vendor Type')),
-                DataColumn(label: Text('Service Type')),
-                DataColumn(label: Text('Status')),
-                DataColumn(label: Text('Actions')),
-              ],
-              rows: [
-                for (final vendor in items)
-                  DataRow(
-                    cells: [
-                      DataCell(Text(vendor.vendorName)),
-                      DataCell(Text(vendor.companyName.isEmpty
-                          ? '-'
-                          : vendor.companyName)),
-                      DataCell(Text(vendor.contactNumber)),
-                      DataCell(Text(vendor.vendorType.label)),
-                      DataCell(Text(vendor.serviceType.label)),
-                      DataCell(Text(vendor.status.label)),
-                      DataCell(
-                        Wrap(
-                          spacing: 6,
-                          children: [
-                            TextButton(
-                              onPressed: () => context.go(
-                                RoutePaths.vendorViewById(vendor.vendorId),
-                              ),
-                              child: const Text('View'),
+        return Scrollbar(
+          thumbVisibility: true,
+          controller: _horizontalController,
+          notificationPredicate: (notification) =>
+              notification.metrics.axis == Axis.horizontal,
+          child: SingleChildScrollView(
+            child: SingleChildScrollView(
+              controller: _horizontalController,
+              scrollDirection: Axis.horizontal,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                child: DataTable(
+                headingRowColor:
+                    WidgetStateProperty.all(const Color(0xFFEFF4FF)),
+                horizontalMargin: 14,
+                columnSpacing: 20,
+                dataRowMinHeight: 62,
+                dataRowMaxHeight: 72,
+                columns: const [
+                  DataColumn(label: Text('Vendor Name')),
+                  DataColumn(label: Text('Company Name')),
+                  DataColumn(label: Text('Contact')),
+                  DataColumn(label: Text('Vendor Type')),
+                  DataColumn(label: Text('Service Type')),
+                  DataColumn(label: Text('Status')),
+                  DataColumn(label: Text('Actions')),
+                ],
+                rows: [
+                  for (final vendor in widget.items)
+                    DataRow(
+                      cells: [
+                        DataCell(
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 180),
+                            child: Text(
+                              vendor.vendorName,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            TextButton(
-                              onPressed: () => context.go(
-                                '${RoutePaths.vendorForm}?id=${vendor.vendorId}',
-                              ),
-                              child: const Text('Edit'),
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-              ],
+                        DataCell(
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 190),
+                            child: Text(
+                              vendor.companyName.isEmpty
+                                  ? '-'
+                                  : vendor.companyName,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ),
+                        DataCell(Text(vendor.contactNumber)),
+                        DataCell(Text(vendor.vendorType.label)),
+                        DataCell(Text(vendor.serviceType.label)),
+                        DataCell(Text(vendor.status.label)),
+                        DataCell(
+                          SizedBox(
+                            width: 168,
+                            child: Row(
+                              children: [
+                                FilledButton.tonal(
+                                  style: FilledButton.styleFrom(
+                                    minimumSize: const Size(64, 36),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10),
+                                  ),
+                                  onPressed: () => context.go(
+                                    RoutePaths.vendorViewById(vendor.vendorId),
+                                  ),
+                                  child: const Text('View'),
+                                ),
+                                const SizedBox(width: 8),
+                                OutlinedButton(
+                                  style: OutlinedButton.styleFrom(
+                                    minimumSize: const Size(64, 36),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10),
+                                  ),
+                                  onPressed: () => context.go(
+                                    '${RoutePaths.vendorForm}?id=${vendor.vendorId}',
+                                  ),
+                                  child: const Text('Edit'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
+                ),
+              ),
             ),
           ),
         );
@@ -188,8 +245,6 @@ class _MobileVendorList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
       itemCount: items.length,
       separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (context, index) {

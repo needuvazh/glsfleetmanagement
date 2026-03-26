@@ -218,13 +218,19 @@ class _DocumentManagementScreenState
 
         return Scrollbar(
           thumbVisibility: true,
+          notificationPredicate: (notification) =>
+              notification.metrics.axis == Axis.vertical,
           child: SingleChildScrollView(
             scrollDirection: Axis.vertical,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: SizedBox(
-                width: tableWidth,
-                child: PaginatedDataTable(
+            child: Scrollbar(
+              thumbVisibility: true,
+              notificationPredicate: (notification) =>
+                  notification.metrics.axis == Axis.horizontal,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: SizedBox(
+                  width: tableWidth,
+                  child: PaginatedDataTable(
                   header: const Text('Compliance Rules'),
                   showCheckboxColumn: false,
                   rowsPerPage: _rowsPerPage,
@@ -273,6 +279,7 @@ class _DocumentManagementScreenState
                     const DataColumn(label: Text('Actions')),
                   ],
                   source: source,
+                  ),
                 ),
               ),
             ),

@@ -23,6 +23,7 @@ import '../presentation/screens/delivery_pod_screen.dart';
 import '../presentation/screens/document_management_screen.dart';
 import '../presentation/screens/document_submission_screen.dart';
 import '../presentation/screens/driver_detail_screen.dart';
+import '../presentation/screens/driver_form_screen.dart';
 import '../presentation/screens/driver_management_screen.dart';
 import '../presentation/screens/feasibility_review_detail_screen.dart';
 import '../presentation/screens/feasibility_review_list_screen.dart';
@@ -41,6 +42,8 @@ import '../presentation/screens/inspection_dashboard_screen.dart';
 import '../presentation/screens/inspection_failed_queue_screen.dart';
 import '../presentation/screens/inspection_list_screen.dart';
 import '../presentation/screens/inspection_template_management_screen.dart';
+import '../presentation/screens/inspection_template_form_screen.dart';
+import '../presentation/screens/inspection_template_view_screen.dart';
 import '../presentation/screens/journey_management_screen.dart';
 import '../presentation/screens/login_screen.dart';
 import '../presentation/screens/location_form_screen.dart';
@@ -57,6 +60,8 @@ import '../presentation/screens/route_list_screen.dart';
 import '../presentation/screens/route_view_screen.dart';
 import '../presentation/screens/trip_monitoring_screen.dart';
 import '../presentation/screens/trip_execution_screen.dart';
+import '../presentation/screens/trailer_master_screen.dart';
+import '../presentation/screens/trailer_view_screen.dart';
 import '../presentation/screens/user_form_screen.dart';
 import '../presentation/screens/user_list_screen.dart';
 import '../presentation/screens/user_profile_screen.dart';
@@ -196,6 +201,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const DriverManagementScreen(),
       ),
       GoRoute(
+        path: RoutePaths.driverForm,
+        builder: (context, state) => DriverFormScreen(
+          editDriverId: state.uri.queryParameters['id'],
+        ),
+      ),
+      GoRoute(
         path: RoutePaths.driverDetail,
         builder: (context, state) => DriverDetailScreen(
           driverId: state.pathParameters['driverId'] ?? 'Unknown',
@@ -239,6 +250,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: RoutePaths.inspectionTemplates,
         builder: (context, state) => const InspectionTemplateManagementScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.inspectionTemplateForm,
+        builder: (context, state) => InspectionTemplateFormScreen(
+          editTemplateId: state.uri.queryParameters['id'],
+        ),
+      ),
+      GoRoute(
+        path: RoutePaths.inspectionTemplateView,
+        builder: (context, state) => InspectionTemplateViewScreen(
+          templateId: state.pathParameters['templateId'] ?? '',
+        ),
       ),
       GoRoute(
         path: RoutePaths.inspectionFailedQueue,
@@ -531,11 +554,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: RoutePaths.trailerMaster,
-        builder: (context, state) => const ModulePlaceholderScreen(
-          title: 'Trailer Master',
-          step: 'Masters',
-          icon: Icons.rv_hookup_outlined,
+        builder: (context, state) => const TrailerMasterScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.trailerView,
+        builder: (context, state) => TrailerViewScreen(
+          trailerCode: state.pathParameters['trailerCode'] ?? '',
         ),
+      ),
+      GoRoute(
+        path: RoutePaths.trailerMasterLegacy,
+        redirect: (context, state) => RoutePaths.trailerMaster,
       ),
 
       // Legacy aliases to keep older links functional.
@@ -555,10 +584,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: RoutePaths.tracking,
         redirect: (context, state) => RoutePaths.tripMonitoring,
-      ),
-      GoRoute(
-        path: RoutePaths.roleDocumentMapping,
-        redirect: (context, state) => RoutePaths.documentManagement,
       ),
     ],
     errorBuilder: (context, state) => Scaffold(

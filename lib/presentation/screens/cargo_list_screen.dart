@@ -52,15 +52,36 @@ class CargoListScreen extends ConsumerWidget {
                         )
                       : Column(
                           children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                    flex: 2, child: _searchField(ref, data)),
-                                const SizedBox(width: 10),
-                                Expanded(flex: 5, child: _filters(ref, data)),
-                                const SizedBox(width: 10),
-                                _createButton(context),
-                              ],
+                            LayoutBuilder(
+                              builder: (context, constraints) {
+                                final stack = constraints.maxWidth < 980;
+                                if (stack) {
+                                  return Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      _searchField(ref, data),
+                                      const SizedBox(height: 10),
+                                      Align(
+                                        alignment: Alignment.centerRight,
+                                        child: _createButton(context),
+                                      ),
+                                    ],
+                                  );
+                                }
+                                return Row(
+                                  children: [
+                                    Expanded(child: _searchField(ref, data)),
+                                    const SizedBox(width: 12),
+                                    _createButton(context),
+                                  ],
+                                );
+                              },
+                            ),
+                            const SizedBox(height: 10),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: _filters(ref, data),
                             ),
                             const SizedBox(height: 10),
                             _hardBlockToggle(context, ref, policy),
@@ -74,6 +95,7 @@ class CargoListScreen extends ConsumerWidget {
                     subtitle: 'Risk and operational behavior by cargo type',
                     icon: Icons.inventory_2_outlined,
                     accent: const Color(0xFF16A34A),
+                    expandChild: true,
                     child: rows.isEmpty
                         ? const Padding(
                             padding: EdgeInsets.symmetric(vertical: 20),
@@ -169,10 +191,17 @@ class CargoListScreen extends ConsumerWidget {
       width: 160,
       child: DropdownButtonFormField<String>(
         value: options.contains(value) ? value : options.first,
+        isExpanded: true,
         decoration: InputDecoration(labelText: label),
         items: [
           for (final item in options)
-            DropdownMenuItem(value: item, child: Text(item)),
+            DropdownMenuItem(
+              value: item,
+              child: Text(
+                item,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
         ],
         onChanged: (next) {
           if (next != null) {
@@ -242,83 +271,149 @@ class CargoListScreen extends ConsumerWidget {
   }
 }
 
-class _DesktopCargoTable extends ConsumerWidget {
+class _DesktopCargoTable extends ConsumerStatefulWidget {
   const _DesktopCargoTable({required this.items});
 
   final List<CargoModel> items;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_DesktopCargoTable> createState() => _DesktopCargoTableState();
+}
+
+class _DesktopCargoTableState extends ConsumerState<_DesktopCargoTable> {
+  final _horizontalController = ScrollController();
+
+  @override
+  void dispose() {
+    _horizontalController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        return SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minWidth: constraints.maxWidth),
-            child: DataTable(
-              headingRowColor: WidgetStateProperty.all(const Color(0xFFEFF4FF)),
-              columns: const [
-                DataColumn(label: Text('Code')),
-                DataColumn(label: Text('Cargo Name')),
-                DataColumn(label: Text('Category')),
-                DataColumn(label: Text('Risk')),
-                DataColumn(label: Text('Hazardous')),
-                DataColumn(label: Text('Preferred Vehicle')),
-                DataColumn(label: Text('Inspection Linked')),
-                DataColumn(label: Text('Status')),
-                DataColumn(label: Text('Actions')),
-              ],
-              rows: [
-                for (final item in items)
-                  DataRow(
-                    cells: [
-                      DataCell(Text(item.cargoCode)),
-                      DataCell(Text(item.cargoName)),
-                      DataCell(Text('${item.category} / ${item.subcategory}')),
-                      DataCell(
-                        _riskChip(item.riskLevel),
-                      ),
-                      DataCell(Text(item.hazardous ? 'Yes' : 'No')),
-                      DataCell(Text(item.preferredVehicleType.isEmpty
-                          ? '-'
-                          : item.preferredVehicleType)),
-                      DataCell(Text(
-                          item.inspectionTemplateType.isEmpty ? 'No' : 'Yes')),
-                      DataCell(
-                          Text(item.isSelectable ? 'Active' : 'Restricted')),
-                      DataCell(
-                        Wrap(
-                          spacing: 4,
-                          children: [
-                            TextButton(
-                              onPressed: () => context.go(
-                                RoutePaths.cargoMasterViewByCode(
-                                    item.cargoCode),
-                              ),
-                              child: const Text('View'),
+        return Scrollbar(
+          thumbVisibility: true,
+          controller: _horizontalController,
+          notificationPredicate: (notification) =>
+              notification.metrics.axis == Axis.horizontal,
+          child: SingleChildScrollView(
+            child: SingleChildScrollView(
+              controller: _horizontalController,
+              scrollDirection: Axis.horizontal,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                child: DataTable(
+                headingRowColor: WidgetStateProperty.all(const Color(0xFFEFF4FF)),
+                horizontalMargin: 14,
+                columnSpacing: 20,
+                dataRowMinHeight: 64,
+                dataRowMaxHeight: 74,
+                columns: const [
+                  DataColumn(label: Text('Code')),
+                  DataColumn(label: Text('Cargo Name')),
+                  DataColumn(label: Text('Category')),
+                  DataColumn(label: Text('Risk')),
+                  DataColumn(label: Text('Hazardous')),
+                  DataColumn(label: Text('Preferred Vehicle')),
+                  DataColumn(label: Text('Inspection Linked')),
+                  DataColumn(label: Text('Status')),
+                  DataColumn(label: Text('Actions')),
+                ],
+                rows: [
+                  for (final item in widget.items)
+                    DataRow(
+                      cells: [
+                        DataCell(Text(item.cargoCode)),
+                        DataCell(
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 170),
+                            child: Text(
+                              item.cargoName,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            TextButton(
-                              onPressed: () => context.go(
-                                '${RoutePaths.cargoMasterForm}?code=${item.cargoCode}',
-                              ),
-                              child: const Text('Edit'),
-                            ),
-                            TextButton(
-                              onPressed: item.isSelectable
-                                  ? () => _confirmDeactivate(
-                                        context,
-                                        ref,
-                                        item,
-                                      )
-                                  : null,
-                              child: const Text('Deactivate'),
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-              ],
+                        DataCell(
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 220),
+                            child: Text(
+                              '${item.category} / ${item.subcategory}',
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ),
+                        DataCell(_riskChip(item.riskLevel)),
+                        DataCell(Text(item.hazardous ? 'Yes' : 'No')),
+                        DataCell(
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 170),
+                            child: Text(
+                              item.preferredVehicleType.isEmpty
+                                  ? '-'
+                                  : item.preferredVehicleType,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ),
+                        DataCell(Text(
+                            item.inspectionTemplateType.isEmpty ? 'No' : 'Yes')),
+                        DataCell(Text(item.isSelectable ? 'Active' : 'Restricted')),
+                        DataCell(
+                          SizedBox(
+                            width: 270,
+                            child: Row(
+                              children: [
+                                FilledButton.tonal(
+                                  style: FilledButton.styleFrom(
+                                    minimumSize: const Size(66, 36),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10),
+                                  ),
+                                  onPressed: () => context.go(
+                                    RoutePaths.cargoMasterViewByCode(
+                                        item.cargoCode),
+                                  ),
+                                  child: const Text('View'),
+                                ),
+                                const SizedBox(width: 6),
+                                OutlinedButton(
+                                  style: OutlinedButton.styleFrom(
+                                    minimumSize: const Size(66, 36),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10),
+                                  ),
+                                  onPressed: () => context.go(
+                                    '${RoutePaths.cargoMasterForm}?code=${item.cargoCode}',
+                                  ),
+                                  child: const Text('Edit'),
+                                ),
+                                const SizedBox(width: 6),
+                                OutlinedButton(
+                                  style: OutlinedButton.styleFrom(
+                                    minimumSize: const Size(84, 36),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10),
+                                  ),
+                                  onPressed: item.isSelectable
+                                      ? () => _confirmDeactivate(
+                                            context,
+                                            ref,
+                                            item,
+                                          )
+                                      : null,
+                                  child: const Text('Deactivate'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
+                ),
+              ),
             ),
           ),
         );
@@ -334,67 +429,64 @@ class _MobileCargoList extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Column(
-      children: [
-        for (int i = 0; i < items.length; i++) ...[
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              color: const Color(0xFFF8FAFC),
-              border: Border.all(color: const Color(0xFFDCE6F7)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '${items[i].cargoName} (${items[i].cargoCode})',
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                    'Category: ${items[i].category} / ${items[i].subcategory}'),
-                Row(
-                  children: [
-                    const Text('Risk: '),
-                    _riskChip(items[i].riskLevel),
-                  ],
-                ),
-                Text('Hazardous: ${items[i].hazardous ? 'Yes' : 'No'}'),
-                Text(
-                    'Vehicle: ${items[i].preferredVehicleType.isEmpty ? '-' : items[i].preferredVehicleType}'),
-                Text(
-                    'Status: ${items[i].isSelectable ? 'Active' : 'Restricted'}'),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    OutlinedButton(
-                      onPressed: () => context.go(
-                          RoutePaths.cargoMasterViewByCode(items[i].cargoCode)),
-                      child: const Text('View'),
-                    ),
-                    OutlinedButton(
-                      onPressed: () => context.go(
-                          '${RoutePaths.cargoMasterForm}?code=${items[i].cargoCode}'),
-                      child: const Text('Edit'),
-                    ),
-                    OutlinedButton(
-                      onPressed: items[i].isSelectable
-                          ? () => _confirmDeactivate(context, ref, items[i])
-                          : null,
-                      child: const Text('Deactivate'),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+    return ListView.separated(
+      itemCount: items.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      itemBuilder: (context, i) {
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            color: const Color(0xFFF8FAFC),
+            border: Border.all(color: const Color(0xFFDCE6F7)),
           ),
-          if (i != items.length - 1) const SizedBox(height: 10),
-        ],
-      ],
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${items[i].cargoName} (${items[i].cargoCode})',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 6),
+              Text('Category: ${items[i].category} / ${items[i].subcategory}'),
+              Row(
+                children: [
+                  const Text('Risk: '),
+                  _riskChip(items[i].riskLevel),
+                ],
+              ),
+              Text('Hazardous: ${items[i].hazardous ? 'Yes' : 'No'}'),
+              Text(
+                  'Vehicle: ${items[i].preferredVehicleType.isEmpty ? '-' : items[i].preferredVehicleType}'),
+              Text('Status: ${items[i].isSelectable ? 'Active' : 'Restricted'}'),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  OutlinedButton(
+                    onPressed: () => context
+                        .go(RoutePaths.cargoMasterViewByCode(items[i].cargoCode)),
+                    child: const Text('View'),
+                  ),
+                  OutlinedButton(
+                    onPressed: () => context.go(
+                        '${RoutePaths.cargoMasterForm}?code=${items[i].cargoCode}'),
+                    child: const Text('Edit'),
+                  ),
+                  OutlinedButton(
+                    onPressed: items[i].isSelectable
+                        ? () => _confirmDeactivate(context, ref, items[i])
+                        : null,
+                    child: const Text('Deactivate'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

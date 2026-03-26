@@ -15,7 +15,7 @@ class RoleDocumentMappingScreen extends ConsumerWidget {
 
     return OpsShell(
       title: 'Role Document Mapping',
-      currentRoute: RoutePaths.roleDocumentMapping,
+      currentRoute: RoutePaths.documentManagement,
       child: state.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(child: Text(error.toString())),

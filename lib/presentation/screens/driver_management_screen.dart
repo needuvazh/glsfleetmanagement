@@ -19,6 +19,8 @@ class DriverManagementScreen extends ConsumerStatefulWidget {
 class _DriverManagementScreenState
     extends ConsumerState<DriverManagementScreen> {
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _driverTableHorizontalController = ScrollController();
+  final ScrollController _driverTableVerticalController = ScrollController();
 
   String _activeFilter = 'All';
   String _availabilityFilter = 'All';
@@ -30,6 +32,8 @@ class _DriverManagementScreenState
   @override
   void dispose() {
     _searchController.dispose();
+    _driverTableHorizontalController.dispose();
+    _driverTableVerticalController.dispose();
     super.dispose();
   }
 
@@ -56,26 +60,58 @@ class _DriverManagementScreenState
                     padding: const EdgeInsets.all(12),
                     child: Column(
                       children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextField(
-                                controller: _searchController,
-                                onChanged: (_) => setState(() {}),
-                                decoration: const InputDecoration(
-                                  hintText:
-                                      'Search by code, name, license, location',
-                                  prefixIcon: Icon(Icons.search),
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final stack = constraints.maxWidth < 980;
+                            if (stack) {
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  TextField(
+                                    controller: _searchController,
+                                    onChanged: (_) => setState(() {}),
+                                    decoration: const InputDecoration(
+                                      hintText:
+                                          'Search by code, name, license, location',
+                                      prefixIcon: Icon(Icons.search),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: FilledButton.icon(
+                                      onPressed: () =>
+                                          context.push(RoutePaths.driverForm),
+                                      icon: const Icon(Icons.add),
+                                      label: const Text('Create Driver'),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            }
+                            return Row(
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    controller: _searchController,
+                                    onChanged: (_) => setState(() {}),
+                                    decoration: const InputDecoration(
+                                      hintText:
+                                          'Search by code, name, license, location',
+                                      prefixIcon: Icon(Icons.search),
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            FilledButton.icon(
-                              onPressed: () => _openDriverDialog(context),
-                              icon: const Icon(Icons.add),
-                              label: const Text('Create Driver'),
-                            ),
-                          ],
+                                const SizedBox(width: 10),
+                                FilledButton.icon(
+                                  onPressed: () =>
+                                      context.push(RoutePaths.driverForm),
+                                  icon: const Icon(Icons.add),
+                                  label: const Text('Create Driver'),
+                                ),
+                              ],
+                            );
+                          },
                         ),
                         const SizedBox(height: 10),
                         Wrap(
@@ -148,9 +184,33 @@ class _DriverManagementScreenState
                   child: Card(
                     child: rows.isEmpty
                         ? const Center(child: Text('No drivers found'))
-                        : SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: DataTable(
+                        : LayoutBuilder(
+                            builder: (context, constraints) {
+                              return Scrollbar(
+                                thumbVisibility: true,
+                                controller: _driverTableVerticalController,
+                                child: SingleChildScrollView(
+                                  controller: _driverTableVerticalController,
+                                  child: Scrollbar(
+                                    thumbVisibility: true,
+                                    controller: _driverTableHorizontalController,
+                                    notificationPredicate: (notification) =>
+                                        notification.metrics.axis ==
+                                        Axis.horizontal,
+                                    child: SingleChildScrollView(
+                                      controller:
+                                          _driverTableHorizontalController,
+                                      scrollDirection: Axis.horizontal,
+                                      child: ConstrainedBox(
+                                        constraints: BoxConstraints(
+                                          minWidth: constraints.maxWidth,
+                                        ),
+                                        child: DataTable(
+                              horizontalMargin: 14,
+                              columnSpacing: 18,
+                              headingRowHeight: 52,
+                              dataRowMinHeight: 64,
+                              dataRowMaxHeight: 74,
                               columns: const [
                                 DataColumn(label: Text('Driver Code')),
                                 DataColumn(label: Text('Driver Name')),
@@ -199,78 +259,90 @@ class _DriverManagementScreenState
                                     ),
                                     DataCell(Text(row.expiryWarning)),
                                     DataCell(
-                                      Wrap(
-                                        spacing: 2,
-                                        children: [
-                                          IconButton(
-                                            tooltip: 'Edit Driver',
-                                            onPressed: () => _openDriverDialog(
-                                              context,
-                                              existing: row.driver,
+                                      SizedBox(
+                                        width: 132,
+                                        child: Row(
+                                          children: [
+                                            IconButton(
+                                              tooltip: 'Edit Driver',
+                                              constraints: const BoxConstraints(
+                                                  minWidth: 34, minHeight: 34),
+                                              padding: EdgeInsets.zero,
+                                              onPressed: () => context.push(
+                                                RoutePaths.editDriverById(
+                                                  row.driver.driverId,
+                                                ),
+                                              ),
+                                              icon: const Icon(Icons.edit_outlined),
                                             ),
-                                            icon:
-                                                const Icon(Icons.edit_outlined),
-                                          ),
-                                          IconButton(
-                                            tooltip: 'View Details',
-                                            onPressed: () => context.push(
-                                              RoutePaths.driverDetailById(
-                                                  row.driver.driverId),
+                                            IconButton(
+                                              tooltip: 'View Details',
+                                              constraints: const BoxConstraints(
+                                                  minWidth: 34, minHeight: 34),
+                                              padding: EdgeInsets.zero,
+                                              onPressed: () => context.push(
+                                                RoutePaths.driverDetailById(
+                                                    row.driver.driverId),
+                                              ),
+                                              icon: const Icon(
+                                                  Icons.open_in_new_rounded),
                                             ),
-                                            icon: const Icon(
-                                                Icons.open_in_new_rounded),
-                                          ),
-                                          IconButton(
-                                            tooltip: 'Mark Unavailable',
-                                            onPressed: () {
-                                              final msg = ref
-                                                  .read(
-                                                      logisticsViewModelProvider
+                                            PopupMenuButton<String>(
+                                              tooltip: 'More Actions',
+                                              padding: EdgeInsets.zero,
+                                              itemBuilder: (_) => const [
+                                                PopupMenuItem(
+                                                    value: 'unavailable',
+                                                    child: Text('Mark Unavailable')),
+                                                PopupMenuItem(
+                                                    value: 'suspend',
+                                                    child: Text('Suspend Driver')),
+                                                PopupMenuItem(
+                                                    value: 'deactivate',
+                                                    child: Text('Deactivate')),
+                                              ],
+                                              onSelected: (value) {
+                                                String msg;
+                                                if (value == 'unavailable') {
+                                                  msg = ref
+                                                      .read(logisticsViewModelProvider
                                                           .notifier)
-                                                  .markDriverUnavailable(
-                                                      row.driver.driverId);
-                                              _toast(msg);
-                                            },
-                                            icon:
-                                                const Icon(Icons.pause_circle),
-                                          ),
-                                          IconButton(
-                                            tooltip: 'Suspend Driver',
-                                            onPressed: () {
-                                              final msg = ref
-                                                  .read(
-                                                      logisticsViewModelProvider
+                                                      .markDriverUnavailable(
+                                                          row.driver.driverId);
+                                                } else if (value == 'suspend') {
+                                                  msg = ref
+                                                      .read(logisticsViewModelProvider
                                                           .notifier)
-                                                  .suspendDriver(
-                                                    row.driver.driverId,
-                                                    reason:
-                                                        'Temporary operational suspension',
-                                                  );
-                                              _toast(msg);
-                                            },
-                                            icon: const Icon(Icons.block),
-                                          ),
-                                          IconButton(
-                                            tooltip: 'Deactivate',
-                                            onPressed: () {
-                                              final msg = ref
-                                                  .read(
-                                                      logisticsViewModelProvider
+                                                      .suspendDriver(
+                                                        row.driver.driverId,
+                                                        reason:
+                                                            'Temporary operational suspension',
+                                                      );
+                                                } else {
+                                                  msg = ref
+                                                      .read(logisticsViewModelProvider
                                                           .notifier)
-                                                  .deactivateDriver(
-                                                    row.driver.driverId,
-                                                    reason: 'Deactivated',
-                                                  );
-                                              _toast(msg);
-                                            },
-                                            icon: const Icon(Icons.person_off),
-                                          ),
-                                        ],
+                                                      .deactivateDriver(
+                                                        row.driver.driverId,
+                                                        reason: 'Deactivated',
+                                                      );
+                                                }
+                                                _toast(msg);
+                                              },
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ),
                                   ]),
                               ],
                             ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                   ),
                 ),
@@ -293,10 +365,17 @@ class _DriverManagementScreenState
       width: width,
       child: DropdownButtonFormField<String>(
         value: value,
+        isExpanded: true,
         decoration: InputDecoration(labelText: label),
         items: [
           for (final item in items)
-            DropdownMenuItem(value: item, child: Text(item)),
+            DropdownMenuItem(
+              value: item,
+              child: Text(
+                item,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
         ],
         onChanged: (next) {
           if (next != null) {

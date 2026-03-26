@@ -91,6 +91,7 @@ class LocationListScreen extends ConsumerWidget {
                     subtitle: 'Master data for routes and trip planning',
                     icon: Icons.location_on_outlined,
                     accent: const Color(0xFF16A34A),
+                    expandChild: true,
                     child: items.isEmpty
                         ? const Padding(
                             padding: EdgeInsets.symmetric(vertical: 20),
@@ -110,59 +111,107 @@ class LocationListScreen extends ConsumerWidget {
   }
 }
 
-class _DesktopLocationTable extends StatelessWidget {
+class _DesktopLocationTable extends StatefulWidget {
   const _DesktopLocationTable({required this.items});
 
   final List<LocationModel> items;
 
   @override
+  State<_DesktopLocationTable> createState() => _DesktopLocationTableState();
+}
+
+class _DesktopLocationTableState extends State<_DesktopLocationTable> {
+  final _horizontalController = ScrollController();
+
+  @override
+  void dispose() {
+    _horizontalController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        return SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minWidth: constraints.maxWidth),
-            child: DataTable(
-              headingRowColor: WidgetStateProperty.all(const Color(0xFFEFF4FF)),
-              columns: const [
-                DataColumn(label: Text('Location Name')),
-                DataColumn(label: Text('Location Code')),
-                DataColumn(label: Text('Latitude')),
-                DataColumn(label: Text('Longitude')),
-                DataColumn(label: Text('Actions')),
-              ],
-              rows: [
-                for (final location in items)
-                  DataRow(
-                    cells: [
-                      DataCell(Text(location.locationName)),
-                      DataCell(Text(location.locationCode)),
-                      DataCell(Text(_formatCoordinate(location.latitude))),
-                      DataCell(Text(_formatCoordinate(location.longitude))),
-                      DataCell(
-                        Wrap(
-                          spacing: 6,
-                          children: [
-                            TextButton(
-                              onPressed: () => context.go(
-                                RoutePaths.locationViewByCode(
-                                    location.locationCode),
-                              ),
-                              child: const Text('View'),
+        return Scrollbar(
+          thumbVisibility: true,
+          controller: _horizontalController,
+          notificationPredicate: (notification) =>
+              notification.metrics.axis == Axis.horizontal,
+          child: SingleChildScrollView(
+            child: SingleChildScrollView(
+              controller: _horizontalController,
+              scrollDirection: Axis.horizontal,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                child: DataTable(
+                headingRowColor:
+                    WidgetStateProperty.all(const Color(0xFFEFF4FF)),
+                horizontalMargin: 14,
+                columnSpacing: 20,
+                dataRowMinHeight: 62,
+                dataRowMaxHeight: 72,
+                columns: const [
+                  DataColumn(label: Text('Location Name')),
+                  DataColumn(label: Text('Location Code')),
+                  DataColumn(label: Text('Latitude')),
+                  DataColumn(label: Text('Longitude')),
+                  DataColumn(label: Text('Actions')),
+                ],
+                rows: [
+                  for (final location in widget.items)
+                    DataRow(
+                      cells: [
+                        DataCell(
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 200),
+                            child: Text(
+                              location.locationName,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            TextButton(
-                              onPressed: () => context.go(
-                                '${RoutePaths.locationForm}?code=${location.locationCode}',
-                              ),
-                              child: const Text('Edit'),
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-              ],
+                        DataCell(Text(location.locationCode)),
+                        DataCell(Text(_formatCoordinate(location.latitude))),
+                        DataCell(Text(_formatCoordinate(location.longitude))),
+                        DataCell(
+                          SizedBox(
+                            width: 168,
+                            child: Row(
+                              children: [
+                                FilledButton.tonal(
+                                  style: FilledButton.styleFrom(
+                                    minimumSize: const Size(64, 36),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10),
+                                  ),
+                                  onPressed: () => context.go(
+                                    RoutePaths.locationViewByCode(
+                                        location.locationCode),
+                                  ),
+                                  child: const Text('View'),
+                                ),
+                                const SizedBox(width: 8),
+                                OutlinedButton(
+                                  style: OutlinedButton.styleFrom(
+                                    minimumSize: const Size(64, 36),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10),
+                                  ),
+                                  onPressed: () => context.go(
+                                    '${RoutePaths.locationForm}?code=${location.locationCode}',
+                                  ),
+                                  child: const Text('Edit'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
+                ),
+              ),
             ),
           ),
         );
@@ -179,8 +228,6 @@ class _MobileLocationList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
       itemCount: items.length,
       separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (context, index) {
