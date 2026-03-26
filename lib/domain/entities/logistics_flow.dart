@@ -47,6 +47,13 @@ class CustomerRequestData {
     this.hazardousComplianceRequired = false,
     this.status = 'New Enquiry',
     this.cancellationReason = '',
+    this.feasibilityStatus = 'Pending',
+    this.feasibilityRiskLevel = 'Low',
+    this.estimatedCost = 0.0,
+    this.paymentTerms = '',
+    this.creditCheckStatus = 'Pending',
+    this.feasibilityRemarks = '',
+    this.reviewedBy = '',
     required this.createdAt,
     required this.updatedAt,
   });
@@ -82,6 +89,13 @@ class CustomerRequestData {
   final bool hazardousComplianceRequired;
   final String status;
   final String cancellationReason;
+  final String feasibilityStatus; // Pending, Feasible, Not Feasible
+  final String feasibilityRiskLevel; // Low, Medium, High, Critical
+  final double estimatedCost;
+  final String paymentTerms;
+  final String creditCheckStatus;
+  final String feasibilityRemarks;
+  final String reviewedBy;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -119,6 +133,13 @@ class CustomerRequestData {
     bool? hazardousComplianceRequired,
     String? status,
     String? cancellationReason,
+    String? feasibilityStatus,
+    String? feasibilityRiskLevel,
+    double? estimatedCost,
+    String? paymentTerms,
+    String? creditCheckStatus,
+    String? feasibilityRemarks,
+    String? reviewedBy,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -159,6 +180,13 @@ class CustomerRequestData {
           hazardousComplianceRequired ?? this.hazardousComplianceRequired,
       status: status ?? this.status,
       cancellationReason: cancellationReason ?? this.cancellationReason,
+      feasibilityStatus: feasibilityStatus ?? this.feasibilityStatus,
+      feasibilityRiskLevel: feasibilityRiskLevel ?? this.feasibilityRiskLevel,
+      estimatedCost: estimatedCost ?? this.estimatedCost,
+      paymentTerms: paymentTerms ?? this.paymentTerms,
+      creditCheckStatus: creditCheckStatus ?? this.creditCheckStatus,
+      feasibilityRemarks: feasibilityRemarks ?? this.feasibilityRemarks,
+      reviewedBy: reviewedBy ?? this.reviewedBy,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

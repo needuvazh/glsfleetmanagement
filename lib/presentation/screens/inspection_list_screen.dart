@@ -242,7 +242,13 @@ class _FilterDrop extends StatelessWidget {
         decoration: InputDecoration(labelText: label),
         items: [
           for (final option in options)
-            DropdownMenuItem(value: option, child: Text(option)),
+            DropdownMenuItem(
+              value: option,
+              child: Text(
+                option,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
         ],
         onChanged: (value) {
           if (value != null) {

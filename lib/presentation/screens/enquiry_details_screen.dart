@@ -71,7 +71,7 @@ class _EnquiryDetailsScreenState extends ConsumerState<EnquiryDetailsScreen> {
           child: const Text('Back to Enquiry'),
         ),
         TextButton(
-          onPressed: () => context.go(RoutePaths.feasibilityQuotation),
+          onPressed: () => context.go(RoutePaths.feasibilityReview),
           child: const Text('Go to Feasibility'),
         ),
       ],
@@ -569,7 +569,7 @@ class _EnquiryDetailsScreenState extends ConsumerState<EnquiryDetailsScreen> {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
     if (message.contains('ready for feasibility and costing')) {
-      context.go(RoutePaths.feasibilityQuotation);
+      context.go(RoutePaths.feasibilityReview);
     }
   }
 }
