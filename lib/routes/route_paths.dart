@@ -73,6 +73,23 @@ class RoutePaths {
   static const userProfile = '/user-profile';
   static const changePassword = '/change-password';
 
+  // New Placeholders from Transaction Screen Matrix Requirement
+  static const quotation = '/quotation';
+  static const orderDecision = '/order-decision';
+  static const woDelegation = '/wo-delegation';
+  static const dispatch = '/dispatch';
+  static const tripDocumentVerification = '/trip-document-verification';
+  static const finalApproval = '/final-approval';
+  static const financeHandoff = '/finance-handoff';
+  static const executionEvidence = '/execution-evidence';
+  static const podDnUploads = '/pod-dn-uploads';
+  static const tripDocuments = '/trip-documents';
+  static const photosVideos = '/photos-videos';
+  static const auditTrail = '/audit-trail';
+  static const statusTimeline = '/status-timeline';
+  static const trailerMaster = '/trailer-master';
+
+
   static String workOrderDetailById(String workOrderId) =>
       '/work-orders/$workOrderId';
 

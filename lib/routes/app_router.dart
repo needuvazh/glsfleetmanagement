@@ -65,6 +65,7 @@ import '../presentation/screens/vehicle_type_list_screen.dart';
 import '../presentation/screens/work_order_flow_screen.dart';
 import '../presentation/screens/work_order_detail_screen.dart';
 import '../presentation/screens/work_orders_screen.dart';
+import '../presentation/screens/module_placeholder_screen.dart';
 import 'route_paths.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -388,7 +389,122 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: RoutePaths.documentManagement,
         builder: (context, state) => const DocumentManagementScreen(),
       ),
+      // Placeholders for new screens based on the matrix
+      GoRoute(
+        path: RoutePaths.quotation,
+        builder: (context, state) => const ModulePlaceholderScreen(
+          title: 'Quotation',
+          step: 'Transactions',
+          icon: Icons.request_quote_outlined,
+        ),
+      ),
+      GoRoute(
+        path: RoutePaths.orderDecision,
+        builder: (context, state) => const ModulePlaceholderScreen(
+          title: 'Order Decision',
+          step: 'Transactions',
+          icon: Icons.gavel_outlined,
+        ),
+      ),
+      GoRoute(
+        path: RoutePaths.woDelegation,
+        builder: (context, state) => const ModulePlaceholderScreen(
+          title: 'WO Delegation',
+          step: 'Transactions',
+          icon: Icons.assignment_ind_outlined,
+        ),
+      ),
+      GoRoute(
+        path: RoutePaths.dispatch,
+        builder: (context, state) => const ModulePlaceholderScreen(
+          title: 'Dispatch',
+          step: 'Operations',
+          icon: Icons.play_circle_outline,
+        ),
+      ),
+      GoRoute(
+        path: RoutePaths.tripDocumentVerification,
+        builder: (context, state) => const ModulePlaceholderScreen(
+          title: 'Trip Document Verification',
+          step: 'Operations',
+          icon: Icons.verified_outlined,
+        ),
+      ),
+      GoRoute(
+        path: RoutePaths.finalApproval,
+        builder: (context, state) => const ModulePlaceholderScreen(
+          title: 'Final Approval',
+          step: 'Operations',
+          icon: Icons.thumb_up_outlined,
+        ),
+      ),
+      GoRoute(
+        path: RoutePaths.financeHandoff,
+        builder: (context, state) => const ModulePlaceholderScreen(
+          title: 'Finance Handoff',
+          step: 'Operations',
+          icon: Icons.monetization_on_outlined,
+        ),
+      ),
+      GoRoute(
+        path: RoutePaths.executionEvidence,
+        builder: (context, state) => const ModulePlaceholderScreen(
+          title: 'Execution Evidence',
+          step: 'Monitoring',
+          icon: Icons.fact_check_outlined,
+        ),
+      ),
+      GoRoute(
+        path: RoutePaths.podDnUploads,
+        builder: (context, state) => const ModulePlaceholderScreen(
+          title: 'POD / DN Uploads',
+          step: 'Documents & Media',
+          icon: Icons.upload_file_outlined,
+        ),
+      ),
+      GoRoute(
+        path: RoutePaths.tripDocuments,
+        builder: (context, state) => const ModulePlaceholderScreen(
+          title: 'Trip Documents',
+          step: 'Documents & Media',
+          icon: Icons.folder_open_outlined,
+        ),
+      ),
+      GoRoute(
+        path: RoutePaths.photosVideos,
+        builder: (context, state) => const ModulePlaceholderScreen(
+          title: 'Photos / Videos',
+          step: 'Documents & Media',
+          icon: Icons.photo_camera_outlined,
+        ),
+      ),
+      GoRoute(
+        path: RoutePaths.auditTrail,
+        builder: (context, state) => const ModulePlaceholderScreen(
+          title: 'Audit Trail',
+          step: 'Audit & History',
+          icon: Icons.history_outlined,
+        ),
+      ),
+      GoRoute(
+        path: RoutePaths.statusTimeline,
+        builder: (context, state) => const ModulePlaceholderScreen(
+          title: 'Status Timeline',
+          step: 'Audit & History',
+          icon: Icons.timeline_outlined,
+        ),
+      ),
+      GoRoute(
+        path: RoutePaths.trailerMaster,
+        builder: (context, state) => const ModulePlaceholderScreen(
+          title: 'Trailer Master',
+          step: 'Masters',
+          icon: Icons.rv_hookup_outlined,
+        ),
+      ),
+
       // Legacy aliases to keep older links functional.
+
       GoRoute(
         path: RoutePaths.fleet,
         redirect: (context, state) => RoutePaths.fleetManagement,
