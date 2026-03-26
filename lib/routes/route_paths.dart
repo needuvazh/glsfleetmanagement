@@ -77,6 +77,11 @@ class RoutePaths {
 
   // New Placeholders from Transaction Screen Matrix Requirement
   static const quotation = '/quotation';
+  static const quotationForm = '/quotation/form';
+  static const quotationEdit = '/quotation/:quoteRef/edit';
+  static const quotationDecision = '/quotation/:quoteRef/decision';
+  static String quotationEditByRef(String ref) => '/quotation/${Uri.encodeComponent(ref)}/edit';
+  static String quotationDecisionByRef(String ref) => '/quotation/${Uri.encodeComponent(ref)}/decision';
   static const orderDecision = '/order-decision';
   static const woDelegation = '/wo-delegation';
   static const dispatch = '/dispatch';

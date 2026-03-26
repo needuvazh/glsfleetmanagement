@@ -436,7 +436,7 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
 
     final quoteStatusByRef = {
       for (final q in quotations)
-        q.quoteRef: q.approved ? 'Approved' : 'Pending',
+        q.quoteRef: q.status,
     };
 
     return LogisticsUiState(
@@ -879,92 +879,130 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
         current.copyWith(managerOverride: value, lastUpdated: DateTime.now()));
   }
 
-  String addQuotation({
-    required String date,
-    required String quoteRef,
-    required String salesPerson,
-    required String customer,
-    required String customerContact,
-    required String workDescription,
-    required int noOfTrips,
-    required double kilometer,
-    required double rate,
-  }) {
-    final current = state.valueOrNull;
-    if (current == null) {
-      return 'Data not loaded.';
-    }
+  // ── Step 3: Quotation ────────────────────────────────────────────
 
-    if (!current.isFeasible && !current.managerOverride) {
-      return 'Quotation blocked: job is not feasible.';
-    }
-
-    if (quoteRef.trim().isEmpty || customer.trim().isEmpty) {
-      return 'Quotation reference and customer are required.';
-    }
-
-    final normalizedQuoteRef = quoteRef.trim().toLowerCase();
-    final duplicate = current.quotations.any(
-      (q) => q.quoteRef.trim().toLowerCase() == normalizedQuoteRef,
-    );
-    if (duplicate) {
-      return 'Quotation reference already exists. Use a unique QUOTE REF.';
-    }
-
-    final amount = noOfTrips * kilometer * rate;
-    final quotation = QuotationData(
-      slNo: current.quotations.length + 1,
-      date: date,
-      quoteRef: quoteRef,
-      salesPerson: salesPerson,
-      customer: customer,
-      customerContact: customerContact,
-      workDescription: workDescription,
-      noOfTrips: noOfTrips,
-      kilometer: kilometer,
-      rate: rate,
-      amount: amount,
-      approved: false,
-    );
-
-    final nextStatuses = Map<String, String>.from(current.quoteStatusByRef)
-      ..[quoteRef] = 'Pending';
-
-    state = AsyncData(
-      current.copyWith(
-        quotations: [quotation, ...current.quotations],
-        quoteStatusByRef: nextStatuses,
-        lastUpdated: DateTime.now(),
-      ),
-    );
-
-    return 'Quotation created successfully.';
+  String _nextQuoteRef(List<QuotationData> quotations) {
+    final nums = quotations
+        .map((q) => int.tryParse(q.quoteRef.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0)
+        .toList();
+    final next = (nums.isEmpty ? 0 : nums.reduce((a, b) => a > b ? a : b)) + 1;
+    return 'QUO${next.toString().padLeft(4, '0')}';
   }
 
-  void setQuoteStatus(String quoteRef, String status) {
+  String saveQuotation(QuotationData quotation) {
     final current = state.valueOrNull;
-    if (current == null) {
-      return;
-    }
-    final nextStatuses = Map<String, String>.from(current.quoteStatusByRef)
-      ..[quoteRef] = status;
+    if (current == null) return 'Data not loaded.';
 
-    final updated = current.quotations
-        .map((q) => q.quoteRef == quoteRef
-            ? q.copyWith(approved: status == 'Approved')
-            : q)
-        .toList();
+    if (quotation.enquiryRef.trim().isEmpty) return 'Enquiry reference is required.';
+    if (quotation.rate <= 0) return 'Rate must be greater than zero.';
+    if (quotation.validityDate.trim().isEmpty) return 'Validity date is required.';
+
+    final now = DateTime.now();
+    final isNew = quotation.quoteRef.isEmpty;
+    final ref = isNew ? _nextQuoteRef(current.quotations) : quotation.quoteRef;
+
+    // Duplicate check (only for new)
+    if (isNew) {
+      final dup = current.quotations.any(
+        (q) => q.quoteRef.trim().toLowerCase() == ref.trim().toLowerCase(),
+      );
+      if (dup) return 'Quotation reference already exists.';
+    }
+
+    final entry = quotation.copyWith(
+      quoteRef: ref,
+      createdAt: isNew ? now : quotation.createdAt,
+      updatedAt: now,
+    );
+
+    List<QuotationData> next;
+    if (isNew) {
+      next = [entry, ...current.quotations];
+    } else {
+      next = current.quotations.map((q) => q.quoteRef == ref ? entry : q).toList();
+    }
+
+    final nextStatuses = Map<String, String>.from(current.quoteStatusByRef)
+      ..[ref] = entry.status;
 
     state = AsyncData(current.copyWith(
+      quotations: next,
       quoteStatusByRef: nextStatuses,
-      quotations: updated,
-      lastUpdated: DateTime.now(),
+      lastUpdated: now,
     ));
+    return 'Quotation $ref saved.';
   }
 
-  // Backward compatibility for existing UI action.
+  String sendQuotation(String quoteRef) {
+    final current = state.valueOrNull;
+    if (current == null) return 'Data not loaded.';
+    final idx = current.quotations.indexWhere((q) => q.quoteRef == quoteRef);
+    if (idx < 0) return 'Quotation not found.';
+    final now = DateTime.now();
+    final updated = current.quotations[idx].copyWith(status: 'Sent', updatedAt: now);
+    final next = [...current.quotations]..[idx] = updated;
+    final nextStatuses = Map<String, String>.from(current.quoteStatusByRef)
+      ..[quoteRef] = 'Sent';
+    state = AsyncData(current.copyWith(
+      quotations: next,
+      quoteStatusByRef: nextStatuses,
+      lastUpdated: now,
+    ));
+    return 'Quotation $quoteRef sent to customer.';
+  }
+
+  String recordQuotationDecision({
+    required String quoteRef,
+    required String decision,
+    required String responseDate,
+    required String customerPoRef,
+    required String rejectionReason,
+  }) {
+    final current = state.valueOrNull;
+    if (current == null) return 'Data not loaded.';
+    if (decision == 'Accepted' && customerPoRef.trim().isEmpty) {
+      return 'Customer PO / confirmation reference is required when Accepted.';
+    }
+    if (decision == 'Rejected' && rejectionReason.trim().isEmpty) {
+      return 'Rejection reason is required when Rejected.';
+    }
+    final idx = current.quotations.indexWhere((q) => q.quoteRef == quoteRef);
+    if (idx < 0) return 'Quotation not found.';
+    final now = DateTime.now();
+    final updated = current.quotations[idx].copyWith(
+      status: decision,
+      decisionResponseDate: responseDate,
+      customerPoRef: customerPoRef.trim(),
+      rejectionReason: rejectionReason.trim(),
+      updatedAt: now,
+    );
+    final next = [...current.quotations]..[idx] = updated;
+    final nextStatuses = Map<String, String>.from(current.quoteStatusByRef)
+      ..[quoteRef] = decision;
+
+    // If accepted, promote the linked enquiry status
+    final enquiryList = current.customerRequests.map((e) {
+      if (e.enquiryNumber == current.quotations[idx].enquiryRef) {
+        return e.copyWith(status: 'Decision Received', updatedAt: now);
+      }
+      return e;
+    }).toList();
+
+    state = AsyncData(current.copyWith(
+      quotations: next,
+      quoteStatusByRef: nextStatuses,
+      customerRequests: enquiryList,
+      lastUpdated: now,
+    ));
+    return 'Decision recorded: $decision for $quoteRef.';
+  }
+
+  // Legacy compat
+  void setQuoteStatus(String quoteRef, String status) {
+    sendQuotation(quoteRef);
+  }
   void setQuotationApproval(String quoteRef, bool approved) {
-    setQuoteStatus(quoteRef, approved ? 'Approved' : 'Pending');
+    sendQuotation(quoteRef);
   }
 
   String createWorkOrderJobFile({

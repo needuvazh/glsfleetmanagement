@@ -28,7 +28,8 @@ class _CustomerRequestFormScreenState extends ConsumerState<CustomerRequestFormS
   final _formKey = GlobalKey<FormState>();
 
   // Basic Request Info
-  final _requestSource = TextEditingController(text: 'Phone');
+  String _requestSource = 'Phone';
+  final List<String> _requestSourceOptions = ['EMAIL', 'Direct', 'Phone'];
   String? _selectedCustomerId;
   final _customerName = TextEditingController(); // Fallback if no master
   final _contact = TextEditingController();
@@ -56,7 +57,6 @@ class _CustomerRequestFormScreenState extends ConsumerState<CustomerRequestFormS
 
   @override
   void dispose() {
-    _requestSource.dispose();
     _customerName.dispose();
     _contact.dispose();
     _emailOrReference.dispose();
@@ -98,8 +98,10 @@ class _CustomerRequestFormScreenState extends ConsumerState<CustomerRequestFormS
           if (_isEdit && source == null) {
             return const Center(child: Text('Enquiry not found for edit.'));
           }
+          final activeCustomers = customerData.where((c) => c.status == 'Active').toList();
+
           if (!_hydrated && source != null) {
-            _hydrate(source, customerData);
+            _hydrate(source, activeCustomers, routeData?.routes ?? const []);
           }
 
           CargoModel? selectedCargo;
@@ -111,8 +113,6 @@ class _CustomerRequestFormScreenState extends ConsumerState<CustomerRequestFormS
           if (_isEdit && selectedCargo != null && !cargoDropdownItems.any((entry) => entry.cargoCode == selectedCargo?.cargoCode)) {
             cargoDropdownItems.add(selectedCargo);
           }
-
-          final activeCustomers = customerData.where((c) => c.status == 'Active').toList();
 
           return ListView(
             padding: const EdgeInsets.all(16),
@@ -149,10 +149,13 @@ class _CustomerRequestFormScreenState extends ConsumerState<CustomerRequestFormS
                                 date: _requestDate,
                                 onSelect: (d) => setState(() => _requestDate = d),
                               ),
-                              TextFormField(
-                                controller: _requestSource,
-                                decoration: const InputDecoration(labelText: 'Request Source'),
-                                validator: _required,
+                              DropdownButtonFormField<String>(
+                                value: _requestSource,
+                                decoration: const InputDecoration(labelText: 'Request Source *'),
+                                items: _requestSourceOptions.map((opt) => DropdownMenuItem(value: opt, child: Text(opt))).toList(),
+                                onChanged: (val) {
+                                  if (val != null) setState(() => _requestSource = val);
+                                },
                               ),
                             ),
                           const SizedBox(height: 10),
@@ -160,14 +163,8 @@ class _CustomerRequestFormScreenState extends ConsumerState<CustomerRequestFormS
                             DropdownButtonFormField<String?>(
                               value: _selectedCustomerId,
                               decoration: const InputDecoration(labelText: 'Customer *'),
-                              validator: (val) {
-                                if (val == null && _customerName.text.isEmpty) {
-                                  return 'Required';
-                                }
-                                return null;
-                              },
+                              validator: (val) => val == null ? 'Required' : null,
                               items: [
-                                const DropdownMenuItem<String?>(value: null, child: Text('Manual Entry')),
                                 for (final c in activeCustomers)
                                   DropdownMenuItem(value: c.id, child: Text('${c.name} (${c.shortCode})')),
                               ],
@@ -177,7 +174,8 @@ class _CustomerRequestFormScreenState extends ConsumerState<CustomerRequestFormS
                                   if (val != null) {
                                     final cust = activeCustomers.firstWhere((c) => c.id == val);
                                     _customerName.text = cust.name;
-                                    if (_contact.text.isEmpty) _contact.text = cust.primaryContactPerson;
+                                    _contact.text = cust.primaryContactPerson;
+                                    if (_emailOrReference.text.isEmpty) _emailOrReference.text = cust.email;
                                   }
                                 });
                               },
@@ -187,19 +185,6 @@ class _CustomerRequestFormScreenState extends ConsumerState<CustomerRequestFormS
                               decoration: const InputDecoration(labelText: 'Contact Person'),
                             ),
                           ),
-                          if (_selectedCustomerId == null) ...[
-                            const SizedBox(height: 10),
-                            TextFormField(
-                              controller: _customerName,
-                              decoration: const InputDecoration(labelText: 'Customer Name (Manual) *'),
-                              validator: (val) {
-                                if (_selectedCustomerId == null && (val == null || val.trim().isEmpty)) {
-                                  return 'Required';
-                                }
-                                return null;
-                              },
-                            ),
-                          ],
                           const SizedBox(height: 10),
                           TextFormField(
                             controller: _emailOrReference,
@@ -255,9 +240,9 @@ class _CustomerRequestFormScreenState extends ConsumerState<CustomerRequestFormS
                           const SizedBox(height: 10),
                           DropdownButtonFormField<String?>(
                             value: _selectedRouteId,
-                            decoration: const InputDecoration(labelText: 'Route Master'),
+                            decoration: const InputDecoration(labelText: 'Route Master *'),
+                            validator: (val) => val == null ? 'Required' : null,
                             items: [
-                              const DropdownMenuItem<String?>(value: null, child: Text('Custom/Manual Route')),
                               for (final route in (routeData?.routes ?? const <RouteLocationModel>[]))
                                 DropdownMenuItem<String?>(
                                   value: route.routeId,
@@ -273,12 +258,14 @@ class _CustomerRequestFormScreenState extends ConsumerState<CustomerRequestFormS
                           _row(
                             TextFormField(
                               controller: _pickup,
-                              decoration: const InputDecoration(labelText: 'Pickup Location *'),
+                              decoration: const InputDecoration(labelText: 'Pickup Location *', filled: true),
+                              readOnly: true,
                               validator: _required,
                             ),
                             TextFormField(
                               controller: _delivery,
-                              decoration: const InputDecoration(labelText: 'Delivery Location *'),
+                              decoration: const InputDecoration(labelText: 'Delivery Location *', filled: true),
+                              readOnly: true,
                               validator: _required,
                             ),
                           ),
@@ -413,8 +400,16 @@ class _CustomerRequestFormScreenState extends ConsumerState<CustomerRequestFormS
     return null;
   }
 
-  void _hydrate(CustomerRequestData source, List<Customer> customers) {
-    _requestSource.text = source.requestSource;
+  void _hydrate(CustomerRequestData source, List<Customer> customers, List<RouteLocationModel> routes) {
+    if (_requestSourceOptions.contains(source.requestSource)) {
+      _requestSource = source.requestSource;
+    } else if (source.requestSource.toUpperCase() == 'EMAIL') {
+      _requestSource = 'EMAIL';
+    } else if (source.requestSource.toLowerCase() == 'direct') {
+      _requestSource = 'Direct';
+    } else {
+      _requestSource = 'Phone';
+    }
     _customerName.text = source.customerName;
     
     // Attempt to match customer name to a master customer ID
@@ -437,6 +432,9 @@ class _CustomerRequestFormScreenState extends ConsumerState<CustomerRequestFormS
     _pickup.text = source.pickup;
     _delivery.text = source.delivery;
     _selectedRouteId = source.routeMasterId.isEmpty ? null : source.routeMasterId;
+    if (_selectedRouteId != null && !routes.any((r) => r.routeId == _selectedRouteId)) {
+      _selectedRouteId = null;
+    }
     
     _quantity.text = source.quantity;
     _weightVolume.text = source.weightVolume;
@@ -486,7 +484,7 @@ class _CustomerRequestFormScreenState extends ConsumerState<CustomerRequestFormS
 
     final payload = CustomerRequestData(
       enquiryNumber: _isEdit ? (widget.enquiryNumber ?? '') : '',
-      requestSource: _requestSource.text.trim(),
+      requestSource: _requestSource,
       customerName: _customerName.text.trim(),
       requestType: 'Transport Request',
       emailOrReference: _emailOrReference.text.trim(),

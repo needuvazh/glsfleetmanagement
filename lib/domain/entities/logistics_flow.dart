@@ -53,6 +53,9 @@ class CustomerRequestData {
     this.paymentTerms = '',
     this.creditCheckStatus = 'Pending',
     this.feasibilityRemarks = '',
+    this.vehicleSuitability = '',
+    this.routeSuitability = '',
+    this.manpowerReadiness = '',
     this.reviewedBy = '',
     required this.createdAt,
     required this.updatedAt,
@@ -95,6 +98,9 @@ class CustomerRequestData {
   final String paymentTerms;
   final String creditCheckStatus;
   final String feasibilityRemarks;
+  final String vehicleSuitability;
+  final String routeSuitability;
+  final String manpowerReadiness;
   final String reviewedBy;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -139,6 +145,9 @@ class CustomerRequestData {
     String? paymentTerms,
     String? creditCheckStatus,
     String? feasibilityRemarks,
+    String? vehicleSuitability,
+    String? routeSuitability,
+    String? manpowerReadiness,
     String? reviewedBy,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -186,6 +195,9 @@ class CustomerRequestData {
       paymentTerms: paymentTerms ?? this.paymentTerms,
       creditCheckStatus: creditCheckStatus ?? this.creditCheckStatus,
       feasibilityRemarks: feasibilityRemarks ?? this.feasibilityRemarks,
+      vehicleSuitability: vehicleSuitability ?? this.vehicleSuitability,
+      routeSuitability: routeSuitability ?? this.routeSuitability,
+      manpowerReadiness: manpowerReadiness ?? this.manpowerReadiness,
       reviewedBy: reviewedBy ?? this.reviewedBy,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -301,60 +313,72 @@ class WorkOrderFlowItem {
 
 class QuotationData {
   const QuotationData({
-    required this.slNo,
-    required this.date,
     required this.quoteRef,
-    required this.salesPerson,
+    required this.enquiryRef,
     required this.customer,
-    required this.customerContact,
-    required this.workDescription,
-    required this.noOfTrips,
-    required this.kilometer,
+    required this.date,
+    required this.validityDate,
     required this.rate,
-    required this.amount,
-    required this.approved,
+    required this.costSummary,
+    required this.terms,
+    required this.remarks,
+    required this.status,
+    this.decisionResponseDate = '',
+    this.customerPoRef = '',
+    this.rejectionReason = '',
+    required this.createdAt,
+    required this.updatedAt,
   });
 
-  final int slNo;
-  final String date;
   final String quoteRef;
-  final String salesPerson;
+  final String enquiryRef;
   final String customer;
-  final String customerContact;
-  final String workDescription;
-  final int noOfTrips;
-  final double kilometer;
+  final String date;
+  final String validityDate;
   final double rate;
-  final double amount;
-  final bool approved;
+  final String costSummary;
+  final String terms;
+  final String remarks;
+  final String status; // 'Draft', 'Sent', 'Accepted', 'Rejected', 'Expired'
+  final String decisionResponseDate;
+  final String customerPoRef;
+  final String rejectionReason;
+  final DateTime createdAt;
+  final DateTime updatedAt;
 
   QuotationData copyWith({
-    int? slNo,
-    String? date,
     String? quoteRef,
-    String? salesPerson,
+    String? enquiryRef,
     String? customer,
-    String? customerContact,
-    String? workDescription,
-    int? noOfTrips,
-    double? kilometer,
+    String? date,
+    String? validityDate,
     double? rate,
-    double? amount,
-    bool? approved,
+    String? costSummary,
+    String? terms,
+    String? remarks,
+    String? status,
+    String? decisionResponseDate,
+    String? customerPoRef,
+    String? rejectionReason,
+    DateTime? createdAt,
+    DateTime? updatedAt,
   }) {
     return QuotationData(
-      slNo: slNo ?? this.slNo,
-      date: date ?? this.date,
       quoteRef: quoteRef ?? this.quoteRef,
-      salesPerson: salesPerson ?? this.salesPerson,
+      enquiryRef: enquiryRef ?? this.enquiryRef,
       customer: customer ?? this.customer,
-      customerContact: customerContact ?? this.customerContact,
-      workDescription: workDescription ?? this.workDescription,
-      noOfTrips: noOfTrips ?? this.noOfTrips,
-      kilometer: kilometer ?? this.kilometer,
+      date: date ?? this.date,
+      validityDate: validityDate ?? this.validityDate,
       rate: rate ?? this.rate,
-      amount: amount ?? this.amount,
-      approved: approved ?? this.approved,
+      costSummary: costSummary ?? this.costSummary,
+      terms: terms ?? this.terms,
+      remarks: remarks ?? this.remarks,
+      status: status ?? this.status,
+      decisionResponseDate: decisionResponseDate ?? this.decisionResponseDate,
+      customerPoRef: customerPoRef ?? this.customerPoRef,
+      rejectionReason: rejectionReason ?? this.rejectionReason,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 }

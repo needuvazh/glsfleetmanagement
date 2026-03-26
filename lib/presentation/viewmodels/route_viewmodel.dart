@@ -155,6 +155,35 @@ class RouteViewModel extends AsyncNotifier<RouteUiState> {
     );
   }
 
+  RouteLocationModel? findByCode(String? code) {
+    final current = state.valueOrNull;
+    if (current == null || code == null || code.trim().isEmpty) {
+      return null;
+    }
+    final normalized = code.trim().toLowerCase();
+    for (final route in current.routes) {
+      if (route.routeCode.toLowerCase() == normalized ||
+          route.routeId.toLowerCase() == normalized) {
+        return route;
+      }
+    }
+    return null;
+  }
+
+  RouteLocationModel? findByName(String? name) {
+    final current = state.valueOrNull;
+    if (current == null || name == null || name.trim().isEmpty) {
+      return null;
+    }
+    final normalized = name.trim().toLowerCase();
+    for (final route in current.routes) {
+      if (route.routeName.toLowerCase() == normalized) {
+        return route;
+      }
+    }
+    return null;
+  }
+
   void setSearchQuery(String value) {
     final current = state.valueOrNull;
     if (current == null) {

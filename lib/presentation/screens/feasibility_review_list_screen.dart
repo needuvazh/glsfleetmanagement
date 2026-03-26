@@ -41,16 +41,7 @@ class _FeasibilityReviewListScreenState
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(child: Text(error.toString())),
         data: (data) {
-          // Filter out enquiries that haven't reached review stage
-          final reviewable = data.customerRequests.where((e) {
-            // Include Detail Collection and beyond
-            if (e.status == 'New Enquiry' || e.status == 'Cancelled') {
-              return false;
-            }
-            return true;
-          }).toList();
-
-          final filteredList = reviewable.where((e) {
+          final filteredList = data.customerRequests.where((e) {
             final q = _searchQuery.toLowerCase();
             final matchesSearch = e.enquiryNumber.toLowerCase().contains(q) ||
                 e.customerName.toLowerCase().contains(q);
@@ -194,10 +185,14 @@ class _RegisterTable extends StatelessWidget {
       );
     }
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        headingRowColor: WidgetStateProperty.all(const Color(0xFFF3F4F6)),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minWidth: constraints.maxWidth),
+            child: DataTable(
+              headingRowColor: WidgetStateProperty.all(const Color(0xFFF3F4F6)),
         columns: const [
           DataColumn(label: Text('Enquiry No')),
           DataColumn(label: Text('Customer')),
@@ -232,11 +227,14 @@ class _RegisterTable extends StatelessWidget {
                     ),
                   ),
                 ),
-              ],
-            ),
-        ],
-      ),
-    );
+              ], // cells
+            ), // DataRow
+        ], // rows
+      ), // DataTable
+    ), // ConstrainedBox
+  ); // SingleChildScrollView
+}, // builder
+); // LayoutBuilder
   }
 
   Widget _riskPill(String risk) {

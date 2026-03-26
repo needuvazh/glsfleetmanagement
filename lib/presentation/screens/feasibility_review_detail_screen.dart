@@ -51,11 +51,21 @@ class _FeasibilityReviewDetailScreenState
   void _hydrate(CustomerRequestData source) {
     if (_hydrated) return;
     _feasibleDecision = source.feasibilityStatus == 'Feasible' ? 'Yes' : (source.feasibilityStatus == 'Not Feasible' ? 'No' : 'Pending');
-    _riskLevel = source.feasibilityRiskLevel;
+    _riskLevel = ['Low', 'Medium', 'High', 'Critical'].contains(source.feasibilityRiskLevel) 
+        ? source.feasibilityRiskLevel 
+        : 'Low';
     _estimatedCost.text = source.estimatedCost > 0 ? source.estimatedCost.toString() : '';
     _paymentTerms.text = source.paymentTerms;
-    _creditCheckStatus = source.creditCheckStatus;
+    
+    final ccs = source.creditCheckStatus;
+    _creditCheckStatus = ['Pending', 'Approved', 'Rejected'].contains(ccs) 
+        ? ccs 
+        : (ccs == 'Cleared' ? 'Approved' : 'Pending');
+        
     _internalRemarks.text = source.feasibilityRemarks;
+    _vehicleSuitability.text = source.vehicleSuitability;
+    _routeSuitability.text = source.routeSuitability;
+    _manpowerReadiness.text = source.manpowerReadiness;
     _hydrated = true;
   }
 
@@ -255,23 +265,45 @@ class _FeasibilityReviewDetailScreenState
   }
 
   Widget _buildContextBox(CustomerRequestData enquiry) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-      ),
+    return OpsSectionCard(
+      title: 'Enquiry Context',
+      subtitle: 'Review the base requirements for this transport.',
+      icon: Icons.assignment_outlined,
+      accent: const Color(0xFF64748B),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Context: ${enquiry.enquiryNumber}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          const SizedBox(height: 8),
-          Text('Customer: ${enquiry.customerName}'),
-          Text('Cargo: ${enquiry.cargoType} (${enquiry.quantity} | ${enquiry.weightVolume})'),
-          Text('Route: ${enquiry.pickup} -> ${enquiry.delivery}'),
+          _pair('Enquiry No', enquiry.enquiryNumber, 'Status', enquiry.status),
+          _pair('Customer', enquiry.customerName, 'Contact Person', enquiry.contact),
+          _pair('Cargo Type', enquiry.cargoType, 'Quantity', enquiry.quantity.isEmpty ? '-' : enquiry.quantity),
+          _pair('Route', enquiry.route.isEmpty ? '-' : enquiry.route, 'Pickup / Delivery', '${enquiry.pickup} -> ${enquiry.delivery}'),
+          _pair('Weight / Volume', enquiry.weightVolume.isEmpty ? '-' : enquiry.weightVolume, 'Tentative Dispatch', enquiry.tentativeDispatchDate.isEmpty ? '-' : enquiry.tentativeDispatchDate),
         ],
       ),
+    );
+  }
+
+  Widget _pair(String l1, String v1, String l2, String v2) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Expanded(child: _kv(l1, v1)),
+          const SizedBox(width: 16),
+          Expanded(child: _kv(l2, v2)),
+        ],
+      ),
+    );
+  }
+
+  Widget _kv(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 4),
+        Text(value, style: const TextStyle(fontSize: 14)),
+      ],
     );
   }
 
@@ -309,6 +341,9 @@ class _FeasibilityReviewDetailScreenState
       paymentTerms: _paymentTerms.text.trim(),
       creditCheckStatus: _creditCheckStatus,
       feasibilityRemarks: _internalRemarks.text.trim(),
+      vehicleSuitability: _vehicleSuitability.text.trim(),
+      routeSuitability: _routeSuitability.text.trim(),
+      manpowerReadiness: _manpowerReadiness.text.trim(),
       reviewedBy: 'Ops Manager', // Mock logged in user
       status: appStatus,
       updatedAt: DateTime.now(),

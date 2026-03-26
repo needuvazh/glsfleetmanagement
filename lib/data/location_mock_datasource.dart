@@ -18,7 +18,7 @@ class LocationMockDataSourceImpl implements LocationMockDataSource {
       ),
       LocationModel(
         locationName: 'Sohar',
-        locationCode: 'SOH',
+        locationCode: 'SHR',
         latitude: 24.3474,
         longitude: 56.7075,
       ),
@@ -45,6 +45,24 @@ class LocationMockDataSourceImpl implements LocationMockDataSource {
         locationCode: 'DQM',
         latitude: 19.6620,
         longitude: 57.7050,
+      ),
+      LocationModel(
+        locationName: 'Fahud',
+        locationCode: 'FAH',
+        latitude: 22.3500,
+        longitude: 56.4500,
+      ),
+      LocationModel(
+        locationName: 'Marmul',
+        locationCode: 'MAR',
+        latitude: 18.2500,
+        longitude: 55.3000,
+      ),
+      LocationModel(
+        locationName: 'Ibri Quarry',
+        locationCode: 'IBR-Q',
+        latitude: 23.2500,
+        longitude: 56.4000,
       ),
     ];
   }

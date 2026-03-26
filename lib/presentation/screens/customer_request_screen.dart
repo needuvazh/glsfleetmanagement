@@ -209,10 +209,14 @@ class _RegisterTable extends StatelessWidget {
       return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
     }
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        headingRowColor: WidgetStateProperty.all(const Color(0xFFEFF6FF)),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minWidth: constraints.maxWidth),
+            child: DataTable(
+              headingRowColor: WidgetStateProperty.all(const Color(0xFFEFF6FF)),
         columns: const [
           DataColumn(label: Text('Enquiry No')),
           DataColumn(label: Text('Customer')),
@@ -283,12 +287,15 @@ class _RegisterTable extends StatelessWidget {
                     ),
                   ),
                 ),
-              ],
-            ),
-        ],
-      ),
-    );
-  }
+              ], // cells
+            ), // DataRow
+        ], // rows
+      ), // DataTable
+    ), // ConstrainedBox
+  ); // SingleChildScrollView
+}, // builder
+); // LayoutBuilder
+}
 
   Widget _statusPill(String status) {
     final s = status.toLowerCase();

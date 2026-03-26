@@ -339,9 +339,8 @@ class _WorkOrderFlowScreenState extends ConsumerState<WorkOrderFlowScreen> {
                           ),
                           child: Text(
                             'Customer: ${selectedQuotation.customer}\n'
-                            'Contact: ${selectedQuotation.customerContact}\n'
-                            'Work: ${selectedQuotation.workDescription}\n'
-                            'Amount: ${selectedQuotation.amount.toStringAsFixed(2)}',
+                            'Enquiry Ref: ${selectedQuotation.enquiryRef}\n'
+                            'Rate: ${selectedQuotation.rate.toStringAsFixed(2)} | ${selectedQuotation.costSummary}',
                           ),
                         ),
                       ],

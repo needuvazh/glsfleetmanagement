@@ -26,6 +26,9 @@ import '../presentation/screens/driver_detail_screen.dart';
 import '../presentation/screens/driver_management_screen.dart';
 import '../presentation/screens/feasibility_review_detail_screen.dart';
 import '../presentation/screens/feasibility_review_list_screen.dart';
+import '../presentation/screens/quotation_list_screen.dart';
+import '../presentation/screens/quotation_form_screen.dart';
+import '../presentation/screens/quotation_decision_screen.dart';
 import '../presentation/screens/fleet_detail_screen.dart';
 import '../presentation/screens/fleet_management_screen.dart';
 import '../presentation/screens/forgot_password_screen.dart';
@@ -404,14 +407,27 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: RoutePaths.documentManagement,
         builder: (context, state) => const DocumentManagementScreen(),
       ),
-      // Placeholders for new screens based on the matrix
       GoRoute(
         path: RoutePaths.quotation,
-        builder: (context, state) => const ModulePlaceholderScreen(
-          title: 'Quotation',
-          step: 'Transactions',
-          icon: Icons.request_quote_outlined,
-        ),
+        builder: (context, state) => const QuotationListScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.quotationForm,
+        builder: (context, state) => const QuotationFormScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.quotationEdit,
+        builder: (context, state) {
+          final ref = state.pathParameters['quoteRef'] ?? '';
+          return QuotationFormScreen(quoteRef: Uri.decodeComponent(ref));
+        },
+      ),
+      GoRoute(
+        path: RoutePaths.quotationDecision,
+        builder: (context, state) {
+          final ref = state.pathParameters['quoteRef'] ?? '';
+          return QuotationDecisionScreen(quoteRef: Uri.decodeComponent(ref));
+        },
       ),
       GoRoute(
         path: RoutePaths.orderDecision,

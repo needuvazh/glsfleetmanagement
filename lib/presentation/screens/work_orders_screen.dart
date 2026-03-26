@@ -144,11 +144,15 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
         ),
         const SizedBox(height: 8),
         Expanded(
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: SingleChildScrollView(
-              child: DataTable(
-                columnSpacing: 28,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                  child: SingleChildScrollView(
+                    child: DataTable(
+                      columnSpacing: 28,
                 horizontalMargin: 16,
                 headingRowHeight: 46,
                 dataRowMinHeight: 56,
@@ -213,9 +217,11 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
               ),
             ),
           ),
-        ),
-      ],
-    );
+        );
+      }),
+    ),
+  ],
+);
   }
 
   Widget _buildMobileList(List<_WorkOrderRow> rows) {
