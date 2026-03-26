@@ -3,8 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../domain/entities/customer.dart';
+import '../../domain/entities/compliance_assignment.dart';
+import '../../domain/entities/module_document.dart';
 import '../../routes/route_paths.dart';
+import '../viewmodels/compliance_assignment_viewmodel.dart';
 import '../viewmodels/customer_viewmodel.dart';
+import '../viewmodels/module_document_viewmodel.dart';
 import '../widgets/ops_shell.dart';
 import '../widgets/ops_ui.dart';
 
@@ -16,6 +20,15 @@ class CustomerViewScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(customerViewModelProvider);
+    final complianceState = ref.watch(moduleDocumentViewModelProvider);
+    final assignmentState = ref.watch(complianceAssignmentViewModelProvider);
+    final customerComplianceRules =
+        complianceState.valueOrNull?.rulesForApplicableTo('Customer') ??
+            const <ModuleDocument>[];
+    final customerAssignments = assignmentState.assignmentsFor(
+      entityType: 'Customer',
+      entityId: customerId,
+    );
 
     if (state.isLoading) {
       return OpsShell(
@@ -149,7 +162,12 @@ class CustomerViewScreen extends ConsumerWidget {
                   _summaryTab(currentCustomer),
                   _financialTab(currentCustomer),
                   _operationsTab(currentCustomer),
-                  _complianceTab(currentCustomer),
+                  _complianceTab(
+                    currentCustomer,
+                    customerComplianceRules,
+                    customerAssignments,
+                    ref,
+                  ),
                   _workOrdersTab(currentCustomer),
                   _invoicesTab(currentCustomer),
                   _auditTab(currentCustomer),
@@ -240,9 +258,57 @@ class CustomerViewScreen extends ConsumerWidget {
     );
   }
 
-  Widget _complianceTab(Customer customer) {
+  Widget _complianceTab(
+    Customer customer,
+    List<ModuleDocument> complianceRules,
+    List<ComplianceAssignment> assignments,
+    WidgetRef ref,
+  ) {
+    final enabledCount = complianceRules
+        .where((rule) => rule.status.toLowerCase() == 'active')
+        .length;
+    final hardBlockCount = complianceRules
+        .where((rule) => rule.blockingType == 'Hard Block')
+        .length;
+    final assignedCount = assignments.where((entry) => entry.enabled).length;
+    final dispatchSummary =
+        ref.read(complianceAssignmentViewModelProvider.notifier).evaluateStage(
+              entityType: 'Customer',
+              entityId: customer.id,
+              stage: 'Dispatch',
+              rules: complianceRules,
+            );
+    final closureSummary =
+        ref.read(complianceAssignmentViewModelProvider.notifier).evaluateStage(
+              entityType: 'Customer',
+              entityId: customer.id,
+              stage: 'Delivery Closure',
+              rules: complianceRules,
+            );
+
     return ListView(
       children: [
+        _section(
+          'Derived Customer Compliance Rules',
+          [
+            _pair('Enabled Rules', '$enabledCount'),
+            _pair('Assigned Rules', '$assignedCount'),
+            _pair('Hard Block Rules', '$hardBlockCount'),
+            _pair('Source',
+                'Compliance Document Master (Applicable To = Customer)'),
+            _pair('Dispatch Preview',
+                'Enabled ${dispatchSummary.enabledRules}, Hard ${dispatchSummary.hardBlockRules}, Soft ${dispatchSummary.softBlockRules}, Warn ${dispatchSummary.warningRules}'),
+            _pair('Delivery Closure Preview',
+                'Enabled ${closureSummary.enabledRules}, Hard ${closureSummary.hardBlockRules}, Soft ${closureSummary.softBlockRules}, Warn ${closureSummary.warningRules}'),
+          ],
+        ),
+        const SizedBox(height: 10),
+        _complianceAssignmentSection(
+          customer: customer,
+          complianceRules: complianceRules,
+          ref: ref,
+        ),
+        const SizedBox(height: 10),
         _section(
           'Compliance Rules',
           [
@@ -258,6 +324,190 @@ class CustomerViewScreen extends ConsumerWidget {
         ),
       ],
     );
+  }
+
+  Widget _complianceAssignmentSection({
+    required Customer customer,
+    required List<ModuleDocument> complianceRules,
+    required WidgetRef ref,
+  }) {
+    if (complianceRules.isEmpty) {
+      return _section(
+        'Customer Compliance Assignment',
+        [
+          const Text('No customer compliance rules configured in master.'),
+        ],
+      );
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Customer Compliance Assignment',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 10),
+            for (int index = 0; index < complianceRules.length; index++) ...[
+              _ruleAssignmentRow(
+                customer: customer,
+                rule: complianceRules[index],
+                ref: ref,
+              ),
+              if (index != complianceRules.length - 1)
+                const Divider(height: 16),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _ruleAssignmentRow({
+    required Customer customer,
+    required ModuleDocument rule,
+    required WidgetRef ref,
+  }) {
+    final assignmentNotifier =
+        ref.read(complianceAssignmentViewModelProvider.notifier);
+    final enabled = assignmentNotifier.isRuleEnabled(
+      entityType: 'Customer',
+      entityId: customer.id,
+      ruleId: rule.id,
+    );
+    final note = assignmentNotifier.noteForRule(
+      entityType: 'Customer',
+      entityId: customer.id,
+      ruleId: rule.id,
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    rule.documentName,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${rule.requiredStageLabel} | ${rule.blockingType} | ${rule.mandatory ? 'Mandatory' : 'Optional'}',
+                    style: const TextStyle(color: Color(0xFF4B5563)),
+                  ),
+                ],
+              ),
+            ),
+            Switch(
+              value: enabled,
+              onChanged: (value) async {
+                final message = await assignmentNotifier.setRuleEnabled(
+                  entityType: 'Customer',
+                  entityId: customer.id,
+                  ruleId: rule.id,
+                  enabled: value,
+                );
+                if (!ref.context.mounted) {
+                  return;
+                }
+                ScaffoldMessenger.of(ref.context)
+                    .showSnackBar(SnackBar(content: Text(message)));
+              },
+            ),
+          ],
+        ),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                note.trim().isEmpty
+                    ? 'No customer-specific note'
+                    : 'Note: $note',
+                style: const TextStyle(color: Color(0xFF6B7280)),
+              ),
+            ),
+            TextButton.icon(
+              onPressed: () async {
+                await _editRuleNote(
+                  context: ref.context,
+                  ref: ref,
+                  entityType: 'Customer',
+                  entityId: customer.id,
+                  rule: rule,
+                  initialNote: note,
+                );
+              },
+              icon: const Icon(Icons.edit_note_outlined),
+              label: const Text('Note'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Future<void> _editRuleNote({
+    required BuildContext context,
+    required WidgetRef ref,
+    required String entityType,
+    required String entityId,
+    required ModuleDocument rule,
+    required String initialNote,
+  }) async {
+    final controller = TextEditingController(text: initialNote);
+    final result = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text('Note - ${rule.documentName}'),
+          content: TextField(
+            controller: controller,
+            minLines: 2,
+            maxLines: 4,
+            decoration: const InputDecoration(
+              labelText: 'Entity-specific instruction',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () =>
+                  Navigator.of(dialogContext).pop(controller.text.trim()),
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+    controller.dispose();
+
+    if (result == null) {
+      return;
+    }
+    final message = await ref
+        .read(complianceAssignmentViewModelProvider.notifier)
+        .setRuleNote(
+          entityType: entityType,
+          entityId: entityId,
+          ruleId: rule.id,
+          note: result,
+        );
+    if (!context.mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   Widget _workOrdersTab(Customer customer) {

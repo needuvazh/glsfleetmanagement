@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../domain/cargo_model.dart';
 import '../../domain/entities/logistics_flow.dart';
+import '../../domain/route_model.dart';
 import '../../routes/route_paths.dart';
+import '../viewmodels/cargo_viewmodel.dart';
 import '../viewmodels/logistics_viewmodel.dart';
+import '../viewmodels/route_viewmodel.dart';
 import '../widgets/ops_shell.dart';
 import '../widgets/ops_ui.dart';
 
@@ -32,6 +36,8 @@ class _CustomerRequestFormScreenState
   final _pickup = TextEditingController();
   final _delivery = TextEditingController();
   final _notes = TextEditingController();
+  String? _selectedRouteId;
+  String? _selectedCargoCode;
 
   DateTime _requestDate = DateTime.now();
   bool _hydrated = false;
@@ -56,6 +62,8 @@ class _CustomerRequestFormScreenState
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(logisticsViewModelProvider);
+    final routeData = ref.watch(routeViewModelProvider).valueOrNull;
+    final cargoData = ref.watch(cargoViewModelProvider).valueOrNull;
 
     return OpsShell(
       title: _isEdit ? 'Edit Enquiry' : 'Add New Enquiry',
@@ -70,12 +78,38 @@ class _CustomerRequestFormScreenState
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(child: Text(error.toString())),
         data: (data) {
+          final selectableCargo = (cargoData?.items ?? const <CargoModel>[])
+              .where((item) => item.isSelectable)
+              .toList();
           final source = _findEditingEnquiry(data.customerRequests);
           if (_isEdit && source == null) {
             return const Center(child: Text('Enquiry not found for edit.'));
           }
           if (!_hydrated && source != null) {
             _hydrate(source);
+          }
+
+          CargoModel? selectedCargo;
+          if (_selectedCargoCode != null) {
+            selectedCargo = ref
+                .read(cargoViewModelProvider.notifier)
+                .findByCode(_selectedCargoCode);
+          }
+          selectedCargo ??= ref
+              .read(cargoViewModelProvider.notifier)
+              .findByName(_cargoType.text);
+          if (selectedCargo != null) {
+            _selectedCargoCode = selectedCargo.cargoCode;
+            _cargoType.text = selectedCargo.cargoName;
+          }
+
+          final cargoDropdownItems = <CargoModel>[...selectableCargo];
+          if (_isEdit &&
+              selectedCargo != null &&
+              !cargoDropdownItems.any(
+                (entry) => entry.cargoCode == selectedCargo?.cargoCode,
+              )) {
+            cargoDropdownItems.add(selectedCargo);
           }
 
           return ListView(
@@ -142,11 +176,50 @@ class _CustomerRequestFormScreenState
                       ),
                       const SizedBox(height: 10),
                       _row(
-                        TextFormField(
-                          controller: _cargoType,
+                        DropdownButtonFormField<String>(
+                          value: _selectedCargoCode,
                           decoration:
-                              const InputDecoration(labelText: 'Cargo Type'),
-                          validator: _required,
+                              const InputDecoration(labelText: 'Cargo Type *'),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Required';
+                            }
+                            return null;
+                          },
+                          items: [
+                            for (final cargo in cargoDropdownItems)
+                              DropdownMenuItem(
+                                value: cargo.cargoCode,
+                                child: Text(
+                                  '${cargo.cargoName} (${cargo.cargoCode})',
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                          ],
+                          onChanged: cargoDropdownItems.isEmpty
+                              ? null
+                              : (value) {
+                                  if (value == null) {
+                                    return;
+                                  }
+                                  final selected = ref
+                                      .read(cargoViewModelProvider.notifier)
+                                      .findByCode(value);
+                                  if (selected == null) {
+                                    return;
+                                  }
+                                  setState(() {
+                                    _selectedCargoCode = selected.cargoCode;
+                                    _cargoType.text = selected.cargoName;
+                                    if (_notes.text.trim().isEmpty &&
+                                        selected.handlingInstructions
+                                            .trim()
+                                            .isNotEmpty) {
+                                      _notes.text =
+                                          selected.handlingInstructions.trim();
+                                    }
+                                  });
+                                },
                         ),
                         TextFormField(
                           controller: _weightVolume,
@@ -154,6 +227,36 @@ class _CustomerRequestFormScreenState
                             labelText: 'Weight / Volume',
                           ),
                         ),
+                      ),
+                      if (selectedCargo != null) ...[
+                        const SizedBox(height: 10),
+                        _cargoGuidanceCard(selectedCargo),
+                      ],
+                      const SizedBox(height: 10),
+                      DropdownButtonFormField<String?>(
+                        value: _selectedRouteId,
+                        decoration:
+                            const InputDecoration(labelText: 'Route Master'),
+                        items: [
+                          const DropdownMenuItem<String?>(
+                            value: null,
+                            child: Text('None'),
+                          ),
+                          for (final route in (routeData?.routes ??
+                              const <RouteLocationModel>[]))
+                            DropdownMenuItem<String?>(
+                              value: route.routeId,
+                              child: Text(
+                                  '${route.routeCode} • ${route.routeName}'),
+                            ),
+                        ],
+                        onChanged: (value) {
+                          setState(() => _selectedRouteId = value);
+                          _applySelectedRoute(
+                            value,
+                            routeData?.routes ?? const <RouteLocationModel>[],
+                          );
+                        },
                       ),
                       const SizedBox(height: 10),
                       _row(
@@ -200,6 +303,52 @@ class _CustomerRequestFormScreenState
     );
   }
 
+  Widget _cargoGuidanceCard(CargoModel cargo) {
+    final notes = <String>[];
+    if (cargo.hazardous) {
+      notes.add('Hazardous cargo. Compliance checks should be planned early.');
+    }
+    if (cargo.riskLevel == CargoRiskLevel.high ||
+        cargo.riskLevel == CargoRiskLevel.critical) {
+      notes.add('High risk cargo. Add extra planning attention.');
+    }
+    if (cargo.specialComplianceRequired) {
+      final certs = cargo.requiredCertifications.join(', ');
+      notes.add(certs.isEmpty
+          ? 'Special compliance required.'
+          : 'Certifications likely needed: $certs');
+    }
+    if (cargo.inspectionRequired) {
+      notes.add(
+          'Inspection profile: ${cargo.inspectionTemplateType.isEmpty ? 'General' : cargo.inspectionTemplateType}.');
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF7ED),
+        border: Border.all(color: const Color(0xFFF59E0B)),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Cargo Guidance',
+            style: TextStyle(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 6),
+          for (final note in notes)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text('- $note'),
+            ),
+        ],
+      ),
+    );
+  }
+
   CustomerRequestData? _findEditingEnquiry(List<CustomerRequestData> all) {
     if (!_isEdit) {
       return null;
@@ -219,12 +368,36 @@ class _CustomerRequestFormScreenState
     _emailOrReference.text = source.emailOrReference;
     _contact.text = source.contact;
     _cargoType.text = source.cargoType;
+    _selectedCargoCode = ref
+        .read(cargoViewModelProvider.notifier)
+        .findByName(source.cargoType)
+        ?.cargoCode;
     _weightVolume.text = source.weightVolume;
     _pickup.text = source.pickup;
     _delivery.text = source.delivery;
     _notes.text = source.notes;
+    _selectedRouteId =
+        source.routeMasterId.isEmpty ? null : source.routeMasterId;
     _requestDate = DateTime.tryParse(source.requestDate) ?? DateTime.now();
     _hydrated = true;
+  }
+
+  void _applySelectedRoute(String? routeId, List<RouteLocationModel> routes) {
+    if (routeId == null) {
+      return;
+    }
+    RouteLocationModel? selected;
+    for (final route in routes) {
+      if (route.routeId == routeId) {
+        selected = route;
+        break;
+      }
+    }
+    if (selected == null) {
+      return;
+    }
+    _pickup.text = selected.startLocation.locationName;
+    _delivery.text = selected.endLocation.locationName;
   }
 
   Future<void> _pickDate() async {
@@ -244,6 +417,16 @@ class _CustomerRequestFormScreenState
       return;
     }
 
+    RouteLocationModel? selectedRoute;
+    final routeList =
+        ref.read(routeViewModelProvider).valueOrNull?.routes ?? const [];
+    for (final route in routeList) {
+      if (route.routeId == _selectedRouteId) {
+        selectedRoute = route;
+        break;
+      }
+    }
+
     final now = DateTime.now();
     final payload = CustomerRequestData(
       enquiryNumber: _isEdit ? (widget.enquiryNumber ?? '') : '',
@@ -252,12 +435,31 @@ class _CustomerRequestFormScreenState
       requestType: _requestType.text.trim(),
       emailOrReference: _emailOrReference.text.trim(),
       contact: _contact.text.trim(),
-      cargoType: _cargoType.text.trim(),
+      cargoType: (_selectedCargoCode == null
+              ? _cargoType.text.trim()
+              : (ref
+                      .read(cargoViewModelProvider.notifier)
+                      .findByCode(_selectedCargoCode)
+                      ?.cargoName ??
+                  _cargoType.text.trim()))
+          .trim(),
       weightVolume: _weightVolume.text.trim(),
       pickup: _pickup.text.trim(),
       delivery: _delivery.text.trim(),
       requestDate: _formatDate(_requestDate),
       notes: _notes.text.trim(),
+      routeMasterId: selectedRoute?.routeId ?? '',
+      routeCode: selectedRoute?.routeCode ?? '',
+      routeName: selectedRoute?.routeName ?? '',
+      route: selectedRoute == null
+          ? '${_pickup.text.trim()} -> ${_delivery.text.trim()}'
+          : '${selectedRoute.routeCode} • ${selectedRoute.routeName}',
+      routeRiskLevel: selectedRoute?.riskLevel.label ?? 'Low',
+      routeOperationalStatus: selectedRoute?.status.label ?? 'Active',
+      routeRestricted: selectedRoute != null
+          ? !selectedRoute.isSelectableForNewOperations
+          : false,
+      routeRestrictionReason: selectedRoute?.restrictionReason ?? '',
       createdAt: now,
       updatedAt: now,
     );

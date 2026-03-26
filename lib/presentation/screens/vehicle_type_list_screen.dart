@@ -85,7 +85,7 @@ class VehicleTypeListScreen extends ConsumerWidget {
                               onPressed: () =>
                                   context.go(RoutePaths.vehicleTypeForm),
                               icon: const Icon(Icons.add),
-                              label: const Text('Add Vehicle Type'),
+                              label: const Text('Add Oman Type'),
                             ),
                           ],
                         )
@@ -142,7 +142,7 @@ class VehicleTypeListScreen extends ConsumerWidget {
                               onPressed: () =>
                                   context.go(RoutePaths.vehicleTypeForm),
                               icon: const Icon(Icons.add),
-                              label: const Text('Add Vehicle Type'),
+                              label: const Text('Add Oman Type'),
                             ),
                           ],
                         ),
@@ -197,7 +197,7 @@ class _DesktopVehicleTypeTable extends ConsumerWidget {
                 DataColumn(label: Text('Load Type')),
                 DataColumn(label: Text('Max Trips/Day')),
                 DataColumn(label: Text('Status')),
-                DataColumn(label: Text('Actions')),
+                DataColumn(label: Text('Edit')),
               ],
               rows: [
                 for (final item in items)
@@ -221,12 +221,6 @@ class _DesktopVehicleTypeTable extends ConsumerWidget {
                                 '${RoutePaths.vehicleTypeForm}?code=${item.code}',
                               ),
                               icon: const Icon(Icons.edit_outlined),
-                            ),
-                            IconButton(
-                              tooltip: 'Delete',
-                              onPressed: () =>
-                                  _confirmDelete(context, ref, item.code),
-                              icon: const Icon(Icons.delete_outline),
                             ),
                           ],
                         ),
@@ -282,12 +276,6 @@ class _MobileVehicleTypeList extends ConsumerWidget {
                       ),
                       child: const Text('Edit'),
                     ),
-                    const SizedBox(width: 8),
-                    OutlinedButton(
-                      onPressed: () =>
-                          _confirmDelete(context, ref, items[i].code),
-                      child: const Text('Delete'),
-                    ),
                   ],
                 ),
               ],
@@ -298,37 +286,4 @@ class _MobileVehicleTypeList extends ConsumerWidget {
       ],
     );
   }
-}
-
-Future<void> _confirmDelete(
-    BuildContext context, WidgetRef ref, String code) async {
-  final confirmed = await showDialog<bool>(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: const Text('Delete Vehicle Type'),
-      content: Text('Delete vehicle type $code?'),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(false),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.of(context).pop(true),
-          child: const Text('Delete'),
-        ),
-      ],
-    ),
-  );
-
-  if (confirmed != true) {
-    return;
-  }
-
-  final message = await ref
-      .read(vehicleTypeViewModelProvider.notifier)
-      .deleteVehicleType(code);
-  if (!context.mounted) {
-    return;
-  }
-  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
 }

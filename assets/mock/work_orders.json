@@ -4,7 +4,8 @@
     "requestId": "REQ001",
     "client": "Shell",
     "route": "Muscat -> Sohar",
-    "vehicleNumber": "8603 BK",
+    "cargo": "Oilfield Equipment",
+    "vehicleNumber": "TRK-101",
     "status": "Assigned"
   },
   {
@@ -12,7 +13,44 @@
     "requestId": "REQ002",
     "client": "GOL",
     "route": "Nizwa -> Duqm",
-    "vehicleNumber": "24567 A",
+    "cargo": "General Cargo",
+    "vehicleNumber": "TPR-309",
     "status": "Assigned"
+  },
+  {
+    "woId": "WO003",
+    "requestId": "REQ003",
+    "client": "PDO",
+    "route": "Muscat -> Fahud",
+    "cargo": "Hazardous Chemical",
+    "vehicleNumber": "TNK-220",
+    "status": "Open"
+  },
+  {
+    "woId": "WO004",
+    "requestId": "REQ004",
+    "client": "OQ Logistics",
+    "route": "Sohar -> Ibri",
+    "cargo": "Heavy Equipment",
+    "vehicleNumber": "PM-205",
+    "status": "Ready for Allocation"
+  },
+  {
+    "woId": "WO005",
+    "requestId": "REQ005",
+    "client": "Muscat Municipality",
+    "route": "Muscat -> Barka",
+    "cargo": "Water Supply",
+    "vehicleNumber": "WT-440",
+    "status": "Open"
+  },
+  {
+    "woId": "WO006",
+    "requestId": "REQ006",
+    "client": "DHL Oman",
+    "route": "Sohar -> Salalah",
+    "cargo": "Fragile Instrument",
+    "vehicleNumber": "BX-118",
+    "status": "Open"
   }
 ]

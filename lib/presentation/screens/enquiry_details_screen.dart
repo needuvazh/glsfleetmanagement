@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../domain/cargo_model.dart';
 import '../../domain/entities/logistics_flow.dart';
+import '../../domain/route_model.dart';
 import '../../routes/route_paths.dart';
+import '../viewmodels/cargo_viewmodel.dart';
 import '../viewmodels/logistics_viewmodel.dart';
+import '../viewmodels/route_viewmodel.dart';
 import '../widgets/flow_stepper_card.dart';
 import '../widgets/ops_shell.dart';
 import '../widgets/ops_ui.dart';
@@ -34,6 +38,8 @@ class _EnquiryDetailsScreenState extends ConsumerState<EnquiryDetailsScreen> {
   bool _hazardous = false;
   bool _routeRiskFlag = false;
   String _pdoSpec = 'Non-PDO';
+  String? _selectedRouteId;
+  String? _selectedCargoCode;
 
   @override
   void dispose() {
@@ -53,6 +59,8 @@ class _EnquiryDetailsScreenState extends ConsumerState<EnquiryDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(logisticsViewModelProvider);
+    final routeData = ref.watch(routeViewModelProvider).valueOrNull;
+    final cargoData = ref.watch(cargoViewModelProvider).valueOrNull;
 
     return OpsShell(
       title: 'Gather Key Details',
@@ -74,6 +82,31 @@ class _EnquiryDetailsScreenState extends ConsumerState<EnquiryDetailsScreen> {
           final active = data.customerRequests
               .where((item) => item.status != 'Cancelled')
               .toList();
+          final selectableCargo = (cargoData?.items ?? const <CargoModel>[])
+              .where((item) => item.isSelectable)
+              .toList();
+
+          CargoModel? selectedCargo;
+          if (_selectedCargoCode != null) {
+            selectedCargo = ref
+                .read(cargoViewModelProvider.notifier)
+                .findByCode(_selectedCargoCode);
+          }
+          selectedCargo ??= ref
+              .read(cargoViewModelProvider.notifier)
+              .findByName(_cargoType.text);
+          if (selectedCargo != null) {
+            _selectedCargoCode = selectedCargo.cargoCode;
+            _cargoType.text = selectedCargo.cargoName;
+          }
+
+          final cargoDropdownItems = <CargoModel>[...selectableCargo];
+          if (selectedCargo != null &&
+              !cargoDropdownItems.any(
+                (entry) => entry.cargoCode == selectedCargo?.cargoCode,
+              )) {
+            cargoDropdownItems.add(selectedCargo);
+          }
 
           if (_selected == null && active.isNotEmpty) {
             _load(active.first);
@@ -153,10 +186,77 @@ class _EnquiryDetailsScreenState extends ConsumerState<EnquiryDetailsScreen> {
                             ],
                           ),
                           const SizedBox(height: 10),
-                          TextField(
-                            controller: _cargoType,
+                          DropdownButtonFormField<String>(
+                            value: _selectedCargoCode,
                             decoration: const InputDecoration(
                                 labelText: 'Cargo Type *'),
+                            items: [
+                              for (final cargo in cargoDropdownItems)
+                                DropdownMenuItem(
+                                  value: cargo.cargoCode,
+                                  child: Text(
+                                    '${cargo.cargoName} (${cargo.cargoCode})',
+                                  ),
+                                ),
+                            ],
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'Required';
+                              }
+                              return null;
+                            },
+                            onChanged: cargoDropdownItems.isEmpty
+                                ? null
+                                : (value) {
+                                    if (value == null) {
+                                      return;
+                                    }
+                                    final selected = ref
+                                        .read(cargoViewModelProvider.notifier)
+                                        .findByCode(value);
+                                    if (selected == null) {
+                                      return;
+                                    }
+                                    setState(() {
+                                      _selectedCargoCode = selected.cargoCode;
+                                      _cargoType.text = selected.cargoName;
+                                      _hazardous = selected.hazardous;
+                                      if (selected.preferredVehicleType
+                                          .trim()
+                                          .isNotEmpty) {
+                                        _requiredVehicleType.text =
+                                            selected.preferredVehicleType;
+                                      }
+                                    });
+                                  },
+                          ),
+                          if (selectedCargo != null) ...[
+                            const SizedBox(height: 10),
+                            _cargoGuidance(selectedCargo),
+                          ],
+                          const SizedBox(height: 10),
+                          DropdownButtonFormField<String?>(
+                            value: _selectedRouteId,
+                            decoration: const InputDecoration(
+                                labelText: 'Route Master'),
+                            items: [
+                              const DropdownMenuItem<String?>(
+                                value: null,
+                                child: Text('None'),
+                              ),
+                              for (final route in (routeData?.routes ??
+                                  const <RouteLocationModel>[]))
+                                DropdownMenuItem<String?>(
+                                  value: route.routeId,
+                                  child: Text(
+                                      '${route.routeCode} • ${route.routeName}'),
+                                ),
+                            ],
+                            onChanged: (value) {
+                              setState(() => _selectedRouteId = value);
+                              _applySelectedRoute(
+                                  value, routeData?.routes ?? const []);
+                            },
                           ),
                           const SizedBox(height: 10),
                           Row(
@@ -343,16 +443,107 @@ class _EnquiryDetailsScreenState extends ConsumerState<EnquiryDetailsScreen> {
     _hazardous = enquiry.hazardous;
     _routeRiskFlag = enquiry.routeRiskFlag;
     _pdoSpec = enquiry.pdoSpec.isEmpty ? 'Non-PDO' : enquiry.pdoSpec;
+    _selectedRouteId =
+        enquiry.routeMasterId.isEmpty ? null : enquiry.routeMasterId;
+    _selectedCargoCode = ref
+        .read(cargoViewModelProvider.notifier)
+        .findByName(enquiry.cargoType)
+        ?.cargoCode;
+  }
+
+  Widget _cargoGuidance(CargoModel cargo) {
+    final notes = <String>[];
+    if (cargo.riskLevel == CargoRiskLevel.high ||
+        cargo.riskLevel == CargoRiskLevel.critical) {
+      notes.add('High-risk cargo selected. Plan route and controls carefully.');
+    }
+    if (cargo.hazardous) {
+      notes.add('Hazardous cargo. Compliance and safety checks increase.');
+    }
+    if (cargo.specialHandlingRequired) {
+      notes.add(cargo.handlingInstructions.trim().isEmpty
+          ? 'Special handling required.'
+          : cargo.handlingInstructions.trim());
+    }
+    if (cargo.specialComplianceRequired) {
+      final certs = cargo.requiredCertifications.join(', ');
+      notes.add(certs.isEmpty
+          ? 'Special compliance required.'
+          : 'Likely certifications: $certs');
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF7ED),
+        border: Border.all(color: const Color(0xFFF59E0B)),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Cargo Operational Guidance',
+            style: TextStyle(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 6),
+          for (final note in notes)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text('- $note'),
+            ),
+        ],
+      ),
+    );
+  }
+
+  void _applySelectedRoute(String? routeId, List<RouteLocationModel> routes) {
+    if (routeId == null) {
+      return;
+    }
+    RouteLocationModel? selected;
+    for (final route in routes) {
+      if (route.routeId == routeId) {
+        selected = route;
+        break;
+      }
+    }
+    if (selected == null) {
+      return;
+    }
+
+    _pickup.text = selected.startLocation.locationName;
+    _destination.text = selected.endLocation.locationName;
+    _route.text = '${selected.routeCode} • ${selected.routeName}';
+    _routeRiskFlag = selected.riskLevel == RouteRiskLevel.high ||
+        selected.riskLevel == RouteRiskLevel.critical;
   }
 
   void _save() {
     if (_selected == null) {
       return;
     }
+    RouteLocationModel? selectedRoute;
+    final routes = ref.read(routeViewModelProvider).valueOrNull?.routes ??
+        const <RouteLocationModel>[];
+    for (final route in routes) {
+      if (route.routeId == _selectedRouteId) {
+        selectedRoute = route;
+        break;
+      }
+    }
     final message =
         ref.read(logisticsViewModelProvider.notifier).gatherEnquiryKeyDetails(
               enquiryNumber: _selected!.enquiryNumber,
-              cargoType: _cargoType.text,
+              cargoType: (_selectedCargoCode == null
+                      ? _cargoType.text
+                      : (ref
+                              .read(cargoViewModelProvider.notifier)
+                              .findByCode(_selectedCargoCode)
+                              ?.cargoName ??
+                          _cargoType.text))
+                  .trim(),
               hazardous: _hazardous,
               pdoSpec: _pdoSpec,
               pickup: _pickup.text,
@@ -365,6 +556,15 @@ class _EnquiryDetailsScreenState extends ConsumerState<EnquiryDetailsScreen> {
               requiredVehicleType: _requiredVehicleType.text,
               tentativeDispatchDate: _tentativeDispatchDate.text,
               routeRiskFlag: _routeRiskFlag,
+              routeMasterId: selectedRoute?.routeId ?? '',
+              routeCode: selectedRoute?.routeCode ?? '',
+              routeName: selectedRoute?.routeName ?? '',
+              routeRiskLevel: selectedRoute?.riskLevel.label ?? 'Low',
+              routeOperationalStatus: selectedRoute?.status.label ?? 'Active',
+              routeRestricted: selectedRoute != null
+                  ? !selectedRoute.isSelectableForNewOperations
+                  : false,
+              routeRestrictionReason: selectedRoute?.restrictionReason ?? '',
             );
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));

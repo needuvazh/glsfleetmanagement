@@ -31,6 +31,13 @@ class CustomerRequestData {
     this.hazardous = false,
     this.pdoSpec = 'Non-PDO',
     this.route = '',
+    this.routeMasterId = '',
+    this.routeCode = '',
+    this.routeName = '',
+    this.routeRiskLevel = 'Low',
+    this.routeOperationalStatus = 'Active',
+    this.routeRestricted = false,
+    this.routeRestrictionReason = '',
     this.quantity = '',
     this.dimensions = '',
     this.customerSpecificRequirement = '',
@@ -59,6 +66,13 @@ class CustomerRequestData {
   final bool hazardous;
   final String pdoSpec;
   final String route;
+  final String routeMasterId;
+  final String routeCode;
+  final String routeName;
+  final String routeRiskLevel;
+  final String routeOperationalStatus;
+  final bool routeRestricted;
+  final String routeRestrictionReason;
   final String quantity;
   final String dimensions;
   final String customerSpecificRequirement;
@@ -89,6 +103,13 @@ class CustomerRequestData {
     bool? hazardous,
     String? pdoSpec,
     String? route,
+    String? routeMasterId,
+    String? routeCode,
+    String? routeName,
+    String? routeRiskLevel,
+    String? routeOperationalStatus,
+    bool? routeRestricted,
+    String? routeRestrictionReason,
     String? quantity,
     String? dimensions,
     String? customerSpecificRequirement,
@@ -117,6 +138,15 @@ class CustomerRequestData {
       hazardous: hazardous ?? this.hazardous,
       pdoSpec: pdoSpec ?? this.pdoSpec,
       route: route ?? this.route,
+      routeMasterId: routeMasterId ?? this.routeMasterId,
+      routeCode: routeCode ?? this.routeCode,
+      routeName: routeName ?? this.routeName,
+      routeRiskLevel: routeRiskLevel ?? this.routeRiskLevel,
+      routeOperationalStatus:
+          routeOperationalStatus ?? this.routeOperationalStatus,
+      routeRestricted: routeRestricted ?? this.routeRestricted,
+      routeRestrictionReason:
+          routeRestrictionReason ?? this.routeRestrictionReason,
       quantity: quantity ?? this.quantity,
       dimensions: dimensions ?? this.dimensions,
       customerSpecificRequirement:
@@ -160,6 +190,13 @@ class WorkOrderFlowItem {
     required this.status,
     this.linkedQuotationRef = '',
     this.linkedEnquiryNumber = '',
+    this.routeMasterId = '',
+    this.routeCode = '',
+    this.routeName = '',
+    this.routeRiskLevel = 'Low',
+    this.routeOperationalStatus = 'Active',
+    this.routeRestricted = false,
+    this.routeRestrictionReason = '',
     this.customerPoReference = '',
     this.jobFileReference = '',
     this.serviceStartDate = '',
@@ -174,6 +211,13 @@ class WorkOrderFlowItem {
   final String status;
   final String linkedQuotationRef;
   final String linkedEnquiryNumber;
+  final String routeMasterId;
+  final String routeCode;
+  final String routeName;
+  final String routeRiskLevel;
+  final String routeOperationalStatus;
+  final bool routeRestricted;
+  final String routeRestrictionReason;
   final String customerPoReference;
   final String jobFileReference;
   final String serviceStartDate;
@@ -188,6 +232,13 @@ class WorkOrderFlowItem {
     String? status,
     String? linkedQuotationRef,
     String? linkedEnquiryNumber,
+    String? routeMasterId,
+    String? routeCode,
+    String? routeName,
+    String? routeRiskLevel,
+    String? routeOperationalStatus,
+    bool? routeRestricted,
+    String? routeRestrictionReason,
     String? customerPoReference,
     String? jobFileReference,
     String? serviceStartDate,
@@ -202,6 +253,15 @@ class WorkOrderFlowItem {
       status: status ?? this.status,
       linkedQuotationRef: linkedQuotationRef ?? this.linkedQuotationRef,
       linkedEnquiryNumber: linkedEnquiryNumber ?? this.linkedEnquiryNumber,
+      routeMasterId: routeMasterId ?? this.routeMasterId,
+      routeCode: routeCode ?? this.routeCode,
+      routeName: routeName ?? this.routeName,
+      routeRiskLevel: routeRiskLevel ?? this.routeRiskLevel,
+      routeOperationalStatus:
+          routeOperationalStatus ?? this.routeOperationalStatus,
+      routeRestricted: routeRestricted ?? this.routeRestricted,
+      routeRestrictionReason:
+          routeRestrictionReason ?? this.routeRestrictionReason,
       customerPoReference: customerPoReference ?? this.customerPoReference,
       jobFileReference: jobFileReference ?? this.jobFileReference,
       serviceStartDate: serviceStartDate ?? this.serviceStartDate,
@@ -279,6 +339,7 @@ class FleetVehicleData {
     required this.fuelType,
     required this.ivmsDeviceId,
     required this.status,
+    this.permits = const [],
   });
 
   final String vehicleNo;
@@ -287,28 +348,253 @@ class FleetVehicleData {
   final String fuelType;
   final String ivmsDeviceId;
   final String status;
+  final List<String> permits;
 }
 
 class DriverData {
   const DriverData({
     required this.driverId,
     required this.name,
+    required this.employeeRef,
     required this.licenseNo,
+    required this.licenseType,
+    required this.licenseIssueDate,
     required this.expiryDate,
+    required this.heavyVehicleAllowed,
+    required this.specialEndorsementNotes,
     required this.phone,
+    required this.nationality,
+    required this.baseLocation,
     required this.experience,
     required this.dfmsDeviceId,
     required this.status,
+    required this.active,
+    required this.assignmentAllowed,
+    required this.dispatchAllowed,
+    required this.dispatchBlocked,
+    required this.blockReason,
+    required this.onLeave,
+    required this.suspended,
+    required this.suspensionReason,
+    required this.currentAssignmentStatus,
+    required this.currentWorkOrder,
+    required this.currentLocation,
+    required this.allowedVehicleTypes,
+    required this.longHaulAllowed,
+    required this.nightDrivingAllowed,
+    required this.hazardousCargoAllowed,
+    required this.oilfieldAllowed,
+    required this.routeRestrictions,
+    required this.specialSkillsNotes,
+    required this.pdoPassportStatus,
+    required this.defensiveDrivingStatus,
+    required this.h2sStatus,
+    required this.ftwStatus,
+    required this.complianceNotes,
+    required this.medicalFitnessNote,
+    required this.safetyIncidentFlag,
+    required this.incidentCount,
+    required this.disciplinaryNote,
+    required this.temporaryRestrictionNote,
+    required this.preferredRegion,
+    required this.preferredRouteType,
+    required this.preferredVehicleType,
+    required this.preferredCargoType,
+    required this.specialAssignmentNotes,
+    this.certifications = const [],
   });
 
   final String driverId;
   final String name;
+  final String employeeRef;
   final String licenseNo;
+  final String licenseType;
+  final String licenseIssueDate;
   final String expiryDate;
+  final bool heavyVehicleAllowed;
+  final String specialEndorsementNotes;
   final String phone;
+  final String nationality;
+  final String baseLocation;
   final int experience;
   final String dfmsDeviceId;
   final String status;
+  final bool active;
+  final bool assignmentAllowed;
+  final bool dispatchAllowed;
+  final bool dispatchBlocked;
+  final String blockReason;
+  final bool onLeave;
+  final bool suspended;
+  final String suspensionReason;
+  final String currentAssignmentStatus;
+  final String currentWorkOrder;
+  final String currentLocation;
+  final List<String> allowedVehicleTypes;
+  final bool longHaulAllowed;
+  final bool nightDrivingAllowed;
+  final bool hazardousCargoAllowed;
+  final bool oilfieldAllowed;
+  final String routeRestrictions;
+  final String specialSkillsNotes;
+  final String pdoPassportStatus;
+  final String defensiveDrivingStatus;
+  final String h2sStatus;
+  final String ftwStatus;
+  final String complianceNotes;
+  final String medicalFitnessNote;
+  final bool safetyIncidentFlag;
+  final int incidentCount;
+  final String disciplinaryNote;
+  final String temporaryRestrictionNote;
+  final String preferredRegion;
+  final String preferredRouteType;
+  final String preferredVehicleType;
+  final String preferredCargoType;
+  final String specialAssignmentNotes;
+  final List<String> certifications;
+
+  bool get licenseValid {
+    final expiry = DateTime.tryParse(expiryDate.trim());
+    if (expiry == null) {
+      return false;
+    }
+    return !expiry.isBefore(DateTime.now());
+  }
+
+  bool get complianceReady {
+    final trainingOk = [
+      pdoPassportStatus,
+      defensiveDrivingStatus,
+      h2sStatus,
+      ftwStatus,
+    ].every((item) {
+      final normalized = item.trim().toLowerCase();
+      return normalized == 'valid' ||
+          normalized == 'active' ||
+          normalized == 'not required';
+    });
+    return licenseValid && trainingOk;
+  }
+
+  bool get assignmentEligible {
+    final available = status.toLowerCase() == 'available';
+    return active &&
+        assignmentAllowed &&
+        dispatchAllowed &&
+        !dispatchBlocked &&
+        !onLeave &&
+        !suspended &&
+        available &&
+        complianceReady;
+  }
+
+  DriverData copyWith({
+    String? name,
+    String? licenseNo,
+    String? expiryDate,
+    String? phone,
+    String? status,
+    List<String>? certifications,
+    String? employeeRef,
+    String? nationality,
+    String? baseLocation,
+    String? licenseType,
+    String? licenseIssueDate,
+    bool? heavyVehicleAllowed,
+    String? specialEndorsementNotes,
+    bool? active,
+    bool? assignmentAllowed,
+    bool? dispatchAllowed,
+    bool? dispatchBlocked,
+    String? blockReason,
+    bool? onLeave,
+    bool? suspended,
+    String? suspensionReason,
+    String? currentAssignmentStatus,
+    String? currentWorkOrder,
+    String? currentLocation,
+    List<String>? allowedVehicleTypes,
+    bool? longHaulAllowed,
+    bool? nightDrivingAllowed,
+    bool? hazardousCargoAllowed,
+    bool? oilfieldAllowed,
+    String? routeRestrictions,
+    String? specialSkillsNotes,
+    String? pdoPassportStatus,
+    String? defensiveDrivingStatus,
+    String? h2sStatus,
+    String? ftwStatus,
+    String? complianceNotes,
+    String? medicalFitnessNote,
+    bool? safetyIncidentFlag,
+    int? incidentCount,
+    String? disciplinaryNote,
+    String? temporaryRestrictionNote,
+    String? preferredRegion,
+    String? preferredRouteType,
+    String? preferredVehicleType,
+    String? preferredCargoType,
+    String? specialAssignmentNotes,
+  }) {
+    return DriverData(
+      driverId: driverId,
+      name: name ?? this.name,
+      employeeRef: employeeRef ?? this.employeeRef,
+      licenseNo: licenseNo ?? this.licenseNo,
+      licenseType: licenseType ?? this.licenseType,
+      licenseIssueDate: licenseIssueDate ?? this.licenseIssueDate,
+      expiryDate: expiryDate ?? this.expiryDate,
+      heavyVehicleAllowed: heavyVehicleAllowed ?? this.heavyVehicleAllowed,
+      specialEndorsementNotes:
+          specialEndorsementNotes ?? this.specialEndorsementNotes,
+      phone: phone ?? this.phone,
+      nationality: nationality ?? this.nationality,
+      baseLocation: baseLocation ?? this.baseLocation,
+      experience: experience,
+      dfmsDeviceId: dfmsDeviceId,
+      status: status ?? this.status,
+      active: active ?? this.active,
+      assignmentAllowed: assignmentAllowed ?? this.assignmentAllowed,
+      dispatchAllowed: dispatchAllowed ?? this.dispatchAllowed,
+      dispatchBlocked: dispatchBlocked ?? this.dispatchBlocked,
+      blockReason: blockReason ?? this.blockReason,
+      onLeave: onLeave ?? this.onLeave,
+      suspended: suspended ?? this.suspended,
+      suspensionReason: suspensionReason ?? this.suspensionReason,
+      currentAssignmentStatus:
+          currentAssignmentStatus ?? this.currentAssignmentStatus,
+      currentWorkOrder: currentWorkOrder ?? this.currentWorkOrder,
+      currentLocation: currentLocation ?? this.currentLocation,
+      allowedVehicleTypes: allowedVehicleTypes ?? this.allowedVehicleTypes,
+      longHaulAllowed: longHaulAllowed ?? this.longHaulAllowed,
+      nightDrivingAllowed: nightDrivingAllowed ?? this.nightDrivingAllowed,
+      hazardousCargoAllowed:
+          hazardousCargoAllowed ?? this.hazardousCargoAllowed,
+      oilfieldAllowed: oilfieldAllowed ?? this.oilfieldAllowed,
+      routeRestrictions: routeRestrictions ?? this.routeRestrictions,
+      specialSkillsNotes: specialSkillsNotes ?? this.specialSkillsNotes,
+      pdoPassportStatus: pdoPassportStatus ?? this.pdoPassportStatus,
+      defensiveDrivingStatus:
+          defensiveDrivingStatus ?? this.defensiveDrivingStatus,
+      h2sStatus: h2sStatus ?? this.h2sStatus,
+      ftwStatus: ftwStatus ?? this.ftwStatus,
+      complianceNotes: complianceNotes ?? this.complianceNotes,
+      medicalFitnessNote: medicalFitnessNote ?? this.medicalFitnessNote,
+      safetyIncidentFlag: safetyIncidentFlag ?? this.safetyIncidentFlag,
+      incidentCount: incidentCount ?? this.incidentCount,
+      disciplinaryNote: disciplinaryNote ?? this.disciplinaryNote,
+      temporaryRestrictionNote:
+          temporaryRestrictionNote ?? this.temporaryRestrictionNote,
+      preferredRegion: preferredRegion ?? this.preferredRegion,
+      preferredRouteType: preferredRouteType ?? this.preferredRouteType,
+      preferredVehicleType: preferredVehicleType ?? this.preferredVehicleType,
+      preferredCargoType: preferredCargoType ?? this.preferredCargoType,
+      specialAssignmentNotes:
+          specialAssignmentNotes ?? this.specialAssignmentNotes,
+      certifications: certifications ?? this.certifications,
+    );
+  }
 }
 
 class JourneyMasterData {

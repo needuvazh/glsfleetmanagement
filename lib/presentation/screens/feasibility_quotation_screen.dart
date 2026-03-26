@@ -8,8 +8,10 @@ import 'package:go_router/go_router.dart';
 
 import '../../domain/vendor_model.dart';
 import '../../domain/entities/logistics_flow.dart';
+import '../../domain/route_model.dart';
 import '../../routes/route_paths.dart';
 import '../viewmodels/logistics_viewmodel.dart';
+import '../viewmodels/route_viewmodel.dart';
 import '../viewmodels/vendor_viewmodel.dart';
 import '../widgets/flow_stepper_card.dart';
 import '../widgets/ops_shell.dart';
@@ -69,6 +71,7 @@ class _FeasibilityQuotationScreenState
   Widget build(BuildContext context) {
     final state = ref.watch(logisticsViewModelProvider);
     final vendorState = ref.watch(vendorViewModelProvider);
+    final routeData = ref.watch(routeViewModelProvider).valueOrNull;
 
     return OpsShell(
       title: 'Feasibility & Quotation',
@@ -93,11 +96,26 @@ class _FeasibilityQuotationScreenState
                   .toList() ??
               const [];
           if (_selectedVendorId != null &&
-              !activeVendors.any((vendor) => vendor.vendorId == _selectedVendorId)) {
+              !activeVendors
+                  .any((vendor) => vendor.vendorId == _selectedVendorId)) {
             _selectedVendorId = null;
           }
 
           final amount = _currentAmount;
+          final selectedRequest = _selectedRequestIndex == null
+              ? null
+              : data.customerRequests[_selectedRequestIndex!];
+          RouteLocationModel? selectedRoute;
+          if (selectedRequest != null &&
+              selectedRequest.routeMasterId.isNotEmpty) {
+            for (final route
+                in (routeData?.routes ?? const <RouteLocationModel>[])) {
+              if (route.routeId == selectedRequest.routeMasterId) {
+                selectedRoute = route;
+                break;
+              }
+            }
+          }
 
           return ListView(
             padding: const EdgeInsets.all(16),
@@ -134,18 +152,58 @@ class _FeasibilityQuotationScreenState
                           }
                           setState(() {
                             _selectedRequestIndex = index;
+                            final pickedRequest = data.customerRequests[index];
                             _applyRequest(
-                              data.customerRequests[index],
+                              pickedRequest,
                               quotations: data.quotations,
                             );
+                            RouteLocationModel? pickedRoute;
+                            if (pickedRequest.routeMasterId.isNotEmpty) {
+                              for (final route in (routeData?.routes ??
+                                  const <RouteLocationModel>[])) {
+                                if (route.routeId ==
+                                    pickedRequest.routeMasterId) {
+                                  pickedRoute = route;
+                                  break;
+                                }
+                              }
+                            }
+                            if (pickedRoute != null) {
+                              _kilometer.text =
+                                  pickedRoute.distanceKm.toStringAsFixed(1);
+                            }
                           });
                         },
                       ),
+                      if (selectedRoute != null) ...[
+                        const SizedBox(height: 10),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: selectedRoute.isSelectableForNewOperations
+                                ? const Color(0xFFEAF7EF)
+                                : const Color(0xFFFEE2E2),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: selectedRoute.isSelectableForNewOperations
+                                  ? const Color(0xFFBBF7D0)
+                                  : const Color(0xFFFCA5A5),
+                            ),
+                          ),
+                          child: Text(
+                            'Route: ${selectedRoute.routeCode} • ${selectedRoute.routeName}\n'
+                            'Distance: ${selectedRoute.distanceKm.toStringAsFixed(1)} km | ETA: ${selectedRoute.estimatedTime}\n'
+                            'Risk: ${selectedRoute.riskLevel.label} | Status: ${selectedRoute.status.label}'
+                            '${selectedRoute.isSelectableForNewOperations ? '' : '\nRestriction: ${selectedRoute.restrictionReason}'}',
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 10),
                       TextFormField(
                         controller: _customerRate,
-                        keyboardType:
-                            const TextInputType.numberWithOptions(decimal: true),
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
                         decoration: const InputDecoration(
                           labelText: 'Customer Rate (for feasibility)',
                         ),
@@ -184,12 +242,14 @@ class _FeasibilityQuotationScreenState
                           for (final vendor in activeVendors)
                             DropdownMenuItem(
                               value: vendor.vendorId,
-                              child: Text('${vendor.vendorName} (${vendor.contactNumber})'),
+                              child: Text(
+                                  '${vendor.vendorName} (${vendor.contactNumber})'),
                             ),
                         ],
                         onChanged: activeVendors.isEmpty
                             ? null
-                            : (value) => setState(() => _selectedVendorId = value),
+                            : (value) =>
+                                setState(() => _selectedVendorId = value),
                       ),
                       if (activeVendors.isEmpty)
                         const Padding(
@@ -220,14 +280,15 @@ class _FeasibilityQuotationScreenState
                           onPressed: _selectedRequestIndex == null
                               ? null
                               : () {
-                                  final request =
-                                      data.customerRequests[_selectedRequestIndex!];
+                                  final request = data
+                                      .customerRequests[_selectedRequestIndex!];
                                   final message = ref
                                       .read(logisticsViewModelProvider.notifier)
                                       .runFeasibilityCheck(
                                         request: request,
-                                        customerRate:
-                                            double.tryParse(_customerRate.text.trim()) ?? 0,
+                                        customerRate: double.tryParse(
+                                                _customerRate.text.trim()) ??
+                                            0,
                                         managerOverride: _managerOverride,
                                       );
                                   ScaffoldMessenger.of(context).showSnackBar(
@@ -491,7 +552,8 @@ class _FeasibilityQuotationScreenState
                                 onSelected: (value) {
                                   ref
                                       .read(logisticsViewModelProvider.notifier)
-                                      .setQuoteStatus(quotation.quoteRef, value);
+                                      .setQuoteStatus(
+                                          quotation.quoteRef, value);
                                 },
                                 itemBuilder: (context) => const [
                                   PopupMenuItem(
@@ -519,13 +581,15 @@ class _FeasibilityQuotationScreenState
                               Row(
                                 children: [
                                   IconButton(
-                                    onPressed: () => _downloadQuotation(quotation),
+                                    onPressed: () =>
+                                        _downloadQuotation(quotation),
                                     icon: const Icon(Icons.download_outlined),
                                     tooltip: 'Download quotation',
                                   ),
                                   TextButton(
                                     onPressed: () {
-                                      ScaffoldMessenger.of(context).showSnackBar(
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
                                         SnackBar(
                                           content: Text(
                                             'Quotation ${quotation.quoteRef} sent to customer (mock)',

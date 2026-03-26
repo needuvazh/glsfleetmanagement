@@ -154,6 +154,8 @@ class _TripMonitoringScreenState extends ConsumerState<TripMonitoringScreen> {
           fleet: vehicle?.vehicleNo ?? 'Unassigned',
           driver: driver?.name ?? 'Unassigned',
           route: wo.route,
+          routeRisk: wo.routeRiskLevel,
+          routeStatus: wo.routeOperationalStatus,
           currentStatus: status,
           lastMilestone: milestone,
           delayIndicator: isDelayed ? 'Yes (${20 + (i * 8)}m)' : 'No',
@@ -410,6 +412,8 @@ class _TripDetailDrawer extends StatelessWidget {
             _pair('Fleet', row!.fleet),
             _pair('Driver', row!.driver),
             _pair('Route', row!.route),
+            _pair('Route Risk', row!.routeRisk),
+            _pair('Route Status', row!.routeStatus),
             const Divider(height: 22),
             Text('Recent Notes', style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: 6),
@@ -469,6 +473,8 @@ class _TripRow {
     required this.fleet,
     required this.driver,
     required this.route,
+    required this.routeRisk,
+    required this.routeStatus,
     required this.currentStatus,
     required this.lastMilestone,
     required this.delayIndicator,
@@ -486,6 +492,8 @@ class _TripRow {
   final String fleet;
   final String driver;
   final String route;
+  final String routeRisk;
+  final String routeStatus;
   final String currentStatus;
   final String lastMilestone;
   final String delayIndicator;

@@ -65,6 +65,9 @@ class RoutePaths {
   static const routeLocationMaster = '/route-location-master';
   static const routeLocationForm = '/route-location-master/form';
   static const routeLocationView = '/route-location-master/view/:routeId';
+  static const cargoMaster = '/cargo-master';
+  static const cargoMasterForm = '/cargo-master/form';
+  static const cargoMasterView = '/cargo-master/view/:cargoCode';
   static const documentManagement = '/document-management';
   static const roleDocumentMapping = '/role-document-mapping';
   static const userProfile = '/user-profile';
@@ -97,6 +100,9 @@ class RoutePaths {
 
   static String routeLocationViewById(String routeId) =>
       '/route-location-master/view/$routeId';
+
+  static String cargoMasterViewByCode(String cargoCode) =>
+      '/cargo-master/view/$cargoCode';
 
   static String fleetDetailById(String fleetId) => '/fleet-management/$fleetId';
 

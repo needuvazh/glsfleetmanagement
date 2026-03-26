@@ -17,6 +17,13 @@ class CustomerRequestModel extends CustomerRequestData {
     required super.hazardous,
     required super.pdoSpec,
     required super.route,
+    required super.routeMasterId,
+    required super.routeCode,
+    required super.routeName,
+    required super.routeRiskLevel,
+    required super.routeOperationalStatus,
+    required super.routeRestricted,
+    required super.routeRestrictionReason,
     required super.quantity,
     required super.dimensions,
     required super.customerSpecificRequirement,
@@ -69,6 +76,14 @@ class CustomerRequestModel extends CustomerRequestData {
           map['clientType'] as String? ??
           'Non-PDO',
       route: map['route'] as String? ?? '${pickup.trim()} -> ${drop.trim()}',
+      routeMasterId: map['routeMasterId'] as String? ?? '',
+      routeCode: map['routeCode'] as String? ?? '',
+      routeName: map['routeName'] as String? ?? '',
+      routeRiskLevel: map['routeRiskLevel'] as String? ?? 'Low',
+      routeOperationalStatus:
+          map['routeOperationalStatus'] as String? ?? 'Active',
+      routeRestricted: map['routeRestricted'] as bool? ?? false,
+      routeRestrictionReason: map['routeRestrictionReason'] as String? ?? '',
       quantity: map['quantity']?.toString() ?? '',
       dimensions: map['dimensions'] as String? ?? '',
       customerSpecificRequirement:
@@ -96,6 +111,13 @@ class WorkOrderFlowModel extends WorkOrderFlowItem {
     required super.status,
     required super.linkedQuotationRef,
     required super.linkedEnquiryNumber,
+    required super.routeMasterId,
+    required super.routeCode,
+    required super.routeName,
+    required super.routeRiskLevel,
+    required super.routeOperationalStatus,
+    required super.routeRestricted,
+    required super.routeRestrictionReason,
     required super.customerPoReference,
     required super.jobFileReference,
     required super.serviceStartDate,
@@ -116,6 +138,14 @@ class WorkOrderFlowModel extends WorkOrderFlowItem {
       linkedEnquiryNumber: map['linkedEnquiryNumber'] as String? ??
           map['requestId'] as String? ??
           '',
+      routeMasterId: map['routeMasterId'] as String? ?? '',
+      routeCode: map['routeCode'] as String? ?? '',
+      routeName: map['routeName'] as String? ?? '',
+      routeRiskLevel: map['routeRiskLevel'] as String? ?? 'Low',
+      routeOperationalStatus:
+          map['routeOperationalStatus'] as String? ?? 'Active',
+      routeRestricted: map['routeRestricted'] as bool? ?? false,
+      routeRestrictionReason: map['routeRestrictionReason'] as String? ?? '',
       customerPoReference: map['customerPoReference'] as String? ?? '',
       jobFileReference: map['jobFileReference'] as String? ?? '',
       serviceStartDate: map['serviceStartDate'] as String? ?? '',
@@ -167,6 +197,7 @@ class FleetVehicleModel extends FleetVehicleData {
     required super.fuelType,
     required super.ivmsDeviceId,
     required super.status,
+    required super.permits,
   });
 
   factory FleetVehicleModel.fromMap(Map<String, dynamic> map) {
@@ -181,6 +212,10 @@ class FleetVehicleModel extends FleetVehicleData {
       ivmsDeviceId: map['ivmsDeviceId'] as String? ??
           'IVMS-${vehicleNo.replaceAll(' ', '-')}',
       status: map['status'] as String? ?? '',
+      permits: (map['permits'] as List<dynamic>? ?? const <dynamic>[])
+          .map((item) => item.toString())
+          .where((item) => item.trim().isNotEmpty)
+          .toList(),
     );
   }
 }
@@ -189,24 +224,119 @@ class DriverModel extends DriverData {
   const DriverModel({
     required super.driverId,
     required super.name,
+    required super.employeeRef,
     required super.licenseNo,
+    required super.licenseType,
+    required super.licenseIssueDate,
     required super.expiryDate,
+    required super.heavyVehicleAllowed,
+    required super.specialEndorsementNotes,
     required super.phone,
+    required super.nationality,
+    required super.baseLocation,
     required super.experience,
     required super.dfmsDeviceId,
     required super.status,
+    required super.active,
+    required super.assignmentAllowed,
+    required super.dispatchAllowed,
+    required super.dispatchBlocked,
+    required super.blockReason,
+    required super.onLeave,
+    required super.suspended,
+    required super.suspensionReason,
+    required super.currentAssignmentStatus,
+    required super.currentWorkOrder,
+    required super.currentLocation,
+    required super.allowedVehicleTypes,
+    required super.longHaulAllowed,
+    required super.nightDrivingAllowed,
+    required super.hazardousCargoAllowed,
+    required super.oilfieldAllowed,
+    required super.routeRestrictions,
+    required super.specialSkillsNotes,
+    required super.pdoPassportStatus,
+    required super.defensiveDrivingStatus,
+    required super.h2sStatus,
+    required super.ftwStatus,
+    required super.complianceNotes,
+    required super.medicalFitnessNote,
+    required super.safetyIncidentFlag,
+    required super.incidentCount,
+    required super.disciplinaryNote,
+    required super.temporaryRestrictionNote,
+    required super.preferredRegion,
+    required super.preferredRouteType,
+    required super.preferredVehicleType,
+    required super.preferredCargoType,
+    required super.specialAssignmentNotes,
+    required super.certifications,
   });
 
   factory DriverModel.fromMap(Map<String, dynamic> map) {
+    final allowedVehicleTypes =
+        (map['allowedVehicleTypes'] as List<dynamic>? ?? const <dynamic>[])
+            .map((item) => item.toString())
+            .where((item) => item.trim().isNotEmpty)
+            .toList();
+
     return DriverModel(
       driverId: map['driverId'] as String? ?? '',
       name: map['name'] as String? ?? '',
+      employeeRef: map['employeeRef'] as String? ?? '',
       licenseNo: map['licenseNo'] as String? ?? '',
+      licenseType: map['licenseType'] as String? ?? 'Light Vehicle',
+      licenseIssueDate: map['licenseIssueDate'] as String? ?? '',
       expiryDate: map['expiryDate'] as String? ?? '',
+      heavyVehicleAllowed: map['heavyVehicleAllowed'] as bool? ?? false,
+      specialEndorsementNotes: map['specialEndorsementNotes'] as String? ?? '',
       phone: map['phone'] as String? ?? '',
+      nationality: map['nationality'] as String? ?? 'Omani',
+      baseLocation: map['baseLocation'] as String? ?? 'Muscat',
       experience: (map['experience'] as num?)?.toInt() ?? 0,
       dfmsDeviceId: map['dfmsDeviceId'] as String? ?? '',
       status: map['status'] as String? ?? '',
+      active: map['active'] as bool? ?? true,
+      assignmentAllowed: map['assignmentAllowed'] as bool? ?? true,
+      dispatchAllowed: map['dispatchAllowed'] as bool? ?? true,
+      dispatchBlocked: map['dispatchBlocked'] as bool? ?? false,
+      blockReason: map['blockReason'] as String? ?? '',
+      onLeave: map['onLeave'] as bool? ?? false,
+      suspended: map['suspended'] as bool? ?? false,
+      suspensionReason: map['suspensionReason'] as String? ?? '',
+      currentAssignmentStatus:
+          map['currentAssignmentStatus'] as String? ?? 'Unassigned',
+      currentWorkOrder: map['currentWorkOrder'] as String? ?? '',
+      currentLocation: map['currentLocation'] as String? ?? 'Muscat',
+      allowedVehicleTypes: allowedVehicleTypes,
+      longHaulAllowed: map['longHaulAllowed'] as bool? ?? true,
+      nightDrivingAllowed: map['nightDrivingAllowed'] as bool? ?? true,
+      hazardousCargoAllowed: map['hazardousCargoAllowed'] as bool? ?? false,
+      oilfieldAllowed: map['oilfieldAllowed'] as bool? ?? false,
+      routeRestrictions: map['routeRestrictions'] as String? ?? '',
+      specialSkillsNotes: map['specialSkillsNotes'] as String? ?? '',
+      pdoPassportStatus: map['pdoPassportStatus'] as String? ?? 'Not Required',
+      defensiveDrivingStatus:
+          map['defensiveDrivingStatus'] as String? ?? 'Not Required',
+      h2sStatus: map['h2sStatus'] as String? ?? 'Not Required',
+      ftwStatus: map['ftwStatus'] as String? ?? 'Not Required',
+      complianceNotes: map['complianceNotes'] as String? ?? '',
+      medicalFitnessNote: map['medicalFitnessNote'] as String? ?? '',
+      safetyIncidentFlag: map['safetyIncidentFlag'] as bool? ?? false,
+      incidentCount: (map['incidentCount'] as num?)?.toInt() ?? 0,
+      disciplinaryNote: map['disciplinaryNote'] as String? ?? '',
+      temporaryRestrictionNote:
+          map['temporaryRestrictionNote'] as String? ?? '',
+      preferredRegion: map['preferredRegion'] as String? ?? '',
+      preferredRouteType: map['preferredRouteType'] as String? ?? '',
+      preferredVehicleType: map['preferredVehicleType'] as String? ?? '',
+      preferredCargoType: map['preferredCargoType'] as String? ?? '',
+      specialAssignmentNotes: map['specialAssignmentNotes'] as String? ?? '',
+      certifications:
+          (map['certifications'] as List<dynamic>? ?? const <dynamic>[])
+              .map((item) => item.toString())
+              .where((item) => item.trim().isNotEmpty)
+              .toList(),
     );
   }
 }

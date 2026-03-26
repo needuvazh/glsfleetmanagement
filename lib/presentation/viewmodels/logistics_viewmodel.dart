@@ -16,6 +16,7 @@ import '../../domain/entities/logistics_flow.dart';
 import '../../domain/repositories/logistics_repository.dart';
 import '../../domain/usecases/get_logistics_data_usecase.dart';
 import 'access_control_viewmodel.dart';
+import 'module_document_viewmodel.dart';
 
 class LogisticsUiState {
   const LogisticsUiState({
@@ -312,7 +313,7 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
   Timer? _timer;
   final Random _random = Random();
   static const _pdoClients = {'shell', 'dhl', 'bsc', 'agreeko', 'stc'};
-  static const _workOrdersCacheKey = 'work_order_records_v1';
+  static const _workOrdersCacheKey = 'work_order_records_v2';
 
   @override
   Future<LogisticsUiState> build() async {
@@ -356,6 +357,14 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
                 fuelType: item.fuelType,
                 ivmsDeviceId: 'IVMS-${item.vehicleNumber}',
                 status: item.availabilityStatus,
+                permits: item.documents
+                    .where(
+                      (doc) =>
+                          doc.status.trim().toLowerCase() == 'valid' ||
+                          doc.status.trim().toLowerCase() == 'active',
+                    )
+                    .map((doc) => doc.documentName)
+                    .toList(),
               ),
           ]
         : fallbackVehicles;
@@ -369,12 +378,58 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
               DriverData(
                 driverId: item.userId,
                 name: item.fullName,
+                employeeRef: item.userId,
                 licenseNo: item.licenseNumber,
+                licenseType: item.licenseType.trim().isEmpty
+                    ? 'Light Vehicle'
+                    : item.licenseType,
+                licenseIssueDate: '',
                 expiryDate: item.licenseExpiryDate,
+                heavyVehicleAllowed:
+                    item.licenseType.toLowerCase().contains('heavy'),
+                specialEndorsementNotes: '',
                 phone: item.fullMobile,
+                nationality: 'Omani',
+                baseLocation: 'Muscat',
                 experience: item.experienceYears,
                 dfmsDeviceId: 'DFMS-${item.userId}',
                 status: item.status,
+                active: item.status.toLowerCase() != 'inactive',
+                assignmentAllowed: true,
+                dispatchAllowed: true,
+                dispatchBlocked: false,
+                blockReason: '',
+                onLeave: false,
+                suspended: false,
+                suspensionReason: '',
+                currentAssignmentStatus: 'Unassigned',
+                currentWorkOrder: '',
+                currentLocation: 'Muscat',
+                allowedVehicleTypes: const [],
+                longHaulAllowed: true,
+                nightDrivingAllowed: true,
+                hazardousCargoAllowed: false,
+                oilfieldAllowed: false,
+                routeRestrictions: '',
+                specialSkillsNotes: '',
+                pdoPassportStatus: 'Not Required',
+                defensiveDrivingStatus: 'Not Required',
+                h2sStatus: 'Not Required',
+                ftwStatus: 'Not Required',
+                complianceNotes: '',
+                medicalFitnessNote: '',
+                safetyIncidentFlag: false,
+                incidentCount: 0,
+                disciplinaryNote: '',
+                temporaryRestrictionNote: '',
+                preferredRegion: '',
+                preferredRouteType: '',
+                preferredVehicleType: '',
+                preferredCargoType: '',
+                specialAssignmentNotes: '',
+                certifications: [
+                  if (item.licenseType.trim().isNotEmpty) item.licenseType,
+                ],
               ),
           ]
         : fallbackDrivers;
@@ -525,6 +580,13 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
       hazardous: existing.hazardous,
       pdoSpec: existing.pdoSpec,
       route: existing.route,
+      routeMasterId: existing.routeMasterId,
+      routeCode: existing.routeCode,
+      routeName: existing.routeName,
+      routeRiskLevel: existing.routeRiskLevel,
+      routeOperationalStatus: existing.routeOperationalStatus,
+      routeRestricted: existing.routeRestricted,
+      routeRestrictionReason: existing.routeRestrictionReason,
       quantity: existing.quantity,
       dimensions: existing.dimensions,
       customerSpecificRequirement: existing.customerSpecificRequirement,
@@ -667,6 +729,13 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
     required String requiredVehicleType,
     required String tentativeDispatchDate,
     required bool routeRiskFlag,
+    String routeMasterId = '',
+    String routeCode = '',
+    String routeName = '',
+    String routeRiskLevel = 'Low',
+    String routeOperationalStatus = 'Active',
+    bool routeRestricted = false,
+    String routeRestrictionReason = '',
   }) {
     final current = state.valueOrNull;
     if (current == null) {
@@ -704,6 +773,13 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
       pdoSpec: pdoSpec.trim().isEmpty ? existing.pdoSpec : pdoSpec.trim(),
       pickup: pickup.trim(),
       route: route.trim(),
+      routeMasterId: routeMasterId.trim(),
+      routeCode: routeCode.trim(),
+      routeName: routeName.trim(),
+      routeRiskLevel: routeRiskLevel,
+      routeOperationalStatus: routeOperationalStatus,
+      routeRestricted: routeRestricted,
+      routeRestrictionReason: routeRestrictionReason.trim(),
       delivery: destination.trim(),
       quantity: quantity.trim(),
       dimensions: dimensions.trim(),
@@ -901,6 +977,15 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
     required String serviceEndDate,
     required String internalNotes,
     required String initialStatus,
+    bool bypassRouteRestriction = false,
+    String overrideRouteMasterId = '',
+    String overrideRouteCode = '',
+    String overrideRouteName = '',
+    String overrideRouteRiskLevel = 'Low',
+    String overrideRouteOperationalStatus = 'Active',
+    bool overrideRouteRestricted = false,
+    String overrideRouteRestrictionReason = '',
+    String overrideRouteDisplay = '',
   }) {
     final current = state.valueOrNull;
     if (current == null) {
@@ -962,6 +1047,33 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
       return 'Linked quotation/enquiry not found.';
     }
 
+    final hasOverrideRoute = overrideRouteMasterId.trim().isNotEmpty;
+    final effectiveRouteRestricted = hasOverrideRoute
+        ? overrideRouteRestricted
+        : selectedEnquiry.routeRestricted;
+    final effectiveRouteStatus = hasOverrideRoute
+        ? overrideRouteOperationalStatus
+        : selectedEnquiry.routeOperationalStatus;
+    final effectiveRestrictionReason = hasOverrideRoute
+        ? overrideRouteRestrictionReason
+        : selectedEnquiry.routeRestrictionReason;
+
+    if (effectiveRouteRestricted && !bypassRouteRestriction) {
+      return 'WO blocked: selected route is restricted ($effectiveRestrictionReason).';
+    }
+    if (effectiveRouteStatus.toLowerCase() == 'inactive' &&
+        !bypassRouteRestriction) {
+      return 'WO blocked: selected route is inactive.';
+    }
+
+    final effectiveRouteText = hasOverrideRoute
+        ? (overrideRouteDisplay.trim().isEmpty
+            ? '${selectedEnquiry.pickup} -> ${selectedEnquiry.delivery}'
+            : overrideRouteDisplay.trim())
+        : (selectedEnquiry.route.trim().isEmpty
+            ? '${selectedEnquiry.pickup} -> ${selectedEnquiry.delivery}'
+            : selectedEnquiry.route);
+
     final customerMatches = selectedQuotation.customer.trim().toLowerCase() ==
         selectedEnquiry.customerName.trim().toLowerCase();
     if (!customerMatches) {
@@ -982,13 +1094,32 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
     final wo = WorkOrderFlowItem(
       woId: woId,
       customer: selectedQuotation.customer,
-      route: selectedEnquiry.route.trim().isEmpty
-          ? '${selectedEnquiry.pickup} -> ${selectedEnquiry.delivery}'
-          : selectedEnquiry.route,
+      route: effectiveRouteText,
       cargo: selectedEnquiry.cargoType,
       status: initialStatus,
       linkedQuotationRef: linkedQuotationRef.trim(),
       linkedEnquiryNumber: linkedEnquiryNumber.trim(),
+      routeMasterId: hasOverrideRoute
+          ? overrideRouteMasterId.trim()
+          : selectedEnquiry.routeMasterId,
+      routeCode: hasOverrideRoute
+          ? overrideRouteCode.trim()
+          : selectedEnquiry.routeCode,
+      routeName: hasOverrideRoute
+          ? overrideRouteName.trim()
+          : selectedEnquiry.routeName,
+      routeRiskLevel: hasOverrideRoute
+          ? overrideRouteRiskLevel
+          : selectedEnquiry.routeRiskLevel,
+      routeOperationalStatus: hasOverrideRoute
+          ? overrideRouteOperationalStatus
+          : selectedEnquiry.routeOperationalStatus,
+      routeRestricted: hasOverrideRoute
+          ? overrideRouteRestricted
+          : selectedEnquiry.routeRestricted,
+      routeRestrictionReason: hasOverrideRoute
+          ? overrideRouteRestrictionReason.trim()
+          : selectedEnquiry.routeRestrictionReason,
       customerPoReference: customerPoReference.trim(),
       jobFileReference: jobFileReference.trim(),
       serviceStartDate: serviceStartDate.trim(),
@@ -1092,6 +1223,52 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
 
     final vehicleStatus = _vehicleDocStatus(vehicleNo);
     final driverStatus = _driverDocStatus(driverId);
+    final access = ref.read(accessControlProvider);
+    TransportItem? selectedTransport;
+    for (final item in access.transports) {
+      if (item.vehicleNumber == vehicleNo) {
+        selectedTransport = item;
+        break;
+      }
+    }
+
+    if (selectedTransport != null && !selectedTransport.assignmentEligible) {
+      return 'Assignment blocked: fleet is not assignable due to operational controls.';
+    }
+
+    DriverData? selectedDriver;
+    for (final item in current.drivers) {
+      if (item.driverId == driverId) {
+        selectedDriver = item;
+        break;
+      }
+    }
+    if (selectedDriver == null) {
+      return 'Assignment blocked: selected driver not found in driver master.';
+    }
+    if (!selectedDriver.assignmentEligible) {
+      return 'Assignment blocked: driver is not assignment-ready.';
+    }
+
+    final driverCompliance =
+        _driverComplianceMasterPass(driver: selectedDriver);
+    if (!driverCompliance.$1) {
+      return driverCompliance.$2;
+    }
+
+    final suitability = _driverVehicleSuitability(
+      orderId: orderId,
+      vehicle: selectedTransport,
+      driver: selectedDriver,
+    );
+    if (!suitability.$1) {
+      return suitability.$2;
+    }
+
+    final complianceStage = _fleetComplianceMasterPass(vehicleNo: vehicleNo);
+    if (!complianceStage.$1) {
+      return complianceStage.$2;
+    }
     String clientName = '';
     for (final item in current.workOrders) {
       if (item.woId == orderId) {
@@ -1114,9 +1291,22 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
             item.woId == orderId ? item.copyWith(status: 'Assigned') : item)
         .toList();
 
+    final updatedDrivers = current.drivers.map((driver) {
+      if (driver.driverId == driverId) {
+        return driver.copyWith(
+          status: 'Assigned',
+          currentAssignmentStatus: 'Assigned',
+          currentWorkOrder: orderId,
+          assignmentAllowed: false,
+        );
+      }
+      return driver;
+    }).toList();
+
     state = AsyncData(
       current.copyWith(
         workOrders: updatedOrders,
+        drivers: updatedDrivers,
         assignedOrderId: orderId,
         assignedVehicleNo: vehicleNo,
         assignedDriverId: driverId,
@@ -1148,6 +1338,13 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
     required DateTime? plannedDeliveryDate,
     required String internalNotes,
     required bool isEdit,
+    String routeMasterId = '',
+    String routeCode = '',
+    String routeName = '',
+    String routeRiskLevel = 'Low',
+    String routeOperationalStatus = 'Active',
+    bool routeRestricted = false,
+    String routeRestrictionReason = '',
   }) {
     final current = state.valueOrNull;
     if (current == null) {
@@ -1194,6 +1391,13 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
       status: 'Open',
       linkedQuotationRef: '',
       linkedEnquiryNumber: enquiryReference.trim(),
+      routeMasterId: routeMasterId,
+      routeCode: routeCode,
+      routeName: routeName,
+      routeRiskLevel: routeRiskLevel,
+      routeOperationalStatus: routeOperationalStatus,
+      routeRestricted: routeRestricted,
+      routeRestrictionReason: routeRestrictionReason,
       customerPoReference: '',
       jobFileReference: '',
       serviceStartDate: _formatDate(plannedDispatchDate),
@@ -1222,10 +1426,51 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
   String addDriver({
     required String driverCode,
     required String name,
+    String employeeRef = '',
     required String phone,
     required String licenseNo,
+    required String licenseType,
+    String licenseIssueDate = '',
     required String licenseExpiry,
     required String availability,
+    String nationality = 'Omani',
+    String baseLocation = 'Muscat',
+    bool heavyVehicleAllowed = false,
+    String specialEndorsementNotes = '',
+    List<String> allowedVehicleTypes = const [],
+    bool longHaulAllowed = true,
+    bool nightDrivingAllowed = true,
+    bool hazardousCargoAllowed = false,
+    bool oilfieldAllowed = false,
+    String routeRestrictions = '',
+    String specialSkillsNotes = '',
+    String pdoPassportStatus = 'Not Required',
+    String defensiveDrivingStatus = 'Not Required',
+    String h2sStatus = 'Not Required',
+    String ftwStatus = 'Not Required',
+    String complianceNotes = '',
+    String currentAssignmentStatus = 'Unassigned',
+    String currentWorkOrder = '',
+    String currentLocation = 'Muscat',
+    bool onLeave = false,
+    bool suspended = false,
+    String suspensionReason = '',
+    bool assignmentAllowed = true,
+    bool dispatchAllowed = true,
+    bool dispatchBlocked = false,
+    String blockReason = '',
+    String medicalFitnessNote = '',
+    bool safetyIncidentFlag = false,
+    int incidentCount = 0,
+    String disciplinaryNote = '',
+    String temporaryRestrictionNote = '',
+    String preferredRegion = '',
+    String preferredRouteType = '',
+    String preferredVehicleType = '',
+    String preferredCargoType = '',
+    String specialAssignmentNotes = '',
+    bool active = true,
+    String certifications = '',
   }) {
     final current = state.valueOrNull;
     if (current == null) {
@@ -1236,6 +1481,26 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
     if (code.isEmpty) {
       return 'Driver code is required.';
     }
+    if (name.trim().isEmpty) {
+      return 'Driver name is required.';
+    }
+    if (licenseNo.trim().isEmpty) {
+      return 'License number is required.';
+    }
+    if (licenseType.trim().isEmpty) {
+      return 'License type is required.';
+    }
+    final expiry = DateTime.tryParse(licenseExpiry.trim());
+    if (expiry == null) {
+      return 'License expiry must be in YYYY-MM-DD format.';
+    }
+    if (dispatchBlocked && blockReason.trim().isEmpty) {
+      return 'Block reason is required when dispatch is blocked.';
+    }
+    if (suspended && suspensionReason.trim().isEmpty) {
+      return 'Suspension reason is required when driver is suspended.';
+    }
+
     final exists = current.drivers.any((d) => d.driverId == code);
     if (exists) {
       return 'Driver code already exists.';
@@ -1243,19 +1508,58 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
 
     final next = DriverData(
       driverId: code,
-      name: name.trim().isEmpty ? 'New Driver' : name.trim(),
-      licenseNo: licenseNo.trim().isEmpty ? 'N/A' : licenseNo.trim(),
-      expiryDate: licenseExpiry.trim().isEmpty
-          ? DateTime.now()
-              .add(const Duration(days: 180))
-              .toIso8601String()
-              .split('T')
-              .first
-          : licenseExpiry.trim(),
+      name: name.trim(),
+      employeeRef: employeeRef.trim(),
+      licenseNo: licenseNo.trim(),
+      licenseType: licenseType.trim(),
+      licenseIssueDate: licenseIssueDate.trim(),
+      expiryDate: licenseExpiry.trim(),
+      heavyVehicleAllowed: heavyVehicleAllowed,
+      specialEndorsementNotes: specialEndorsementNotes.trim(),
       phone: phone.trim().isEmpty ? '-' : phone.trim(),
+      nationality: nationality.trim().isEmpty ? 'Omani' : nationality.trim(),
+      baseLocation:
+          baseLocation.trim().isEmpty ? 'Muscat' : baseLocation.trim(),
       experience: 0,
       dfmsDeviceId: 'DFMS-${code.replaceAll(' ', '')}',
       status: availability.trim().isEmpty ? 'Available' : availability.trim(),
+      active: active,
+      assignmentAllowed: assignmentAllowed,
+      dispatchAllowed: dispatchAllowed,
+      dispatchBlocked: dispatchBlocked,
+      blockReason: blockReason.trim(),
+      onLeave: onLeave,
+      suspended: suspended,
+      suspensionReason: suspensionReason.trim(),
+      currentAssignmentStatus: currentAssignmentStatus.trim().isEmpty
+          ? 'Unassigned'
+          : currentAssignmentStatus.trim(),
+      currentWorkOrder: currentWorkOrder.trim(),
+      currentLocation:
+          currentLocation.trim().isEmpty ? 'Muscat' : currentLocation.trim(),
+      allowedVehicleTypes: allowedVehicleTypes,
+      longHaulAllowed: longHaulAllowed,
+      nightDrivingAllowed: nightDrivingAllowed,
+      hazardousCargoAllowed: hazardousCargoAllowed,
+      oilfieldAllowed: oilfieldAllowed,
+      routeRestrictions: routeRestrictions.trim(),
+      specialSkillsNotes: specialSkillsNotes.trim(),
+      pdoPassportStatus: pdoPassportStatus,
+      defensiveDrivingStatus: defensiveDrivingStatus,
+      h2sStatus: h2sStatus,
+      ftwStatus: ftwStatus,
+      complianceNotes: complianceNotes.trim(),
+      medicalFitnessNote: medicalFitnessNote.trim(),
+      safetyIncidentFlag: safetyIncidentFlag,
+      incidentCount: incidentCount,
+      disciplinaryNote: disciplinaryNote.trim(),
+      temporaryRestrictionNote: temporaryRestrictionNote.trim(),
+      preferredRegion: preferredRegion.trim(),
+      preferredRouteType: preferredRouteType.trim(),
+      preferredVehicleType: preferredVehicleType.trim(),
+      preferredCargoType: preferredCargoType.trim(),
+      specialAssignmentNotes: specialAssignmentNotes.trim(),
+      certifications: _splitCsv(certifications),
     );
 
     state = AsyncData(
@@ -1270,10 +1574,51 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
   String updateDriver({
     required String driverCode,
     required String name,
+    String employeeRef = '',
     required String phone,
     required String licenseNo,
+    required String licenseType,
+    String licenseIssueDate = '',
     required String licenseExpiry,
     required String availability,
+    String nationality = 'Omani',
+    String baseLocation = 'Muscat',
+    bool heavyVehicleAllowed = false,
+    String specialEndorsementNotes = '',
+    List<String> allowedVehicleTypes = const [],
+    bool longHaulAllowed = true,
+    bool nightDrivingAllowed = true,
+    bool hazardousCargoAllowed = false,
+    bool oilfieldAllowed = false,
+    String routeRestrictions = '',
+    String specialSkillsNotes = '',
+    String pdoPassportStatus = 'Not Required',
+    String defensiveDrivingStatus = 'Not Required',
+    String h2sStatus = 'Not Required',
+    String ftwStatus = 'Not Required',
+    String complianceNotes = '',
+    String currentAssignmentStatus = 'Unassigned',
+    String currentWorkOrder = '',
+    String currentLocation = 'Muscat',
+    bool onLeave = false,
+    bool suspended = false,
+    String suspensionReason = '',
+    bool assignmentAllowed = true,
+    bool dispatchAllowed = true,
+    bool dispatchBlocked = false,
+    String blockReason = '',
+    String medicalFitnessNote = '',
+    bool safetyIncidentFlag = false,
+    int incidentCount = 0,
+    String disciplinaryNote = '',
+    String temporaryRestrictionNote = '',
+    String preferredRegion = '',
+    String preferredRouteType = '',
+    String preferredVehicleType = '',
+    String preferredCargoType = '',
+    String specialAssignmentNotes = '',
+    bool active = true,
+    String certifications = '',
   }) {
     final current = state.valueOrNull;
     if (current == null) {
@@ -1286,19 +1631,69 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
     }
 
     final existing = current.drivers[idx];
-    final updated = DriverData(
-      driverId: existing.driverId,
+    final updated = existing.copyWith(
       name: name.trim().isEmpty ? existing.name : name.trim(),
+      employeeRef: employeeRef.trim().isEmpty
+          ? existing.employeeRef
+          : employeeRef.trim(),
       licenseNo:
           licenseNo.trim().isEmpty ? existing.licenseNo : licenseNo.trim(),
+      licenseType: licenseType.trim().isEmpty
+          ? existing.licenseType
+          : licenseType.trim(),
+      licenseIssueDate: licenseIssueDate.trim().isEmpty
+          ? existing.licenseIssueDate
+          : licenseIssueDate.trim(),
       expiryDate: licenseExpiry.trim().isEmpty
           ? existing.expiryDate
           : licenseExpiry.trim(),
       phone: phone.trim().isEmpty ? existing.phone : phone.trim(),
-      experience: existing.experience,
-      dfmsDeviceId: existing.dfmsDeviceId,
       status:
           availability.trim().isEmpty ? existing.status : availability.trim(),
+      nationality: nationality.trim().isEmpty
+          ? existing.nationality
+          : nationality.trim(),
+      baseLocation: baseLocation.trim().isEmpty
+          ? existing.baseLocation
+          : baseLocation.trim(),
+      heavyVehicleAllowed: heavyVehicleAllowed,
+      specialEndorsementNotes: specialEndorsementNotes.trim(),
+      active: active,
+      assignmentAllowed: assignmentAllowed,
+      dispatchAllowed: dispatchAllowed,
+      dispatchBlocked: dispatchBlocked,
+      blockReason: blockReason.trim(),
+      onLeave: onLeave,
+      suspended: suspended,
+      suspensionReason: suspensionReason.trim(),
+      currentAssignmentStatus: currentAssignmentStatus.trim(),
+      currentWorkOrder: currentWorkOrder.trim(),
+      currentLocation: currentLocation.trim(),
+      allowedVehicleTypes: allowedVehicleTypes,
+      longHaulAllowed: longHaulAllowed,
+      nightDrivingAllowed: nightDrivingAllowed,
+      hazardousCargoAllowed: hazardousCargoAllowed,
+      oilfieldAllowed: oilfieldAllowed,
+      routeRestrictions: routeRestrictions.trim(),
+      specialSkillsNotes: specialSkillsNotes.trim(),
+      pdoPassportStatus: pdoPassportStatus,
+      defensiveDrivingStatus: defensiveDrivingStatus,
+      h2sStatus: h2sStatus,
+      ftwStatus: ftwStatus,
+      complianceNotes: complianceNotes.trim(),
+      medicalFitnessNote: medicalFitnessNote.trim(),
+      safetyIncidentFlag: safetyIncidentFlag,
+      incidentCount: incidentCount,
+      disciplinaryNote: disciplinaryNote.trim(),
+      temporaryRestrictionNote: temporaryRestrictionNote.trim(),
+      preferredRegion: preferredRegion.trim(),
+      preferredRouteType: preferredRouteType.trim(),
+      preferredVehicleType: preferredVehicleType.trim(),
+      preferredCargoType: preferredCargoType.trim(),
+      specialAssignmentNotes: specialAssignmentNotes.trim(),
+      certifications: certifications.trim().isEmpty
+          ? existing.certifications
+          : _splitCsv(certifications),
     );
 
     final nextDrivers = [...current.drivers];
@@ -1311,6 +1706,68 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
       ),
     );
     return 'Driver ${existing.driverId} updated.';
+  }
+
+  String markDriverUnavailable(String driverCode, {String reason = ''}) {
+    return _mutateDriver(driverCode, (driver) {
+      return driver.copyWith(
+        status: 'Resting / Off Duty',
+        assignmentAllowed: false,
+        currentAssignmentStatus: 'Unavailable',
+        blockReason: reason.trim(),
+      );
+    }, success: 'Driver marked unavailable.');
+  }
+
+  String suspendDriver(String driverCode, {required String reason}) {
+    if (reason.trim().isEmpty) {
+      return 'Suspension reason is required.';
+    }
+    return _mutateDriver(driverCode, (driver) {
+      return driver.copyWith(
+        status: 'Suspended',
+        suspended: true,
+        suspensionReason: reason.trim(),
+        assignmentAllowed: false,
+        dispatchAllowed: false,
+        dispatchBlocked: true,
+        blockReason: reason.trim(),
+      );
+    }, success: 'Driver suspended.');
+  }
+
+  String deactivateDriver(String driverCode, {String reason = ''}) {
+    return _mutateDriver(driverCode, (driver) {
+      final note = reason.trim().isEmpty ? 'Deactivated' : reason.trim();
+      return driver.copyWith(
+        active: false,
+        status: 'Inactive',
+        assignmentAllowed: false,
+        dispatchAllowed: false,
+        dispatchBlocked: true,
+        blockReason: note,
+      );
+    }, success: 'Driver deactivated.');
+  }
+
+  String _mutateDriver(
+    String driverCode,
+    DriverData Function(DriverData driver) transform, {
+    required String success,
+  }) {
+    final current = state.valueOrNull;
+    if (current == null) {
+      return 'Data not loaded.';
+    }
+    final idx = current.drivers.indexWhere((d) => d.driverId == driverCode);
+    if (idx < 0) {
+      return 'Driver not found.';
+    }
+    final next = [...current.drivers];
+    next[idx] = transform(next[idx]);
+    state =
+        AsyncData(current.copyWith(drivers: next, lastUpdated: DateTime.now()));
+    return success;
   }
 
   void updateChecklist(String key, bool value) {
@@ -1484,6 +1941,15 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
     final access = ref.read(accessControlProvider);
     for (final item in access.transports) {
       if (item.vehicleNumber == vehicleNo) {
+        if (!item.assignmentAllowed ||
+            item.dispatchBlocked ||
+            item.status.toLowerCase() != 'active' ||
+            item.availabilityStatus.toLowerCase() != 'available') {
+          return 'Expired';
+        }
+        if (!item.complianceReady) {
+          return 'Expired';
+        }
         if (item.documents.isEmpty) {
           return 'Expired';
         }
@@ -1511,22 +1977,202 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
     return 'Valid';
   }
 
-  String _driverDocStatus(String driverId) {
+  (bool, String) _fleetComplianceMasterPass({required String vehicleNo}) {
+    final rules =
+        ref.read(moduleDocumentViewModelProvider).valueOrNull?.items ??
+            const [];
+    final fleetRules = rules.where((item) {
+      if (item.status != 'Active') {
+        return false;
+      }
+      if (item.applicableTo.toLowerCase() != 'fleet') {
+        return false;
+      }
+      if (!item.checkAtAssignment) {
+        return false;
+      }
+      return item.blockingType == 'Soft Block' ||
+          item.blockingType == 'Hard Block';
+    }).toList();
+
+    if (fleetRules.isEmpty) {
+      return (true, 'OK');
+    }
+
     final access = ref.read(accessControlProvider);
-    for (final item in access.users) {
-      if (item.userId == driverId) {
-        final expiry = DateTime.tryParse(item.licenseExpiryDate.trim());
-        if (expiry == null || expiry.isBefore(DateTime.now())) {
-          return 'Expired';
-        }
-        final days = expiry.difference(DateTime.now()).inDays;
-        if (days <= 30) {
-          return 'Expiring Soon';
-        }
-        return 'Valid';
+    TransportItem? transport;
+    for (final item in access.transports) {
+      if (item.vehicleNumber == vehicleNo) {
+        transport = item;
+        break;
       }
     }
+    if (transport == null) {
+      return (
+        false,
+        'Assignment blocked: selected fleet not found in fleet master.'
+      );
+    }
+
+    for (final rule in fleetRules) {
+      if (!rule.mandatory) {
+        continue;
+      }
+      bool found = false;
+      for (final doc in transport.documents) {
+        if (doc.documentName.toLowerCase() == rule.documentName.toLowerCase()) {
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        return (
+          false,
+          'Assignment blocked: compliance master rule missing (${rule.documentName}).',
+        );
+      }
+    }
+
+    return (true, 'OK');
+  }
+
+  String _driverDocStatus(String driverId) {
+    final current = state.valueOrNull;
+    if (current == null) {
+      return 'Unknown';
+    }
+    for (final item in current.drivers) {
+      if (item.driverId != driverId) {
+        continue;
+      }
+      if (!item.active ||
+          !item.dispatchAllowed ||
+          item.dispatchBlocked ||
+          item.onLeave ||
+          item.suspended) {
+        return 'Expired';
+      }
+      final expiry = DateTime.tryParse(item.expiryDate.trim());
+      if (expiry == null || expiry.isBefore(DateTime.now())) {
+        return 'Expired';
+      }
+      final days = expiry.difference(DateTime.now()).inDays;
+      if (days <= 30) {
+        return 'Expiring Soon';
+      }
+      if (!item.complianceReady) {
+        return 'Expired';
+      }
+      return 'Valid';
+    }
     return 'Valid';
+  }
+
+  (bool, String) _driverComplianceMasterPass({required DriverData driver}) {
+    final rules =
+        ref.read(moduleDocumentViewModelProvider).valueOrNull?.items ??
+            const [];
+    final driverRules = rules.where((item) {
+      if (item.status != 'Active') {
+        return false;
+      }
+      if (item.applicableTo.toLowerCase() != 'driver') {
+        return false;
+      }
+      if (!item.checkAtAssignment) {
+        return false;
+      }
+      return item.mandatory;
+    }).toList();
+
+    if (driverRules.isEmpty) {
+      return (true, 'OK');
+    }
+
+    final availableProofs = <String>{
+      for (final cert in driver.certifications) cert.toLowerCase(),
+      if (driver.pdoPassportStatus.toLowerCase() == 'valid') 'pdo passport',
+      if (driver.defensiveDrivingStatus.toLowerCase() == 'valid')
+        'defensive driving',
+      if (driver.h2sStatus.toLowerCase() == 'valid') 'h2s',
+      if (driver.ftwStatus.toLowerCase() == 'valid') 'ftw',
+      'license',
+    };
+
+    for (final rule in driverRules) {
+      final key = rule.documentName.toLowerCase().trim();
+      if (!availableProofs.contains(key)) {
+        return (
+          false,
+          'Assignment blocked: driver missing mandatory compliance (${rule.documentName}).',
+        );
+      }
+    }
+
+    return (true, 'OK');
+  }
+
+  (bool, String) _driverVehicleSuitability({
+    required String orderId,
+    required TransportItem? vehicle,
+    required DriverData driver,
+  }) {
+    if (vehicle == null) {
+      return (true, 'OK');
+    }
+
+    if (vehicle.vehicleClass.toLowerCase() == 'heavy' &&
+        !driver.heavyVehicleAllowed) {
+      return (
+        false,
+        'Assignment blocked: driver not eligible for heavy vehicle operations.',
+      );
+    }
+
+    if (driver.allowedVehicleTypes.isNotEmpty &&
+        !driver.allowedVehicleTypes.contains(vehicle.vehicleType)) {
+      return (
+        false,
+        'Assignment blocked: selected vehicle type is not in driver allowed vehicle list.',
+      );
+    }
+
+    WorkOrderFlowItem? order;
+    final current = state.valueOrNull;
+    if (current != null) {
+      for (final item in current.workOrders) {
+        if (item.woId == orderId) {
+          order = item;
+          break;
+        }
+      }
+    }
+
+    final cargo = order?.cargo.toLowerCase() ?? '';
+    final hazardous = cargo.contains('hazard') || cargo.contains('chemical');
+    final oilfield = cargo.contains('oilfield') || cargo.contains('oil field');
+    if (hazardous && !driver.hazardousCargoAllowed) {
+      return (
+        false,
+        'Assignment blocked: driver is not qualified for hazardous cargo.',
+      );
+    }
+    if (oilfield && !driver.oilfieldAllowed) {
+      return (
+        false,
+        'Assignment blocked: driver is not qualified for oilfield operations.',
+      );
+    }
+
+    return (true, 'OK');
+  }
+
+  List<String> _splitCsv(String input) {
+    return input
+        .split(',')
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toList();
   }
 
   int _firstNumber(String text) {
@@ -1703,6 +2349,14 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
       status: map['status'] as String? ?? 'Open',
       linkedQuotationRef: map['linkedQuotationRef'] as String? ?? '',
       linkedEnquiryNumber: map['linkedEnquiryNumber'] as String? ?? '',
+      routeMasterId: map['routeMasterId'] as String? ?? '',
+      routeCode: map['routeCode'] as String? ?? '',
+      routeName: map['routeName'] as String? ?? '',
+      routeRiskLevel: map['routeRiskLevel'] as String? ?? 'Low',
+      routeOperationalStatus:
+          map['routeOperationalStatus'] as String? ?? 'Active',
+      routeRestricted: map['routeRestricted'] as bool? ?? false,
+      routeRestrictionReason: map['routeRestrictionReason'] as String? ?? '',
       customerPoReference: map['customerPoReference'] as String? ?? '',
       jobFileReference: map['jobFileReference'] as String? ?? '',
       serviceStartDate: map['serviceStartDate'] as String? ?? '',
@@ -1720,6 +2374,13 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
       'status': item.status,
       'linkedQuotationRef': item.linkedQuotationRef,
       'linkedEnquiryNumber': item.linkedEnquiryNumber,
+      'routeMasterId': item.routeMasterId,
+      'routeCode': item.routeCode,
+      'routeName': item.routeName,
+      'routeRiskLevel': item.routeRiskLevel,
+      'routeOperationalStatus': item.routeOperationalStatus,
+      'routeRestricted': item.routeRestricted,
+      'routeRestrictionReason': item.routeRestrictionReason,
       'customerPoReference': item.customerPoReference,
       'jobFileReference': item.jobFileReference,
       'serviceStartDate': item.serviceStartDate,

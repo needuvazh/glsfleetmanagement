@@ -6,11 +6,15 @@ import '../../domain/entities/journey_plan.dart';
 import '../../domain/entities/logistics_flow.dart';
 import '../../domain/entities/work_order.dart';
 import '../../domain/entities/customer.dart';
+import '../../domain/route_model.dart';
+import '../../domain/cargo_model.dart';
 import '../../domain/vendor_model.dart';
 import '../../routes/route_paths.dart';
+import '../viewmodels/cargo_viewmodel.dart';
 import '../viewmodels/customer_viewmodel.dart';
 import '../viewmodels/journey_plan_viewmodel.dart';
 import '../viewmodels/logistics_viewmodel.dart';
+import '../viewmodels/route_viewmodel.dart';
 import '../viewmodels/vendor_viewmodel.dart';
 import '../viewmodels/work_order_draft_viewmodel.dart';
 import '../widgets/ops_shell.dart';
@@ -34,7 +38,6 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
   final _workOrderNumberController = TextEditingController();
   final _enquiryNumberController = TextEditingController();
   final _customerController = TextEditingController();
-  final _customerFocusNode = FocusNode();
   final _remarksController = TextEditingController();
   final _cargoTypeController = TextEditingController();
   final _quantityController = TextEditingController();
@@ -48,6 +51,7 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
   final _specialDocumentsController = TextEditingController();
   VendorServiceType _vendorServiceType = VendorServiceType.nonPdo;
   String? _vendorId;
+  String? _selectedCargoCode;
 
   WorkOrderPriority _priority = WorkOrderPriority.medium;
   DateTime? _requestedDate;
@@ -56,6 +60,8 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
   bool _podRequired = true;
   bool _dnRequired = true;
   String? _journeyPlanId;
+  String? _selectedRouteId;
+  String? _selectedCustomerId;
   bool _didPopulateEditValues = false;
   final Set<String> _acknowledgedCustomerWarnings = <String>{};
 
@@ -66,11 +72,6 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
   @override
   void initState() {
     super.initState();
-    _customerFocusNode.addListener(() {
-      if (!_customerFocusNode.hasFocus) {
-        _runCustomerControlChecks();
-      }
-    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final draft = ref.read(workOrderDraftProvider);
       setState(() {
@@ -118,7 +119,6 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
     _stopPointsController.dispose();
     _routeNotesController.dispose();
     _specialDocumentsController.dispose();
-    _customerFocusNode.dispose();
     super.dispose();
   }
 
@@ -126,7 +126,10 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
   Widget build(BuildContext context) {
     final journeyState = ref.watch(journeyPlanViewModelProvider);
     final logisticsState = ref.watch(logisticsViewModelProvider);
+    final customerState = ref.watch(customerViewModelProvider);
+    final routeState = ref.watch(routeViewModelProvider).valueOrNull;
     final vendorState = ref.watch(vendorViewModelProvider);
+    final cargoState = ref.watch(cargoViewModelProvider).valueOrNull;
 
     _tryPopulateEditValues(logisticsState);
 
@@ -139,7 +142,35 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
             Center(child: Text('Failed to load route plans: $error')),
         data: (planState) {
           final plans = planState.items;
+          final customers = customerState.customers;
+          _syncSelectedCustomerId(customers);
           final selectedPlan = _findPlan(plans, _journeyPlanId);
+          final allCargo = cargoState?.items ?? const <CargoModel>[];
+          final selectableCargo =
+              allCargo.where((item) => item.isSelectable).toList();
+          CargoModel? selectedCargo;
+          if (_selectedCargoCode != null) {
+            selectedCargo = ref
+                .read(cargoViewModelProvider.notifier)
+                .findByCode(_selectedCargoCode);
+          }
+          selectedCargo ??= ref
+              .read(cargoViewModelProvider.notifier)
+              .findByName(_cargoTypeController.text);
+
+          if (selectedCargo != null) {
+            _selectedCargoCode = selectedCargo.cargoCode;
+            _cargoTypeController.text = selectedCargo.cargoName;
+          }
+
+          final cargoDropdownItems = <CargoModel>[...selectableCargo];
+          if (_isEditMode &&
+              selectedCargo != null &&
+              !cargoDropdownItems.any(
+                  (entry) => entry.cargoCode == selectedCargo?.cargoCode)) {
+            cargoDropdownItems.add(selectedCargo);
+          }
+
           final activeVendors = vendorState.valueOrNull?.vendors
                   .where(
                     (vendor) =>
@@ -172,14 +203,40 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
                           controller: _enquiryNumberController,
                           label: 'Enquiry Number',
                         ),
-                        TextFormField(
-                          controller: _customerController,
-                          focusNode: _customerFocusNode,
-                          decoration:
-                              const InputDecoration(labelText: 'Customer'),
-                          onChanged: (_) {
-                            _acknowledgedCustomerWarnings.clear();
-                          },
+                        DropdownButtonFormField<String>(
+                          value: _selectedCustomerId,
+                          decoration: const InputDecoration(
+                            labelText: 'Customer',
+                          ),
+                          items: [
+                            for (final customer in customers)
+                              DropdownMenuItem(
+                                value: customer.id,
+                                child: Text(
+                                  '${customer.name} (${customer.shortCode})',
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                          ],
+                          onChanged: customerState.isLoading
+                              ? null
+                              : (value) async {
+                                  if (value == null) {
+                                    return;
+                                  }
+                                  final selectedCustomer =
+                                      _findCustomerById(customers, value);
+                                  if (selectedCustomer == null) {
+                                    return;
+                                  }
+                                  setState(() {
+                                    _selectedCustomerId = value;
+                                    _customerController.text =
+                                        selectedCustomer.name;
+                                    _acknowledgedCustomerWarnings.clear();
+                                  });
+                                  await _runCustomerControlChecks();
+                                },
                           validator: (value) {
                             if (value == null || value.trim().isEmpty) {
                               return 'Required';
@@ -245,7 +302,7 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
                             color: Theme.of(context)
                                 .colorScheme
                                 .primaryContainer
-                                .withOpacity(0.35),
+                                .withValues(alpha: 0.35),
                           ),
                           child: Text(
                             'Template Estimate: ${selectedPlan.distance.toStringAsFixed(1)} km, '
@@ -263,9 +320,51 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
                     children: [
                       _threeColumnFields(
                         context,
-                        _requiredField(
-                            controller: _cargoTypeController,
-                            label: 'Cargo Type'),
+                        DropdownButtonFormField<String>(
+                          value: _selectedCargoCode,
+                          decoration:
+                              const InputDecoration(labelText: 'Cargo Type *'),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Required';
+                            }
+                            return null;
+                          },
+                          items: [
+                            for (final cargo in cargoDropdownItems)
+                              DropdownMenuItem(
+                                value: cargo.cargoCode,
+                                child: Text(
+                                    '${cargo.cargoName} (${cargo.cargoCode})'),
+                              ),
+                          ],
+                          onChanged: cargoDropdownItems.isEmpty
+                              ? null
+                              : (value) {
+                                  if (value == null) {
+                                    return;
+                                  }
+                                  final selected = ref
+                                      .read(cargoViewModelProvider.notifier)
+                                      .findByCode(value);
+                                  if (selected == null) {
+                                    return;
+                                  }
+                                  setState(() {
+                                    _selectedCargoCode = selected.cargoCode;
+                                    _cargoTypeController.text =
+                                        selected.cargoName;
+                                    _loadTypeController.text =
+                                        selected.preferredTrailerType;
+                                    _specialHandlingController.text =
+                                        selected.handlingInstructions;
+                                    _vendorServiceType = selected.hazardous
+                                        ? VendorServiceType.pdo
+                                        : VendorServiceType.nonPdo;
+                                    _vendorId = null;
+                                  });
+                                },
+                        ),
                         TextFormField(
                           controller: _quantityController,
                           decoration:
@@ -300,6 +399,10 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
                         ),
                         const SizedBox.shrink(),
                       ),
+                      if (selectedCargo != null) ...[
+                        const SizedBox(height: 12),
+                        _cargoWarningPanel(selectedCargo),
+                      ],
                     ],
                   ),
                 ),
@@ -307,6 +410,31 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
                   title: 'C. Route Details',
                   child: Column(
                     children: [
+                      DropdownButtonFormField<String?>(
+                        value: _selectedRouteId,
+                        decoration: const InputDecoration(
+                          labelText: 'Route Master Selection',
+                        ),
+                        items: [
+                          const DropdownMenuItem<String?>(
+                            value: null,
+                            child: Text('None'),
+                          ),
+                          for (final route in (routeState?.routes ??
+                              const <RouteLocationModel>[]))
+                            DropdownMenuItem<String?>(
+                              value: route.routeId,
+                              child: Text(
+                                  '${route.routeCode} • ${route.routeName}'),
+                            ),
+                        ],
+                        onChanged: (value) {
+                          setState(() => _selectedRouteId = value);
+                          _applySelectedRoute(
+                              value, routeState?.routes ?? const []);
+                        },
+                      ),
+                      const SizedBox(height: 12),
                       _threeColumnFields(
                         context,
                         _requiredField(
@@ -569,6 +697,8 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
         _routeNotesController.text = order.route;
         _pickupController.text = _routeOrigin(order.route);
         _deliveryController.text = _routeDestination(order.route);
+        _selectedRouteId =
+            order.routeMasterId.isEmpty ? null : order.routeMasterId;
         _requestedDate = _parseIsoDate(order.serviceStartDate);
         _plannedDispatchDate = _parseIsoDate(order.serviceStartDate);
         _plannedDeliveryDate = _parseIsoDate(order.serviceEndDate);
@@ -597,6 +727,33 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
       return route.trim();
     }
     return parts.last.trim();
+  }
+
+  void _applySelectedRoute(
+    String? routeId,
+    List<RouteLocationModel> routes,
+  ) {
+    if (routeId == null) {
+      return;
+    }
+    RouteLocationModel? selected;
+    for (final route in routes) {
+      if (route.routeId == routeId) {
+        selected = route;
+        break;
+      }
+    }
+    if (selected == null) {
+      return;
+    }
+
+    _pickupController.text = selected.startLocation.locationName;
+    _deliveryController.text = selected.endLocation.locationName;
+    _stopPointsController.text = selected.stopPoints
+        .map((stop) => '${stop.location.locationName} (${stop.type.label})')
+        .join(', ');
+    _routeNotesController.text =
+        '${selected.routeCode} • ${selected.routeName} • Risk ${selected.riskLevel.label}';
   }
 
   Widget _threeColumnFields(
@@ -644,6 +801,61 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
     );
   }
 
+  Widget _cargoWarningPanel(CargoModel cargo) {
+    final warnings = <String>[];
+    if (cargo.hazardous) {
+      warnings.add('Hazardous cargo: compliance checks will increase.');
+    }
+    if (cargo.riskLevel == CargoRiskLevel.high ||
+        cargo.riskLevel == CargoRiskLevel.critical) {
+      warnings.add('High-risk cargo: strengthen planning and controls.');
+    }
+    if (cargo.oversized) {
+      warnings.add('Oversized cargo: route and clearance attention required.');
+    }
+    if (cargo.specialComplianceRequired) {
+      final certs = cargo.requiredCertifications.join(', ');
+      warnings.add(certs.isEmpty
+          ? 'Special compliance required.'
+          : 'Special compliance required: $certs');
+    }
+    if (cargo.inspectionRequired && cargo.photoEvidenceMandatory) {
+      warnings.add('Inspection should include mandatory photo evidence.');
+    }
+    if (cargo.inspectionRequired && cargo.videoEvidenceMandatory) {
+      warnings.add('Inspection should include mandatory video evidence.');
+    }
+
+    if (warnings.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF7ED),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFF59E0B)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Cargo Guidance',
+            style: TextStyle(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 6),
+          for (final warning in warnings)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text('- $warning'),
+            ),
+        ],
+      ),
+    );
+  }
+
   JourneyPlan? _findPlan(List<JourneyPlan> plans, String? planId) {
     if (planId == null) {
       return null;
@@ -654,6 +866,39 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
       }
     }
     return null;
+  }
+
+  Customer? _findCustomerById(List<Customer> customers, String customerId) {
+    for (final customer in customers) {
+      if (customer.id == customerId) {
+        return customer;
+      }
+    }
+    return null;
+  }
+
+  void _syncSelectedCustomerId(List<Customer> customers) {
+    if (_selectedCustomerId != null &&
+        _findCustomerById(customers, _selectedCustomerId!) != null) {
+      return;
+    }
+    final input = _customerController.text.trim();
+    if (input.isEmpty) {
+      _selectedCustomerId = null;
+      return;
+    }
+
+    for (final customer in customers) {
+      if (customer.name.toLowerCase() == input.toLowerCase() ||
+          customer.shortCode.toLowerCase() == input.toLowerCase() ||
+          customer.id.toLowerCase() == input.toLowerCase()) {
+        _selectedCustomerId = customer.id;
+        _customerController.text = customer.name;
+        return;
+      }
+    }
+
+    _selectedCustomerId = null;
   }
 
   Future<void> _pickDate(ValueChanged<DateTime> onSelect) async {
@@ -725,6 +970,22 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
     }
 
     final selectedPlan = _findPlan(plans, _journeyPlanId);
+    RouteLocationModel? selectedRoute;
+    final routeList =
+        ref.read(routeViewModelProvider).valueOrNull?.routes ?? const [];
+    for (final route in routeList) {
+      if (route.routeId == _selectedRouteId) {
+        selectedRoute = route;
+        break;
+      }
+    }
+    if (selectedRoute != null && !selectedRoute.isSelectableForNewOperations) {
+      _placeholder(
+        'Selected route is not usable for new work orders. ${selectedRoute.restrictionReason}',
+      );
+      return;
+    }
+
     final origin = _pickupController.text.trim().isEmpty && selectedPlan != null
         ? selectedPlan.origin
         : _pickupController.text.trim();
@@ -745,6 +1006,15 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
               plannedDeliveryDate: _plannedDeliveryDate,
               internalNotes: _remarksController.text.trim(),
               isEdit: _isEditMode,
+              routeMasterId: selectedRoute?.routeId ?? '',
+              routeCode: selectedRoute?.routeCode ?? '',
+              routeName: selectedRoute?.routeName ?? '',
+              routeRiskLevel: selectedRoute?.riskLevel.label ?? 'Low',
+              routeOperationalStatus: selectedRoute?.status.label ?? 'Active',
+              routeRestricted: selectedRoute != null
+                  ? !selectedRoute.isSelectableForNewOperations
+                  : false,
+              routeRestrictionReason: selectedRoute?.restrictionReason ?? '',
             );
 
     final isSuccess = message.toLowerCase().contains('successfully');

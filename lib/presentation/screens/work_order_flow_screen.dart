@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../domain/entities/logistics_flow.dart';
+import '../../domain/route_model.dart';
 import '../../routes/route_paths.dart';
 import '../viewmodels/logistics_viewmodel.dart';
+import '../viewmodels/route_viewmodel.dart';
 import '../widgets/flow_stepper_card.dart';
 import '../widgets/ops_shell.dart';
 import '../widgets/ops_ui.dart';
@@ -29,6 +31,7 @@ class _WorkOrderFlowScreenState extends ConsumerState<WorkOrderFlowScreen> {
   String? _selectedOrderId;
   String? _selectedVehicleNo;
   String? _selectedDriverId;
+  String? _selectedRouteMasterId;
   DateTime? _serviceStartDate;
   DateTime? _serviceEndDate;
   String _initialWoStatus = 'Open';
@@ -54,6 +57,7 @@ class _WorkOrderFlowScreenState extends ConsumerState<WorkOrderFlowScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(logisticsViewModelProvider);
+    final routeState = ref.watch(routeViewModelProvider).valueOrNull;
 
     return OpsShell(
       title: 'Work Order',
@@ -86,12 +90,38 @@ class _WorkOrderFlowScreenState extends ConsumerState<WorkOrderFlowScreen> {
                   .any((e) => e.enquiryNumber == _selectedEnquiryNo)) {
             _selectedEnquiryNo = null;
           }
+          if (_selectedRouteMasterId != null &&
+              !(routeState?.routes
+                      .any((r) => r.routeId == _selectedRouteMasterId) ??
+                  false)) {
+            _selectedRouteMasterId = null;
+          }
 
           QuotationData? selectedQuotation;
           for (final item in approvedQuotations) {
             if (item.quoteRef == _selectedQuoteRef) {
               selectedQuotation = item;
               break;
+            }
+          }
+
+          CustomerRequestData? selectedEnquiry;
+          if (_selectedEnquiryNo != null) {
+            for (final enquiry in validEnquiries) {
+              if (enquiry.enquiryNumber == _selectedEnquiryNo) {
+                selectedEnquiry = enquiry;
+                break;
+              }
+            }
+          }
+          RouteLocationModel? selectedRouteMaster;
+          if (_selectedRouteMasterId != null) {
+            for (final route
+                in (routeState?.routes ?? const <RouteLocationModel>[])) {
+              if (route.routeId == _selectedRouteMasterId) {
+                selectedRouteMaster = route;
+                break;
+              }
             }
           }
 
@@ -176,6 +206,29 @@ class _WorkOrderFlowScreenState extends ConsumerState<WorkOrderFlowScreen> {
                             return 'Enquiry number is required.';
                           }
                           return null;
+                        },
+                      ),
+                      const SizedBox(height: 10),
+                      DropdownButtonFormField<String?>(
+                        value: _selectedRouteMasterId,
+                        decoration: const InputDecoration(
+                          labelText: 'Route Master Override (Optional)',
+                        ),
+                        items: [
+                          const DropdownMenuItem<String?>(
+                            value: null,
+                            child: Text('Use Enquiry Route'),
+                          ),
+                          for (final route in (routeState?.routes ??
+                              const <RouteLocationModel>[]))
+                            DropdownMenuItem<String?>(
+                              value: route.routeId,
+                              child: Text(
+                                  '${route.routeCode} • ${route.routeName}'),
+                            ),
+                        ],
+                        onChanged: (value) {
+                          setState(() => _selectedRouteMasterId = value);
                         },
                       ),
                       const SizedBox(height: 10),
@@ -292,6 +345,54 @@ class _WorkOrderFlowScreenState extends ConsumerState<WorkOrderFlowScreen> {
                           ),
                         ),
                       ],
+                      if (selectedEnquiry != null) ...[
+                        const SizedBox(height: 10),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: selectedEnquiry.routeRestricted
+                                ? const Color(0xFFFEE2E2)
+                                : const Color(0xFFEAF7EF),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: selectedEnquiry.routeRestricted
+                                  ? const Color(0xFFFCA5A5)
+                                  : const Color(0xFFBBF7D0),
+                            ),
+                          ),
+                          child: Text(
+                            'Route: ${selectedEnquiry.routeName.isEmpty ? selectedEnquiry.route : selectedEnquiry.routeName}\n'
+                            'Risk: ${selectedEnquiry.routeRiskLevel} | Status: ${selectedEnquiry.routeOperationalStatus}'
+                            '${selectedEnquiry.routeRestricted ? '\nRestriction: ${selectedEnquiry.routeRestrictionReason}' : ''}',
+                          ),
+                        ),
+                      ],
+                      if (selectedRouteMaster != null) ...[
+                        const SizedBox(height: 10),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color:
+                                selectedRouteMaster.isSelectableForNewOperations
+                                    ? const Color(0xFFE0F2FE)
+                                    : const Color(0xFFFEE2E2),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: selectedRouteMaster
+                                      .isSelectableForNewOperations
+                                  ? const Color(0xFF7DD3FC)
+                                  : const Color(0xFFFCA5A5),
+                            ),
+                          ),
+                          child: Text(
+                            'Override Route: ${selectedRouteMaster.routeCode} • ${selectedRouteMaster.routeName}\n'
+                            'Risk: ${selectedRouteMaster.riskLevel.label} | Status: ${selectedRouteMaster.status.label}'
+                            '${selectedRouteMaster.isSelectableForNewOperations ? '' : '\nRestriction: ${selectedRouteMaster.restrictionReason}'}',
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 12),
                       Align(
                         alignment: Alignment.centerRight,
@@ -310,6 +411,7 @@ class _WorkOrderFlowScreenState extends ConsumerState<WorkOrderFlowScreen> {
                                   }
                                   final start = _serviceStartDate;
                                   final end = _serviceEndDate;
+                                  final override = selectedRouteMaster;
                                   final message = ref
                                       .read(logisticsViewModelProvider.notifier)
                                       .createWorkOrderJobFile(
@@ -331,6 +433,26 @@ class _WorkOrderFlowScreenState extends ConsumerState<WorkOrderFlowScreen> {
                                             .text
                                             .trim(),
                                         initialStatus: _initialWoStatus,
+                                        overrideRouteMasterId:
+                                            override?.routeId ?? '',
+                                        overrideRouteCode:
+                                            override?.routeCode ?? '',
+                                        overrideRouteName:
+                                            override?.routeName ?? '',
+                                        overrideRouteRiskLevel:
+                                            override?.riskLevel.label ?? 'Low',
+                                        overrideRouteOperationalStatus:
+                                            override?.status.label ?? 'Active',
+                                        overrideRouteRestricted: override !=
+                                                null
+                                            ? !override
+                                                .isSelectableForNewOperations
+                                            : false,
+                                        overrideRouteRestrictionReason:
+                                            override?.restrictionReason ?? '',
+                                        overrideRouteDisplay: override == null
+                                            ? ''
+                                            : '${override.routeCode} • ${override.routeName}',
                                       );
                                   ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(content: Text(message)));

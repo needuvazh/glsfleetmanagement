@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../domain/route_model.dart';
 import '../../routes/route_paths.dart';
 import '../viewmodels/logistics_viewmodel.dart';
+import '../viewmodels/route_viewmodel.dart';
 import '../widgets/flow_stepper_card.dart';
 import '../widgets/ops_shell.dart';
 import '../widgets/ops_ui.dart';
@@ -30,6 +32,7 @@ class _JourneyManagementScreenState
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(logisticsViewModelProvider);
+    final routeState = ref.watch(routeViewModelProvider).valueOrNull;
 
     return OpsShell(
       title: 'Journey Management (JMP)',
@@ -40,6 +43,21 @@ class _JourneyManagementScreenState
         error: (error, _) => Center(child: Text(error.toString())),
         data: (data) {
           final selected = data.selectedJourney;
+          RouteLocationModel? selectedRoute;
+          final assignedOrderId = data.assignedOrderId;
+          if (assignedOrderId != null) {
+            for (final wo in data.workOrders) {
+              if (wo.woId == assignedOrderId && wo.routeMasterId.isNotEmpty) {
+                for (final route
+                    in (routeState?.routes ?? const <RouteLocationModel>[])) {
+                  if (route.routeId == wo.routeMasterId) {
+                    selectedRoute = route;
+                    break;
+                  }
+                }
+              }
+            }
+          }
 
           return ListView(
             padding: const EdgeInsets.all(16),
@@ -92,6 +110,15 @@ class _JourneyManagementScreenState
                     const SizedBox(height: 6),
                     Text(
                         'Rest Points: ${selected?.restPoints.join(', ') ?? '-'}'),
+                    if (selectedRoute != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        'Route Master: ${selectedRoute.routeCode} • ${selectedRoute.routeName}',
+                      ),
+                      Text(
+                        'Risk: ${selectedRoute.riskLevel.label} | Status: ${selectedRoute.status.label}',
+                      ),
+                    ],
                     const SizedBox(height: 10),
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,

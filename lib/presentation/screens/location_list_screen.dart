@@ -20,58 +20,89 @@ class LocationListScreen extends ConsumerWidget {
     return OpsShell(
       title: 'Location Master',
       currentRoute: RoutePaths.locationMaster,
-      actions: [
-        TextButton(
-          onPressed: () => context.go(RoutePaths.locationForm),
-          child: const Text('Create Location'),
-        ),
-      ],
+      actions: const [],
       child: state.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(child: Text(error.toString())),
         data: (data) {
           final items = data.filteredLocations;
 
-          return ListView(
+          return Padding(
             padding: const EdgeInsets.all(16),
-            children: [
-              OpsSectionCard(
-                title: 'Search',
-                subtitle: 'Search by location name or code',
-                icon: Icons.search,
-                accent: const Color(0xFF2563EB),
-                child: TextFormField(
-                  initialValue: data.searchQuery,
-                  decoration: const InputDecoration(
-                    labelText: 'Location Name / Code',
-                    prefixIcon: Icon(Icons.search),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                OpsSectionCard(
+                  title: 'Location Search',
+                  subtitle: 'Search and manage locations from one place',
+                  icon: Icons.search,
+                  accent: const Color(0xFF2563EB),
+                  child: isMobile
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            TextFormField(
+                              initialValue: data.searchQuery,
+                              decoration: const InputDecoration(
+                                labelText: 'Location Name / Code',
+                                prefixIcon: Icon(Icons.search),
+                              ),
+                              onChanged: ref
+                                  .read(locationViewModelProvider.notifier)
+                                  .setSearchQuery,
+                            ),
+                            const SizedBox(height: 10),
+                            FilledButton.icon(
+                              onPressed: () =>
+                                  context.go(RoutePaths.locationForm),
+                              icon: const Icon(Icons.add),
+                              label: const Text('Create Location'),
+                            ),
+                          ],
+                        )
+                      : Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                initialValue: data.searchQuery,
+                                decoration: const InputDecoration(
+                                  labelText: 'Location Name / Code',
+                                  prefixIcon: Icon(Icons.search),
+                                ),
+                                onChanged: ref
+                                    .read(locationViewModelProvider.notifier)
+                                    .setSearchQuery,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            FilledButton.icon(
+                              onPressed: () =>
+                                  context.go(RoutePaths.locationForm),
+                              icon: const Icon(Icons.add),
+                              label: const Text('Create Location'),
+                            ),
+                          ],
+                        ),
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: OpsSectionCard(
+                    title: 'Location List',
+                    subtitle: 'Master data for routes and trip planning',
+                    icon: Icons.location_on_outlined,
+                    accent: const Color(0xFF16A34A),
+                    child: items.isEmpty
+                        ? const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 20),
+                            child: Text('No locations found.'),
+                          )
+                        : (isMobile
+                            ? _MobileLocationList(items: items)
+                            : _DesktopLocationTable(items: items)),
                   ),
-                  onChanged: ref
-                      .read(locationViewModelProvider.notifier)
-                      .setSearchQuery,
                 ),
-              ),
-              const SizedBox(height: 12),
-              OpsSectionCard(
-                title: 'Location List',
-                subtitle: 'Master data for routes and trip planning',
-                icon: Icons.location_on_outlined,
-                accent: const Color(0xFF16A34A),
-                trailing: FilledButton.icon(
-                  onPressed: () => context.go(RoutePaths.locationForm),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Create Location'),
-                ),
-                child: items.isEmpty
-                    ? const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 20),
-                        child: Text('No locations found.'),
-                      )
-                    : (isMobile
-                        ? _MobileLocationList(items: items)
-                        : _DesktopLocationTable(items: items)),
-              ),
-            ],
+              ],
+            ),
           );
         },
       ),
@@ -86,47 +117,56 @@ class _DesktopLocationTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        headingRowColor: WidgetStateProperty.all(const Color(0xFFEFF4FF)),
-        columns: const [
-          DataColumn(label: Text('Location Name')),
-          DataColumn(label: Text('Location Code')),
-          DataColumn(label: Text('Latitude')),
-          DataColumn(label: Text('Longitude')),
-          DataColumn(label: Text('Actions')),
-        ],
-        rows: [
-          for (final location in items)
-            DataRow(
-              cells: [
-                DataCell(Text(location.locationName)),
-                DataCell(Text(location.locationCode)),
-                DataCell(Text(_formatCoordinate(location.latitude))),
-                DataCell(Text(_formatCoordinate(location.longitude))),
-                DataCell(
-                  Row(
-                    children: [
-                      TextButton(
-                        onPressed: () => context.go(
-                          RoutePaths.locationViewByCode(location.locationCode),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minWidth: constraints.maxWidth),
+            child: DataTable(
+              headingRowColor: WidgetStateProperty.all(const Color(0xFFEFF4FF)),
+              columns: const [
+                DataColumn(label: Text('Location Name')),
+                DataColumn(label: Text('Location Code')),
+                DataColumn(label: Text('Latitude')),
+                DataColumn(label: Text('Longitude')),
+                DataColumn(label: Text('Actions')),
+              ],
+              rows: [
+                for (final location in items)
+                  DataRow(
+                    cells: [
+                      DataCell(Text(location.locationName)),
+                      DataCell(Text(location.locationCode)),
+                      DataCell(Text(_formatCoordinate(location.latitude))),
+                      DataCell(Text(_formatCoordinate(location.longitude))),
+                      DataCell(
+                        Wrap(
+                          spacing: 6,
+                          children: [
+                            TextButton(
+                              onPressed: () => context.go(
+                                RoutePaths.locationViewByCode(
+                                    location.locationCode),
+                              ),
+                              child: const Text('View'),
+                            ),
+                            TextButton(
+                              onPressed: () => context.go(
+                                '${RoutePaths.locationForm}?code=${location.locationCode}',
+                              ),
+                              child: const Text('Edit'),
+                            ),
+                          ],
                         ),
-                        child: const Text('View'),
-                      ),
-                      TextButton(
-                        onPressed: () => context.go(
-                          '${RoutePaths.locationForm}?code=${location.locationCode}',
-                        ),
-                        child: const Text('Edit'),
                       ),
                     ],
                   ),
-                ),
               ],
             ),
-        ],
-      ),
+          ),
+        );
+      },
     );
   }
 }

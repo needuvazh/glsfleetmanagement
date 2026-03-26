@@ -11,20 +11,51 @@ class ModuleDocumentUiState {
   const ModuleDocumentUiState({
     required this.items,
     required this.query,
-    required this.roleFilter,
+    required this.statusFilter,
+    required this.applicableToFilter,
+    required this.mandatoryFilter,
+    required this.blockingFilter,
+    required this.stageFilter,
+    required this.expiryTrackingFilter,
     required this.lastUpdated,
   });
 
   final List<ModuleDocument> items;
   final String query;
-  final String roleFilter;
+  final String statusFilter;
+  final String applicableToFilter;
+  final String mandatoryFilter;
+  final String blockingFilter;
+  final String stageFilter;
+  final String expiryTrackingFilter;
   final DateTime lastUpdated;
 
   List<ModuleDocument> get filteredItems {
     final normalized = query.trim().toLowerCase();
     return items.where((item) {
-      final rolePass = roleFilter == 'All' || item.targetType == roleFilter;
-      if (!rolePass) {
+      if (statusFilter != 'All' && item.status != statusFilter) {
+        return false;
+      }
+      if (applicableToFilter != 'All' &&
+          item.applicableTo != applicableToFilter) {
+        return false;
+      }
+      if (mandatoryFilter == 'Mandatory' && !item.mandatory) {
+        return false;
+      }
+      if (mandatoryFilter == 'Optional' && item.mandatory) {
+        return false;
+      }
+      if (blockingFilter != 'All' && item.blockingType != blockingFilter) {
+        return false;
+      }
+      if (!_matchesStage(item, stageFilter)) {
+        return false;
+      }
+      if (expiryTrackingFilter == 'Enabled' && !item.hasExpiry) {
+        return false;
+      }
+      if (expiryTrackingFilter == 'Disabled' && item.hasExpiry) {
         return false;
       }
 
@@ -33,28 +64,61 @@ class ModuleDocumentUiState {
       }
 
       final text =
-          '${item.id} ${item.documentName} ${item.documentType} ${item.targetType}'
+          '${item.documentCode} ${item.documentName} ${item.description} ${item.applicableTo} ${item.requiredStageLabel}'
               .toLowerCase();
       return text.contains(normalized);
     }).toList();
   }
 
-  List<ModuleDocument> documentsForRole(String role) {
-    return items.where((item) => item.targetType == role).toList();
+  List<ModuleDocument> rulesForApplicableTo(String applicableTo) {
+    return items
+        .where((item) =>
+            item.applicableTo.toLowerCase() == applicableTo.toLowerCase())
+        .toList();
   }
 
   ModuleDocumentUiState copyWith({
     List<ModuleDocument>? items,
     String? query,
-    String? roleFilter,
+    String? statusFilter,
+    String? applicableToFilter,
+    String? mandatoryFilter,
+    String? blockingFilter,
+    String? stageFilter,
+    String? expiryTrackingFilter,
     DateTime? lastUpdated,
   }) {
     return ModuleDocumentUiState(
       items: items ?? this.items,
       query: query ?? this.query,
-      roleFilter: roleFilter ?? this.roleFilter,
+      statusFilter: statusFilter ?? this.statusFilter,
+      applicableToFilter: applicableToFilter ?? this.applicableToFilter,
+      mandatoryFilter: mandatoryFilter ?? this.mandatoryFilter,
+      blockingFilter: blockingFilter ?? this.blockingFilter,
+      stageFilter: stageFilter ?? this.stageFilter,
+      expiryTrackingFilter: expiryTrackingFilter ?? this.expiryTrackingFilter,
       lastUpdated: lastUpdated ?? this.lastUpdated,
     );
+  }
+
+  static bool _matchesStage(ModuleDocument item, String stageFilter) {
+    if (stageFilter == 'All') {
+      return true;
+    }
+    switch (stageFilter) {
+      case 'Assignment':
+        return item.checkAtAssignment;
+      case 'Inspection':
+        return item.checkAtInspection;
+      case 'Dispatch':
+        return item.checkAtDispatch;
+      case 'Trip Start':
+        return item.checkAtTripStart;
+      case 'Delivery Closure':
+        return item.checkAtDeliveryClosure;
+      default:
+        return true;
+    }
   }
 }
 
@@ -79,6 +143,12 @@ final _addModuleDocumentUseCaseProvider = Provider<AddModuleDocumentUseCase>(
       AddModuleDocumentUseCase(ref.watch(_moduleDocumentRepositoryProvider)),
 );
 
+final _updateModuleDocumentUseCaseProvider =
+    Provider<UpdateModuleDocumentUseCase>(
+  (ref) =>
+      UpdateModuleDocumentUseCase(ref.watch(_moduleDocumentRepositoryProvider)),
+);
+
 final _deleteModuleDocumentUseCaseProvider =
     Provider<DeleteModuleDocumentUseCase>(
   (ref) =>
@@ -91,108 +161,339 @@ final moduleDocumentViewModelProvider =
 );
 
 class ModuleDocumentViewModel extends AsyncNotifier<ModuleDocumentUiState> {
-  static const documentTypes = [
-    'PDF',
-    'XLSX',
-    'DOCX',
-    'JPG',
-    'PNG',
-    'Other',
+  static const applicableToOptions = [
+    'Driver',
+    'Fleet',
+    'Trailer',
+    'Customer',
+    'Cargo',
+    'Work Order',
+    'Trip',
+  ];
+
+  static const actionTypes = [
+    'Ignore',
+    'Warning',
+    'Soft Block',
+    'Hard Block',
   ];
 
   @override
   Future<ModuleDocumentUiState> build() async {
-    final items = await ref.watch(_getModuleDocumentsUseCaseProvider).call();
+    List<ModuleDocument> items;
+    try {
+      final loaded = await ref.watch(_getModuleDocumentsUseCaseProvider).call();
+      items = loaded.isEmpty ? _fallbackRules() : loaded;
+    } catch (_) {
+      items = _fallbackRules();
+    }
     return ModuleDocumentUiState(
       items: items,
       query: '',
-      roleFilter: 'All',
+      statusFilter: 'All',
+      applicableToFilter: 'All',
+      mandatoryFilter: 'All',
+      blockingFilter: 'All',
+      stageFilter: 'All',
+      expiryTrackingFilter: 'All',
       lastUpdated: DateTime.now(),
     );
   }
 
-  void setQuery(String value) {
-    final current = state.valueOrNull;
-    if (current == null) {
-      return;
-    }
-    state = AsyncData(current.copyWith(query: value));
+  List<ModuleDocument> _fallbackRules() {
+    return const [
+      ModuleDocument(
+        id: 'CDM-001',
+        documentCode: 'DRV-LIC',
+        documentName: 'Driver License',
+        description:
+            'Valid driver license is required before assigning or dispatching trips.',
+        applicableTo: 'Driver',
+        status: 'Active',
+        mandatory: true,
+        hasExpiry: true,
+        alertBeforeDays: 30,
+        checkAtAssignment: true,
+        checkAtInspection: false,
+        checkAtDispatch: true,
+        checkAtTripStart: true,
+        checkAtDeliveryClosure: false,
+        missingAction: 'Hard Block',
+        expiredAction: 'Hard Block',
+        uploadRequired: true,
+        overrideAllowed: false,
+      ),
+      ModuleDocument(
+        id: 'CDM-002',
+        documentCode: 'CUS-POD',
+        documentName: 'POD Required',
+        description:
+            'Customer contract requires POD submission during delivery closure.',
+        applicableTo: 'Customer',
+        status: 'Active',
+        mandatory: true,
+        hasExpiry: false,
+        alertBeforeDays: 0,
+        checkAtAssignment: false,
+        checkAtInspection: false,
+        checkAtDispatch: false,
+        checkAtTripStart: false,
+        checkAtDeliveryClosure: true,
+        missingAction: 'Hard Block',
+        expiredAction: 'Ignore',
+        uploadRequired: true,
+        overrideAllowed: true,
+      ),
+      ModuleDocument(
+        id: 'CDM-003',
+        documentCode: 'CRG-HAZ',
+        documentName: 'Hazardous Permit',
+        description:
+            'Hazardous cargo requires permit validation before dispatch.',
+        applicableTo: 'Cargo',
+        status: 'Active',
+        mandatory: true,
+        hasExpiry: true,
+        alertBeforeDays: 15,
+        checkAtAssignment: true,
+        checkAtInspection: true,
+        checkAtDispatch: true,
+        checkAtTripStart: false,
+        checkAtDeliveryClosure: false,
+        missingAction: 'Hard Block',
+        expiredAction: 'Hard Block',
+        uploadRequired: true,
+        overrideAllowed: false,
+      ),
+    ];
   }
 
-  void setRoleFilter(String value) {
-    final current = state.valueOrNull;
-    if (current == null) {
-      return;
-    }
-    state = AsyncData(current.copyWith(roleFilter: value));
+  void setQuery(String value) {
+    _mutate((current) => current.copyWith(query: value));
+  }
+
+  void setStatusFilter(String value) {
+    _mutate((current) => current.copyWith(statusFilter: value));
+  }
+
+  void setApplicableToFilter(String value) {
+    _mutate((current) => current.copyWith(applicableToFilter: value));
+  }
+
+  void setMandatoryFilter(String value) {
+    _mutate((current) => current.copyWith(mandatoryFilter: value));
+  }
+
+  void setBlockingFilter(String value) {
+    _mutate((current) => current.copyWith(blockingFilter: value));
+  }
+
+  void setStageFilter(String value) {
+    _mutate((current) => current.copyWith(stageFilter: value));
+  }
+
+  void setExpiryTrackingFilter(String value) {
+    _mutate((current) => current.copyWith(expiryTrackingFilter: value));
   }
 
   Future<String> addDocument({
+    required String documentCode,
     required String documentName,
-    required String userRole,
-    required String documentType,
+    required String description,
+    required String applicableTo,
+    required bool mandatory,
+    required bool hasExpiry,
+    required int alertBeforeDays,
+    required bool checkAtAssignment,
+    required bool checkAtInspection,
+    required bool checkAtDispatch,
+    required bool checkAtTripStart,
+    required bool checkAtDeliveryClosure,
+    required String missingAction,
+    required String expiredAction,
+    required bool uploadRequired,
+    required bool overrideAllowed,
+    required String status,
   }) async {
     final current = state.valueOrNull;
     if (current == null) {
-      return 'Document state is not ready.';
+      return 'Compliance state is not ready.';
     }
 
-    final cleanDocumentName = documentName.trim();
-    final cleanUserRole = userRole.trim();
-    final cleanDocumentType = documentType.trim();
+    final cleanCode = documentCode.trim();
+    final cleanName = documentName.trim();
+    final cleanApplicableTo = applicableTo.trim();
+    final cleanStatus = status.trim();
+    final cleanMissingAction = missingAction.trim();
+    final cleanExpiredAction = expiredAction.trim();
+    final cleanDescription = description.trim();
 
-    if (cleanDocumentName.isEmpty ||
-        cleanUserRole.isEmpty ||
-        cleanDocumentType.isEmpty) {
-      return 'Required document fields are missing.';
+    if (cleanName.isEmpty || cleanApplicableTo.isEmpty || cleanStatus.isEmpty) {
+      return 'Required compliance fields are missing.';
+    }
+    if (!actionTypes.contains(cleanMissingAction) ||
+        !actionTypes.contains(cleanExpiredAction)) {
+      return 'Invalid action type selected.';
     }
 
     final duplicate = current.items.any(
       (item) =>
-          item.targetType.toLowerCase() == cleanUserRole.toLowerCase() &&
-          item.documentName.toLowerCase() == cleanDocumentName.toLowerCase(),
+          item.applicableTo.toLowerCase() == cleanApplicableTo.toLowerCase() &&
+          item.documentName.toLowerCase() == cleanName.toLowerCase(),
     );
     if (duplicate) {
-      return 'Document name already exists for this role.';
+      return 'Rule name already exists for this applicability.';
     }
 
     final id = _nextId(current.items);
     final document = ModuleDocument(
       id: id,
-      documentName: cleanDocumentName,
-      targetType: cleanUserRole,
-      documentType: cleanDocumentType,
+      documentCode: cleanCode.isEmpty ? id : cleanCode,
+      documentName: cleanName,
+      description: cleanDescription,
+      applicableTo: cleanApplicableTo,
+      status: cleanStatus,
+      mandatory: mandatory,
+      hasExpiry: hasExpiry,
+      alertBeforeDays: hasExpiry ? alertBeforeDays : 0,
+      checkAtAssignment: checkAtAssignment,
+      checkAtInspection: checkAtInspection,
+      checkAtDispatch: checkAtDispatch,
+      checkAtTripStart: checkAtTripStart,
+      checkAtDeliveryClosure: checkAtDeliveryClosure,
+      missingAction: cleanMissingAction,
+      expiredAction: cleanExpiredAction,
+      uploadRequired: uploadRequired,
+      overrideAllowed: overrideAllowed,
     );
 
     final next =
         await ref.read(_addModuleDocumentUseCaseProvider).call(document);
     state =
         AsyncData(current.copyWith(items: next, lastUpdated: DateTime.now()));
-    return 'Document created successfully.';
+    return 'Compliance rule created successfully.';
+  }
+
+  Future<String> updateDocument({
+    required String id,
+    required String documentCode,
+    required String documentName,
+    required String description,
+    required String applicableTo,
+    required bool mandatory,
+    required bool hasExpiry,
+    required int alertBeforeDays,
+    required bool checkAtAssignment,
+    required bool checkAtInspection,
+    required bool checkAtDispatch,
+    required bool checkAtTripStart,
+    required bool checkAtDeliveryClosure,
+    required String missingAction,
+    required String expiredAction,
+    required bool uploadRequired,
+    required bool overrideAllowed,
+    required String status,
+  }) async {
+    final current = state.valueOrNull;
+    if (current == null) {
+      return 'Compliance state is not ready.';
+    }
+
+    final cleanCode = documentCode.trim();
+    final cleanName = documentName.trim();
+    final cleanApplicableTo = applicableTo.trim();
+    final cleanStatus = status.trim();
+    final cleanMissingAction = missingAction.trim();
+    final cleanExpiredAction = expiredAction.trim();
+    final cleanDescription = description.trim();
+
+    if (cleanName.isEmpty || cleanApplicableTo.isEmpty || cleanStatus.isEmpty) {
+      return 'Required compliance fields are missing.';
+    }
+    if (!actionTypes.contains(cleanMissingAction) ||
+        !actionTypes.contains(cleanExpiredAction)) {
+      return 'Invalid action type selected.';
+    }
+
+    final duplicate = current.items.any(
+      (item) =>
+          item.id != id &&
+          item.applicableTo.toLowerCase() == cleanApplicableTo.toLowerCase() &&
+          item.documentName.toLowerCase() == cleanName.toLowerCase(),
+    );
+    if (duplicate) {
+      return 'Rule name already exists for this applicability.';
+    }
+
+    ModuleDocument? existing;
+    for (final item in current.items) {
+      if (item.id == id) {
+        existing = item;
+        break;
+      }
+    }
+    if (existing == null) {
+      return 'Compliance rule not found.';
+    }
+
+    final document = existing.copyWith(
+      documentCode: cleanCode.isEmpty ? existing.documentCode : cleanCode,
+      documentName: cleanName,
+      description: cleanDescription,
+      applicableTo: cleanApplicableTo,
+      status: cleanStatus,
+      mandatory: mandatory,
+      hasExpiry: hasExpiry,
+      alertBeforeDays: hasExpiry ? alertBeforeDays : 0,
+      checkAtAssignment: checkAtAssignment,
+      checkAtInspection: checkAtInspection,
+      checkAtDispatch: checkAtDispatch,
+      checkAtTripStart: checkAtTripStart,
+      checkAtDeliveryClosure: checkAtDeliveryClosure,
+      missingAction: cleanMissingAction,
+      expiredAction: cleanExpiredAction,
+      uploadRequired: uploadRequired,
+      overrideAllowed: overrideAllowed,
+    );
+
+    final next =
+        await ref.read(_updateModuleDocumentUseCaseProvider).call(id, document);
+    state =
+        AsyncData(current.copyWith(items: next, lastUpdated: DateTime.now()));
+    return 'Compliance rule updated successfully.';
   }
 
   Future<String> deleteDocument(String id) async {
     final current = state.valueOrNull;
     if (current == null) {
-      return 'Document state is not ready.';
+      return 'Compliance state is not ready.';
     }
 
     final next = await ref.read(_deleteModuleDocumentUseCaseProvider).call(id);
     state =
         AsyncData(current.copyWith(items: next, lastUpdated: DateTime.now()));
-    return 'Document deleted successfully.';
+    return 'Compliance rule deleted successfully.';
   }
 
   String _nextId(List<ModuleDocument> items) {
     int maxValue = 0;
     for (final item in items) {
-      final raw = item.id.replaceAll('DOC-', '');
+      final raw = item.id.replaceAll('CDM-', '').replaceAll('DOC-', '');
       final parsed = int.tryParse(raw);
       if (parsed != null && parsed > maxValue) {
         maxValue = parsed;
       }
     }
     final next = maxValue + 1;
-    return 'DOC-${next.toString().padLeft(3, '0')}';
+    return 'CDM-${next.toString().padLeft(3, '0')}';
+  }
+
+  void _mutate(
+      ModuleDocumentUiState Function(ModuleDocumentUiState current) updater) {
+    final current = state.valueOrNull;
+    if (current == null) {
+      return;
+    }
+    state = AsyncData(updater(current));
   }
 }

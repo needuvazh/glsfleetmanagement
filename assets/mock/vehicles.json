@@ -2,16 +2,33 @@
   {
     "vehicleNumber": "8603 BK",
     "vehicleClass": "Dry Movers",
-    "status": "On Trip"
+    "capacity": "25 Tons",
+    "fuelType": "Diesel",
+    "ivmsDeviceId": "IVMS-8603-BK",
+    "status": "Available",
+    "permits": [
+      "Oversize Load Permit",
+      "Dangerous Goods Permit"
+    ]
   },
   {
     "vehicleNumber": "24567 A",
     "vehicleClass": "Rigid Truck",
-    "status": "On Trip"
+    "capacity": "18 Tons",
+    "fuelType": "Diesel",
+    "ivmsDeviceId": "IVMS-24567-A",
+    "status": "Available",
+    "permits": [
+      "Compressed Gas Permit"
+    ]
   },
   {
     "vehicleNumber": "99876 M",
     "vehicleClass": "Container",
-    "status": "Maintenance"
+    "capacity": "22 Tons",
+    "fuelType": "Diesel",
+    "ivmsDeviceId": "IVMS-99876-M",
+    "status": "Maintenance",
+    "permits": []
   }
 ]

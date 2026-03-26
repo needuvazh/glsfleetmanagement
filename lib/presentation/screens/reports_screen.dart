@@ -64,6 +64,30 @@ class ReportsScreen extends ConsumerWidget {
               .where((alert) => alert != 'No critical alerts now.')
               .length;
 
+          final routeBuckets = <String, int>{};
+          final delayedByRoute = <String, int>{};
+          var highRiskTrips = 0;
+          for (final wo in data.workOrders) {
+            final routeKey = wo.routeName.isNotEmpty
+                ? wo.routeName
+                : (wo.routeCode.isNotEmpty ? wo.routeCode : wo.route);
+            routeBuckets[routeKey] = (routeBuckets[routeKey] ?? 0) + 1;
+            if (wo.status.toLowerCase().contains('delay')) {
+              delayedByRoute[routeKey] = (delayedByRoute[routeKey] ?? 0) + 1;
+            }
+            final risk = wo.routeRiskLevel.toLowerCase();
+            if (risk == 'high' || risk == 'critical') {
+              highRiskTrips += 1;
+            }
+          }
+          final routesTracked = routeBuckets.length;
+          var delayedRouteCount = 0;
+          delayedByRoute.forEach((_, value) {
+            if (value > 0) {
+              delayedRouteCount += 1;
+            }
+          });
+
           final cards = [
             _ReportTile(
               title: 'Inspection Pass/Fail Report',
@@ -114,6 +138,27 @@ class ReportsScreen extends ConsumerWidget {
               color: const Color(0xFFDC2626),
               icon: Icons.notification_important_outlined,
             ),
+            _ReportTile(
+              title: 'Route Coverage',
+              primary: '$routesTracked',
+              subtitle: 'Unique routes used in operations',
+              color: const Color(0xFF0F766E),
+              icon: Icons.route_outlined,
+            ),
+            _ReportTile(
+              title: 'Delayed Routes',
+              primary: '$delayedRouteCount',
+              subtitle: 'Routes with delay occurrences',
+              color: const Color(0xFFB45309),
+              icon: Icons.warning_amber_outlined,
+            ),
+            _ReportTile(
+              title: 'High Risk Route Trips',
+              primary: '$highRiskTrips',
+              subtitle: 'Trips tagged high/critical risk',
+              color: const Color(0xFFB91C1C),
+              icon: Icons.priority_high_outlined,
+            ),
           ];
 
           return GridView.builder(
@@ -158,7 +203,7 @@ class _ReportTile extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.12),
+                color: color.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(icon, color: color),

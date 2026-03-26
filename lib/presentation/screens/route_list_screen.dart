@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/utils/responsive.dart';
 import '../../domain/route_model.dart';
 import '../../routes/route_paths.dart';
+import '../viewmodels/logistics_viewmodel.dart';
 import '../viewmodels/route_viewmodel.dart';
 import '../widgets/ops_shell.dart';
 import '../widgets/ops_ui.dart';
@@ -15,129 +16,320 @@ class RouteListScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(routeViewModelProvider);
+    final logistics = ref.watch(logisticsViewModelProvider).valueOrNull;
     final isMobile = Responsive.isMobile(context);
 
     return OpsShell(
       title: 'Route Location Master',
       currentRoute: RoutePaths.routeLocationMaster,
-      actions: [
-        TextButton(
-          onPressed: () => context.go(RoutePaths.routeLocationForm),
-          child: const Text('Create Route'),
-        ),
-      ],
+      actions: const [],
       child: state.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(child: Text(error.toString())),
         data: (data) {
           final items = data.filteredRoutes;
 
-          return ListView(
+          return Padding(
             padding: const EdgeInsets.all(16),
-            children: [
-              OpsSectionCard(
-                title: 'Search',
-                subtitle: 'Search by route name or locations',
-                icon: Icons.search,
-                accent: const Color(0xFF2563EB),
-                child: TextFormField(
-                  initialValue: data.searchQuery,
-                  decoration: const InputDecoration(
-                    labelText: 'Route / Location',
-                    prefixIcon: Icon(Icons.search),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                OpsSectionCard(
+                  title: 'Search & Filters',
+                  subtitle: 'Search by route code, name, origin, destination',
+                  icon: Icons.search,
+                  accent: const Color(0xFF2563EB),
+                  child: Column(
+                    children: [
+                      if (isMobile)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            TextFormField(
+                              initialValue: data.searchQuery,
+                              decoration: const InputDecoration(
+                                labelText:
+                                    'Route Code / Name / Origin / Destination',
+                                prefixIcon: Icon(Icons.search),
+                              ),
+                              onChanged: ref
+                                  .read(routeViewModelProvider.notifier)
+                                  .setSearchQuery,
+                            ),
+                            const SizedBox(height: 10),
+                            FilledButton.icon(
+                              onPressed: () =>
+                                  context.go(RoutePaths.routeLocationForm),
+                              icon: const Icon(Icons.add),
+                              label: const Text('Create Route'),
+                            ),
+                          ],
+                        )
+                      else
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                initialValue: data.searchQuery,
+                                decoration: const InputDecoration(
+                                  labelText:
+                                      'Route Code / Name / Origin / Destination',
+                                  prefixIcon: Icon(Icons.search),
+                                ),
+                                onChanged: ref
+                                    .read(routeViewModelProvider.notifier)
+                                    .setSearchQuery,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            FilledButton.icon(
+                              onPressed: () =>
+                                  context.go(RoutePaths.routeLocationForm),
+                              icon: const Icon(Icons.add),
+                              label: const Text('Create Route'),
+                            ),
+                          ],
+                        ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: [
+                          _filterDropdown<RouteOperationalStatus?>(
+                            label: 'Status',
+                            value: data.statusFilter,
+                            options: const [
+                              null,
+                              ...RouteOperationalStatus.values
+                            ],
+                            itemLabel: (item) =>
+                                item == null ? 'All' : item.label,
+                            onChanged: (value) => ref
+                                .read(routeViewModelProvider.notifier)
+                                .setStatusFilter(value),
+                          ),
+                          _filterDropdown<RouteRiskLevel?>(
+                            label: 'Risk Level',
+                            value: data.riskFilter,
+                            options: const [null, ...RouteRiskLevel.values],
+                            itemLabel: (item) =>
+                                item == null ? 'All' : item.label,
+                            onChanged: (value) => ref
+                                .read(routeViewModelProvider.notifier)
+                                .setRiskFilter(value),
+                          ),
+                          _filterDropdown<String>(
+                            label: 'Region',
+                            value: data.regionFilter,
+                            options: data.regionOptions,
+                            itemLabel: (item) => item,
+                            onChanged: (value) => ref
+                                .read(routeViewModelProvider.notifier)
+                                .setRegionFilter(value),
+                          ),
+                          _filterDropdown<String>(
+                            label: 'Distance',
+                            value: data.distanceFilter,
+                            options: const [
+                              'All',
+                              'Short Distance',
+                              'Long Distance'
+                            ],
+                            itemLabel: (item) => item,
+                            onChanged: (value) => ref
+                                .read(routeViewModelProvider.notifier)
+                                .setDistanceFilter(value),
+                          ),
+                          _filterDropdown<String>(
+                            label: 'Type',
+                            value: data.customerSpecificFilter,
+                            options: const [
+                              'All',
+                              'Customer Specific',
+                              'General'
+                            ],
+                            itemLabel: (item) => item,
+                            onChanged: (value) => ref
+                                .read(routeViewModelProvider.notifier)
+                                .setCustomerSpecificFilter(value),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                  onChanged: ref
-                      .read(routeViewModelProvider.notifier)
-                      .setSearchQuery,
                 ),
-              ),
-              const SizedBox(height: 16),
-              OpsSectionCard(
-                title: 'Route List',
-                subtitle: 'Master data for route planning and trip execution',
-                icon: Icons.alt_route_outlined,
-                accent: const Color(0xFF16A34A),
-                trailing: FilledButton.icon(
-                  onPressed: () => context.go(RoutePaths.routeLocationForm),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Create Route'),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: OpsSectionCard(
+                    title: 'Route List',
+                    subtitle:
+                        'Master routes with planning, risk and dispatch usability indicators',
+                    icon: Icons.alt_route_outlined,
+                    accent: const Color(0xFF16A34A),
+                    child: items.isEmpty
+                        ? const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 20),
+                            child: Text('No routes found.'),
+                          )
+                        : (isMobile
+                            ? _MobileRouteList(
+                                items: items, logistics: logistics)
+                            : _DesktopRouteTable(
+                                items: items, logistics: logistics)),
+                  ),
                 ),
-                child: items.isEmpty
-                    ? const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 20),
-                        child: Text('No routes found.'),
-                      )
-                    : (isMobile
-                        ? _MobileRouteList(items: items)
-                        : _DesktopRouteTable(items: items)),
-              ),
-            ],
+              ],
+            ),
           );
         },
       ),
     );
   }
-}
 
-class _DesktopRouteTable extends StatelessWidget {
-  const _DesktopRouteTable({required this.items});
-
-  final List<RouteLocationModel> items;
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        headingRowColor: WidgetStateProperty.all(const Color(0xFFEFF4FF)),
-        columns: const [
-          DataColumn(label: Text('Start Location')),
-          DataColumn(label: Text('End Location')),
-          DataColumn(label: Text('Stops Count')),
-          DataColumn(label: Text('Estimated Time')),
-          DataColumn(label: Text('Actions')),
+  Widget _filterDropdown<T>({
+    required String label,
+    required T value,
+    required List<T> options,
+    required String Function(T) itemLabel,
+    required ValueChanged<T> onChanged,
+  }) {
+    return SizedBox(
+      width: 210,
+      child: DropdownButtonFormField<T>(
+        value: value,
+        decoration: InputDecoration(labelText: label),
+        items: [
+          for (final option in options)
+            DropdownMenuItem(value: option, child: Text(itemLabel(option))),
         ],
-        rows: [
-          for (final route in items)
-            DataRow(
-              cells: [
-                DataCell(Text(route.startLocation.locationName)),
-                DataCell(Text(route.endLocation.locationName)),
-                DataCell(Text('${route.stopsCount}')),
-                DataCell(Text(route.estimatedTime)),
-                DataCell(
-                  Row(
-                    children: [
-                      TextButton(
-                        onPressed: () => context.go(
-                          RoutePaths.routeLocationViewById(route.routeId),
-                        ),
-                        child: const Text('View'),
-                      ),
-                      TextButton(
-                        onPressed: () => context.go(
-                          '${RoutePaths.routeLocationForm}?id=${route.routeId}',
-                        ),
-                        child: const Text('Edit'),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-        ],
+        onChanged: (value) => onChanged(value as T),
       ),
     );
   }
 }
 
-class _MobileRouteList extends StatelessWidget {
-  const _MobileRouteList({required this.items});
+class _DesktopRouteTable extends ConsumerWidget {
+  const _DesktopRouteTable({required this.items, required this.logistics});
 
   final List<RouteLocationModel> items;
+  final LogisticsUiState? logistics;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minWidth: constraints.maxWidth),
+            child: DataTable(
+              headingRowColor: WidgetStateProperty.all(const Color(0xFFEFF4FF)),
+              columns: const [
+                DataColumn(label: Text('Code')),
+                DataColumn(label: Text('Route')),
+                DataColumn(label: Text('ETA')),
+                DataColumn(label: Text('Distance')),
+                DataColumn(label: Text('Risk')),
+                DataColumn(label: Text('Status')),
+                DataColumn(label: Text('Active WO')),
+                DataColumn(label: Text('Delayed Trips')),
+                DataColumn(label: Text('Actions')),
+              ],
+              rows: [
+                for (final route in items)
+                  DataRow(
+                    cells: [
+                      DataCell(Text(route.routeCode)),
+                      DataCell(Text(route.routeName)),
+                      DataCell(Text(route.estimatedTime)),
+                      DataCell(
+                          Text('${route.distanceKm.toStringAsFixed(1)} km')),
+                      DataCell(_RiskChip(level: route.riskLevel)),
+                      DataCell(_StatusChip(route: route)),
+                      DataCell(Text('${_activeWorkOrders(route, logistics)}')),
+                      DataCell(Text('${_delayedTrips(route, logistics)}')),
+                      DataCell(
+                        Wrap(
+                          spacing: 6,
+                          children: [
+                            TextButton(
+                              onPressed: () => context.go(
+                                RoutePaths.routeLocationViewById(route.routeId),
+                              ),
+                              child: const Text('View'),
+                            ),
+                            TextButton(
+                              onPressed: () => context.go(
+                                '${RoutePaths.routeLocationForm}?id=${route.routeId}',
+                              ),
+                              child: const Text('Edit'),
+                            ),
+                            PopupMenuButton<String>(
+                              itemBuilder: (_) => const [
+                                PopupMenuItem(
+                                    value: 'deactivate',
+                                    child: Text('Deactivate')),
+                                PopupMenuItem(
+                                    value: 'restrict',
+                                    child: Text('Mark Restricted')),
+                                PopupMenuItem(
+                                    value: 'activate',
+                                    child: Text('Mark Active')),
+                              ],
+                              onSelected: (value) async {
+                                final notifier =
+                                    ref.read(routeViewModelProvider.notifier);
+                                String message;
+                                if (value == 'deactivate') {
+                                  message = await notifier.setRouteStatus(
+                                    route.routeId,
+                                    RouteOperationalStatus.inactive,
+                                  );
+                                } else if (value == 'restrict') {
+                                  message = await notifier.setRouteStatus(
+                                    route.routeId,
+                                    RouteOperationalStatus.restricted,
+                                    temporarilyRestricted: true,
+                                    restrictionReason:
+                                        'Temporarily blocked by operations',
+                                  );
+                                } else {
+                                  message = await notifier.setRouteStatus(
+                                    route.routeId,
+                                    RouteOperationalStatus.active,
+                                    temporarilyRestricted: false,
+                                    restrictionReason: '',
+                                  );
+                                }
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text(message)),
+                                  );
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _MobileRouteList extends ConsumerWidget {
+  const _MobileRouteList({required this.items, required this.logistics});
+
+  final List<RouteLocationModel> items;
+  final LogisticsUiState? logistics;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
     return ListView.separated(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -156,12 +348,25 @@ class _MobileRouteList extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '${route.startLocation.locationName} -> ${route.endLocation.locationName}',
+                '${route.routeCode} • ${route.routeName}',
                 style: const TextStyle(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 6),
-              Text('Stops Count: ${route.stopsCount}'),
-              Text('Estimated Time: ${route.estimatedTime}'),
+              Text(
+                  'Origin: ${route.startLocation.locationName}  ->  ${route.endLocation.locationName}'),
+              Text('ETA: ${route.estimatedTime}'),
+              Text('Distance: ${route.distanceKm.toStringAsFixed(1)} km'),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 8,
+                children: [
+                  _RiskChip(level: route.riskLevel),
+                  _StatusChip(route: route),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text('Active WO: ${_activeWorkOrders(route, logistics)}'),
+              Text('Delayed Trips: ${_delayedTrips(route, logistics)}'),
               const SizedBox(height: 8),
               Row(
                 children: [
@@ -186,4 +391,115 @@ class _MobileRouteList extends StatelessWidget {
       },
     );
   }
+}
+
+class _RiskChip extends StatelessWidget {
+  const _RiskChip({required this.level});
+
+  final RouteRiskLevel level;
+
+  @override
+  Widget build(BuildContext context) {
+    Color color;
+    switch (level) {
+      case RouteRiskLevel.low:
+        color = const Color(0xFF15803D);
+        break;
+      case RouteRiskLevel.medium:
+        color = const Color(0xFFD97706);
+        break;
+      case RouteRiskLevel.high:
+        color = const Color(0xFFEA580C);
+        break;
+      case RouteRiskLevel.critical:
+        color = const Color(0xFFB91C1C);
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        level.label,
+        style: TextStyle(color: color, fontWeight: FontWeight.w700),
+      ),
+    );
+  }
+}
+
+class _StatusChip extends StatelessWidget {
+  const _StatusChip({required this.route});
+
+  final RouteLocationModel route;
+
+  @override
+  Widget build(BuildContext context) {
+    var text = route.status.label;
+    Color color;
+    if (route.status == RouteOperationalStatus.active &&
+        !route.temporarilyRestricted) {
+      color = const Color(0xFF15803D);
+    } else if (route.status == RouteOperationalStatus.inactive) {
+      color = const Color(0xFF6B7280);
+    } else {
+      text = 'Restricted';
+      color = const Color(0xFFB91C1C);
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(color: color, fontWeight: FontWeight.w700),
+      ),
+    );
+  }
+}
+
+int _activeWorkOrders(RouteLocationModel route, LogisticsUiState? logistics) {
+  if (logistics == null) {
+    return 0;
+  }
+  var count = 0;
+  for (final item in logistics.workOrders) {
+    final routeText = item.route.toLowerCase();
+    final active = !item.status.toLowerCase().contains('complete');
+    if (active && _matchesRouteText(route, routeText)) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
+int _delayedTrips(RouteLocationModel route, LogisticsUiState? logistics) {
+  if (logistics == null) {
+    return 0;
+  }
+  var count = 0;
+  for (final item in logistics.workOrders) {
+    final routeText = item.route.toLowerCase();
+    final delayed = item.status.toLowerCase().contains('delay');
+    if (delayed && _matchesRouteText(route, routeText)) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
+bool _matchesRouteText(RouteLocationModel route, String routeText) {
+  final code = route.routeCode.toLowerCase();
+  final name = route.routeName.toLowerCase();
+  final origin = route.startLocation.locationName.toLowerCase();
+  final destination = route.endLocation.locationName.toLowerCase();
+
+  return routeText.contains(code) ||
+      routeText.contains(name) ||
+      (routeText.contains(origin) && routeText.contains(destination));
 }

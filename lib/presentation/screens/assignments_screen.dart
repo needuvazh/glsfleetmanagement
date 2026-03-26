@@ -1,9 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/cargo_model.dart';
+import '../../domain/entities/compliance_assignment.dart';
 import '../../domain/entities/logistics_flow.dart';
+import '../../domain/entities/module_document.dart';
 import '../../routes/route_paths.dart';
+import '../viewmodels/cargo_policy_viewmodel.dart';
+import '../viewmodels/cargo_viewmodel.dart';
+import '../viewmodels/compliance_assignment_viewmodel.dart';
+import '../viewmodels/customer_viewmodel.dart';
 import '../viewmodels/logistics_viewmodel.dart';
+import '../viewmodels/module_document_viewmodel.dart';
 import '../widgets/ops_shell.dart';
 
 class AssignmentsScreen extends ConsumerStatefulWidget {
@@ -47,6 +55,17 @@ class _AssignmentsScreenState extends ConsumerState<AssignmentsScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(logisticsViewModelProvider);
+    final policy = ref.watch(cargoPolicyViewModelProvider);
+    final complianceState = ref.watch(moduleDocumentViewModelProvider);
+    final customerState = ref.watch(customerViewModelProvider);
+    final assignmentNotifier =
+        ref.read(complianceAssignmentViewModelProvider.notifier);
+    final customerRules =
+        complianceState.valueOrNull?.rulesForApplicableTo('Customer') ??
+            const <ModuleDocument>[];
+    final cargoRules =
+        complianceState.valueOrNull?.rulesForApplicableTo('Cargo') ??
+            const <ModuleDocument>[];
 
     return OpsShell(
       title: 'Assignments',
@@ -56,16 +75,74 @@ class _AssignmentsScreenState extends ConsumerState<AssignmentsScreen> {
         error: (error, _) => Center(child: Text(error.toString())),
         data: (data) {
           final selectedOrder = _selectedWorkOrder(data.workOrders);
+          final selectedCargoProfile = ref
+              .read(cargoViewModelProvider.notifier)
+              .findByName(selectedOrder?.cargo);
           final selectedVehicle = _selectedVehicle(data.vehicles);
           final selectedDriver = _selectedDriver(data.drivers);
+          final selectedCustomerId = _customerIdByName(
+            customerState,
+            selectedOrder?.customer,
+          );
+          final selectedCargoCode = selectedCargoProfile?.cargoCode;
+          final customerAssignmentSummary = selectedCustomerId == null
+              ? const ComplianceStageSummary(
+                  stage: 'Assignment',
+                  enabledRules: 0,
+                  warningRules: 0,
+                  softBlockRules: 0,
+                  hardBlockRules: 0,
+                )
+              : assignmentNotifier.evaluateStage(
+                  entityType: 'Customer',
+                  entityId: selectedCustomerId,
+                  stage: 'Assignment',
+                  rules: customerRules,
+                );
+          final customerHardBlockRules = selectedCustomerId == null
+              ? const <String>[]
+              : assignmentNotifier.listHardBlockRuleNames(
+                  entityType: 'Customer',
+                  entityId: selectedCustomerId,
+                  stage: 'Assignment',
+                  rules: customerRules,
+                );
+          final cargoAssignmentSummary = selectedCargoCode == null
+              ? const ComplianceStageSummary(
+                  stage: 'Assignment',
+                  enabledRules: 0,
+                  warningRules: 0,
+                  softBlockRules: 0,
+                  hardBlockRules: 0,
+                )
+              : assignmentNotifier.evaluateStage(
+                  entityType: 'Cargo',
+                  entityId: selectedCargoCode,
+                  stage: 'Assignment',
+                  rules: cargoRules,
+                );
+          final cargoHardBlockRules = selectedCargoCode == null
+              ? const <String>[]
+              : assignmentNotifier.listHardBlockRuleNames(
+                  entityType: 'Cargo',
+                  entityId: selectedCargoCode,
+                  stage: 'Assignment',
+                  rules: cargoRules,
+                );
 
           final fleetRows = _filteredFleet(data.vehicles);
           final driverRows = _filteredDrivers(data.drivers);
 
           final checks = _buildValidationChecks(
             data: data,
+            hardBlockMode: policy.hardBlockMode,
+            selectedOrder: selectedOrder,
+            selectedCargo: selectedCargoProfile,
             selectedVehicle: selectedVehicle,
             selectedDriver: selectedDriver,
+            customerCompliancePass:
+                customerAssignmentSummary.hardBlockRules == 0,
+            cargoCompliancePass: cargoAssignmentSummary.hardBlockRules == 0,
           );
 
           final isDesktop = MediaQuery.of(context).size.width > 1200;
@@ -77,7 +154,19 @@ class _AssignmentsScreenState extends ConsumerState<AssignmentsScreen> {
                     ? Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(child: _buildLeftPanel(data, selectedOrder)),
+                          Expanded(
+                            child: _buildLeftPanel(
+                              data,
+                              selectedOrder,
+                              selectedCargoProfile,
+                              selectedVehicle,
+                              selectedDriver,
+                              customerAssignmentSummary,
+                              cargoAssignmentSummary,
+                              customerHardBlockRules,
+                              cargoHardBlockRules,
+                            ),
+                          ),
                           const SizedBox(width: 10),
                           Expanded(
                             child: _buildMiddlePanel(
@@ -96,14 +185,28 @@ class _AssignmentsScreenState extends ConsumerState<AssignmentsScreen> {
                       )
                     : ListView(
                         children: [
-                          _buildLeftPanel(data, selectedOrder),
+                          _buildLeftPanel(
+                            data,
+                            selectedOrder,
+                            selectedCargoProfile,
+                            selectedVehicle,
+                            selectedDriver,
+                            customerAssignmentSummary,
+                            cargoAssignmentSummary,
+                            customerHardBlockRules,
+                            cargoHardBlockRules,
+                          ),
                           _buildMiddlePanel(fleetRows, selectedVehicle),
                           _buildRightPanel(driverRows, selectedDriver),
                         ],
                       ),
               ),
               const SizedBox(height: 10),
-              _buildValidationSection(checks),
+              _buildValidationSection(
+                checks,
+                customerHardBlockRules,
+                cargoHardBlockRules,
+              ),
               const SizedBox(height: 10),
               _buildActionsBar(
                 onValidate: () {
@@ -134,7 +237,16 @@ class _AssignmentsScreenState extends ConsumerState<AssignmentsScreen> {
   }
 
   Widget _buildLeftPanel(
-      LogisticsUiState data, WorkOrderFlowItem? selectedOrder) {
+    LogisticsUiState data,
+    WorkOrderFlowItem? selectedOrder,
+    CargoModel? selectedCargo,
+    FleetVehicleData? selectedVehicle,
+    DriverData? selectedDriver,
+    ComplianceStageSummary customerSummary,
+    ComplianceStageSummary cargoSummary,
+    List<String> customerHardBlockRules,
+    List<String> cargoHardBlockRules,
+  ) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -170,6 +282,102 @@ class _AssignmentsScreenState extends ConsumerState<AssignmentsScreen> {
             _pair('Inspection Need', 'Required'),
             _pair('Trip Readiness',
                 data.canStartTrip ? 'Ready' : 'Pending checks'),
+            _pair('Customer Compliance (Assignment)',
+                _stageSummaryText(customerSummary)),
+            _pair('Cargo Compliance (Assignment)',
+                _stageSummaryText(cargoSummary)),
+            if (customerHardBlockRules.isNotEmpty)
+              _pair('Customer Block Rules', customerHardBlockRules.join(', ')),
+            if (cargoHardBlockRules.isNotEmpty)
+              _pair('Cargo Block Rules', cargoHardBlockRules.join(', ')),
+            if (selectedCargo != null) ...[
+              const SizedBox(height: 8),
+              _pair('Cargo Risk', selectedCargo.riskLevel.label),
+              _pair(
+                  'Preferred Trailer',
+                  selectedCargo.preferredTrailerType.isEmpty
+                      ? '-'
+                      : selectedCargo.preferredTrailerType),
+              _pair('Lashing Required',
+                  selectedCargo.lashingRequired ? 'Yes' : 'No'),
+              _pair('Escort Required',
+                  selectedCargo.escortRequired ? 'Yes' : 'No'),
+              _pair(
+                'Required Certifications',
+                selectedCargo.requiredCertifications.isEmpty
+                    ? '-'
+                    : selectedCargo.requiredCertifications.join(', '),
+              ),
+              _pair(
+                'Required Permits',
+                selectedCargo.requiredPermits.isEmpty
+                    ? '-'
+                    : selectedCargo.requiredPermits.join(', '),
+              ),
+              if (_cargoWarnings(selectedCargo).isNotEmpty)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(top: 6),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF7ED),
+                    border: Border.all(color: const Color(0xFFF59E0B)),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Cargo Assignment Guidance',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 6),
+                      for (final note in _cargoWarnings(selectedCargo))
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Text('- $note'),
+                        ),
+                    ],
+                  ),
+                ),
+              if (_missingComplianceForCargo(
+                cargo: selectedCargo,
+                vehicle: selectedVehicle,
+                driver: selectedDriver,
+              ).isNotEmpty)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(top: 6),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEF2F2),
+                    border: Border.all(color: const Color(0xFFB91C1C)),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Cargo Compliance Gaps',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFFB91C1C),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      for (final gap in _missingComplianceForCargo(
+                        cargo: selectedCargo,
+                        vehicle: selectedVehicle,
+                        driver: selectedDriver,
+                      ))
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Text('- $gap'),
+                        ),
+                    ],
+                  ),
+                ),
+            ],
             const SizedBox(height: 8),
             TextFormField(
               controller: _remarksController,
@@ -182,6 +390,28 @@ class _AssignmentsScreenState extends ConsumerState<AssignmentsScreen> {
         ),
       ),
     );
+  }
+
+  List<String> _cargoWarnings(CargoModel cargo) {
+    final warnings = <String>[];
+    if (cargo.hazardous) {
+      warnings
+          .add('Hazardous cargo selected. Ensure hazmat compliant resources.');
+    }
+    if (cargo.riskLevel == CargoRiskLevel.high ||
+        cargo.riskLevel == CargoRiskLevel.critical) {
+      warnings.add('High-risk cargo. Increase planner and dispatcher review.');
+    }
+    if (cargo.specialComplianceRequired) {
+      warnings.add('Special compliance/certification checks are recommended.');
+    }
+    if (cargo.inspectionRequired && cargo.photoEvidenceMandatory) {
+      warnings.add('Inspection should include mandatory photo evidence.');
+    }
+    if (cargo.inspectionRequired && cargo.videoEvidenceMandatory) {
+      warnings.add('Inspection should include mandatory video evidence.');
+    }
+    return warnings;
   }
 
   Widget _buildMiddlePanel(
@@ -263,6 +493,12 @@ class _AssignmentsScreenState extends ConsumerState<AssignmentsScreen> {
             const SizedBox(height: 8),
             _pair('Vehicle Number', selectedVehicle?.vehicleNo ?? '-'),
             _pair('Vehicle Type', selectedVehicle?.type ?? '-'),
+            _pair(
+              'Vehicle Permits',
+              selectedVehicle == null || selectedVehicle.permits.isEmpty
+                  ? '-'
+                  : selectedVehicle.permits.join(', '),
+            ),
             _pair('Capacity', selectedVehicle?.capacity ?? '-'),
             _pair('Fuel Type', selectedVehicle?.fuelType ?? '-'),
             _pair('IVMS Device', selectedVehicle?.ivmsDeviceId ?? '-'),
@@ -339,6 +575,12 @@ class _AssignmentsScreenState extends ConsumerState<AssignmentsScreen> {
             const SizedBox(height: 12),
             _pair('Driver', selectedDriver?.name ?? '-'),
             _pair('License', selectedDriver?.licenseNo ?? '-'),
+            _pair(
+              'Driver Certifications',
+              selectedDriver == null || selectedDriver.certifications.isEmpty
+                  ? '-'
+                  : selectedDriver.certifications.join(', '),
+            ),
             _pair('License Expiry', selectedDriver?.expiryDate ?? '-'),
             _pair('Availability', selectedDriver?.status ?? '-'),
             _pair('Compliance Readiness',
@@ -349,7 +591,11 @@ class _AssignmentsScreenState extends ConsumerState<AssignmentsScreen> {
     );
   }
 
-  Widget _buildValidationSection(Map<String, bool> checks) {
+  Widget _buildValidationSection(
+    Map<String, bool> checks,
+    List<String> customerHardBlockRules,
+    List<String> cargoHardBlockRules,
+  ) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -379,6 +625,31 @@ class _AssignmentsScreenState extends ConsumerState<AssignmentsScreen> {
                     fontWeight: FontWeight.w600,
                   ),
             ),
+            if (checks.values.any((value) => !value)) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Blocked by: ${checks.entries.where((entry) => !entry.value).map((entry) => entry.key).join(', ')}',
+                style: const TextStyle(
+                  color: Color(0xFFB91C1C),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              if (customerHardBlockRules.isNotEmpty ||
+                  cargoHardBlockRules.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  'Hard-block rules: ${[
+                    for (final name in customerHardBlockRules)
+                      'Customer: $name',
+                    for (final name in cargoHardBlockRules) 'Cargo: $name',
+                  ].join(', ')}',
+                  style: const TextStyle(
+                    color: Color(0xFFB91C1C),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ],
           ],
         ),
       ),
@@ -526,8 +797,13 @@ class _AssignmentsScreenState extends ConsumerState<AssignmentsScreen> {
 
   Map<String, bool> _buildValidationChecks({
     required LogisticsUiState data,
+    required bool hardBlockMode,
+    required WorkOrderFlowItem? selectedOrder,
+    required CargoModel? selectedCargo,
     required FleetVehicleData? selectedVehicle,
     required DriverData? selectedDriver,
+    required bool customerCompliancePass,
+    required bool cargoCompliancePass,
   }) {
     final fleetAvailable =
         selectedVehicle != null && _isAvailable(selectedVehicle.status);
@@ -540,11 +816,22 @@ class _AssignmentsScreenState extends ConsumerState<AssignmentsScreen> {
             data.vehicleDocStatus == 'Expiring Soon') &&
         (data.driverDocStatus == 'Valid' ||
             data.driverDocStatus == 'Expiring Soon');
+    final cargoRulePass = hardBlockMode
+        ? _cargoHardBlockPass(
+            selectedOrder: selectedOrder,
+            selectedCargo: selectedCargo,
+            selectedVehicle: selectedVehicle,
+            selectedDriver: selectedDriver,
+          )
+        : true;
     final assignmentAllowed = fleetAvailable &&
         fleetInspectionValid &&
         driverAvailable &&
         driverLicenseValid &&
-        documentsComplete;
+        documentsComplete &&
+        cargoRulePass &&
+        customerCompliancePass &&
+        cargoCompliancePass;
 
     return {
       'Fleet Available': fleetAvailable,
@@ -552,8 +839,166 @@ class _AssignmentsScreenState extends ConsumerState<AssignmentsScreen> {
       'Driver Available': driverAvailable,
       'Driver License Valid': driverLicenseValid,
       'Documents Complete': documentsComplete,
+      'Cargo Rules': cargoRulePass,
+      'Customer Assignment Compliance': customerCompliancePass,
+      'Cargo Assignment Compliance': cargoCompliancePass,
       'Assignment Allowed': assignmentAllowed,
     };
+  }
+
+  String _stageSummaryText(ComplianceStageSummary summary) {
+    if (summary.enabledRules == 0) {
+      return 'No assigned rules';
+    }
+    return 'Enabled ${summary.enabledRules}, Hard ${summary.hardBlockRules}, Soft ${summary.softBlockRules}, Warn ${summary.warningRules}';
+  }
+
+  String? _customerIdByName(CustomerState state, String? customerName) {
+    final normalized = customerName?.trim().toLowerCase() ?? '';
+    if (normalized.isEmpty) {
+      return null;
+    }
+    for (final customer in state.customers) {
+      if (customer.name.trim().toLowerCase() == normalized) {
+        return customer.id;
+      }
+    }
+    return null;
+  }
+
+  bool _cargoHardBlockPass({
+    required WorkOrderFlowItem? selectedOrder,
+    required CargoModel? selectedCargo,
+    required FleetVehicleData? selectedVehicle,
+    required DriverData? selectedDriver,
+  }) {
+    if (selectedOrder == null || selectedCargo == null) {
+      return true;
+    }
+    if (!selectedCargo.isSelectable) {
+      return false;
+    }
+    if (selectedCargo.restricted) {
+      return false;
+    }
+
+    if (selectedVehicle == null || selectedDriver == null) {
+      return false;
+    }
+
+    final selectedVehicleType = selectedVehicle.type.toLowerCase();
+    final preferredVehicle = selectedCargo.preferredVehicleType.toLowerCase();
+    if (preferredVehicle.isNotEmpty &&
+        !selectedVehicleType.contains(preferredVehicle)) {
+      return false;
+    }
+
+    final selectedTrailer = _selectedTrailerId?.toLowerCase() ?? '';
+    final preferredTrailer = selectedCargo.preferredTrailerType.toLowerCase();
+    if (preferredTrailer.isNotEmpty) {
+      if (selectedTrailer.isEmpty ||
+          !selectedTrailer.contains(preferredTrailer)) {
+        return false;
+      }
+    }
+
+    if ((selectedCargo.riskLevel == CargoRiskLevel.high ||
+            selectedCargo.riskLevel == CargoRiskLevel.critical) &&
+        selectedDriver.experience < 3) {
+      return false;
+    }
+
+    if (selectedCargo.hazardous && selectedDriver.experience < 2) {
+      return false;
+    }
+
+    if (selectedCargo.specialComplianceRequired &&
+        selectedDriver.licenseNo.trim().isEmpty) {
+      return false;
+    }
+
+    if (_missingComplianceForCargo(
+      cargo: selectedCargo,
+      vehicle: selectedVehicle,
+      driver: selectedDriver,
+    ).isNotEmpty) {
+      return false;
+    }
+
+    if (selectedCargo.inspectionRequired &&
+        selectedCargo.photoEvidenceMandatory &&
+        selectedCargo.inspectionTemplateType.trim().isEmpty) {
+      return false;
+    }
+
+    return true;
+  }
+
+  List<String> _missingComplianceForCargo({
+    required CargoModel cargo,
+    required FleetVehicleData? vehicle,
+    required DriverData? driver,
+  }) {
+    final gaps = <String>[];
+
+    final requiredCerts = cargo.requiredCertifications
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toList();
+    final requiredPermits = cargo.requiredPermits
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toList();
+
+    final availableCerts = (driver?.certifications ?? const <String>[])
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toList();
+    final availablePermits = (vehicle?.permits ?? const <String>[])
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toList();
+
+    for (final cert in requiredCerts) {
+      if (!_containsFuzzyMatch(availableCerts, cert)) {
+        gaps.add('Missing driver certification: $cert');
+      }
+    }
+
+    for (final permit in requiredPermits) {
+      if (!_containsFuzzyMatch(availablePermits, permit)) {
+        gaps.add('Missing vehicle permit: $permit');
+      }
+    }
+
+    return gaps;
+  }
+
+  bool _containsFuzzyMatch(List<String> candidates, String required) {
+    final requiredTokens = _normalizedTokens(required);
+    if (requiredTokens.isEmpty) {
+      return true;
+    }
+    for (final candidate in candidates) {
+      final sourceTokens = _normalizedTokens(candidate);
+      if (sourceTokens.isEmpty) {
+        continue;
+      }
+      final intersects = requiredTokens.any(sourceTokens.contains);
+      if (intersects) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  Set<String> _normalizedTokens(String value) {
+    return value
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9\s]'), ' ')
+        .split(RegExp(r'\s+'))
+        .where((item) => item.trim().isNotEmpty)
+        .toSet();
   }
 
   bool _isAvailable(String status) {

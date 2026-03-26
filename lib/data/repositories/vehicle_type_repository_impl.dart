@@ -12,7 +12,7 @@ class VehicleTypeRepositoryImpl implements VehicleTypeRepository {
     required VehicleTypeLocalDataSource localDataSource,
   }) : _localDataSource = localDataSource;
 
-  static const _cacheKey = 'vehicle_type_master_records_v1';
+  static const _cacheKey = 'vehicle_type_master_records_v2';
   final VehicleTypeLocalDataSource _localDataSource;
   List<VehicleType>? _cache;
 

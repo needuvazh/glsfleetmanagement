@@ -46,4 +46,6 @@ class AppConstants {
   static const invoicesMockPath = 'assets/mock/invoices.json';
   static const vehicleTypesMockPath = 'assets/mock/vehicle_types.json';
   static const moduleDocumentsMockPath = 'assets/mock/module_documents.json';
+
+  // Cargo enforcement mode is controlled at runtime from Cargo Master UI.
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/constants/oman_fleet_master.dart';
 import '../../core/utils/responsive.dart';
 import '../../domain/entities/vehicle_type.dart';
 import '../../routes/route_paths.dart';
@@ -23,18 +24,35 @@ class _TransportManagementScreenState
   final _formKey = GlobalKey<FormState>();
   final _vehicleNumberController = TextEditingController();
   final _vehicleNameController = TextEditingController();
+  final _registrationController = TextEditingController();
   final _vendorNameController = TextEditingController();
   final _capacityController = TextEditingController();
   final _manufacturerController = TextEditingController();
   final _modelController = TextEditingController();
   final _yearController = TextEditingController();
+  final _currentLocationController = TextEditingController();
+  final _currentWorkOrderController = TextEditingController();
+  final _blockReasonController = TextEditingController();
+  final _registrationExpiryController = TextEditingController();
+  final _insuranceExpiryController = TextEditingController();
+  final _permitExpiryController = TextEditingController();
+  final _inspectionExpiryController = TextEditingController();
+  final _lastServiceDateController = TextEditingController();
+  final _nextServiceDueController = TextEditingController();
+  final _maintenanceNotesController = TextEditingController();
+  final _suspensionReasonController = TextEditingController();
+  final _preferredRoutesController = TextEditingController();
+  final _preferredCargoController = TextEditingController();
+  final _regionController = TextEditingController();
+  final _specialRestrictionsController = TextEditingController();
 
-  static const _ownershipTypes = ['Company Owned', 'Vendor Owned'];
+  static const _ownershipTypes = OmanFleetMaster.ownershipTypes;
   static const _fuelTypes = ['Diesel'];
-  static const _statusOptions = ['Active', 'Inactive'];
-  static const _availabilityOptions = ['Available', 'In Use', 'Maintenance'];
+  static const _statusOptions = OmanFleetMaster.activeStatuses;
+  static const _availabilityOptions = OmanFleetMaster.availabilityStatuses;
 
   String? _selectedVehicleType;
+  String? _selectedBaseLocation;
   String? _selectedOwnershipType;
   String? _selectedFuelType;
   String? _selectedStatus;
@@ -44,16 +62,38 @@ class _TransportManagementScreenState
   String _autoCapacityUnit = 'KG';
   List<_VehicleDocumentFormRow> _documentRows = [];
   String _selectedVehicleLoadType = 'NON-PDO';
+  bool _assignmentAllowed = true;
+  bool _dispatchBlocked = false;
+  bool _ivmsInstalled = true;
+  bool _dfmsInstalled = true;
+  bool _escortRequired = false;
+  bool _nightDrivingAllowed = true;
 
   @override
   void dispose() {
     _vehicleNumberController.dispose();
     _vehicleNameController.dispose();
+    _registrationController.dispose();
     _vendorNameController.dispose();
     _capacityController.dispose();
     _manufacturerController.dispose();
     _modelController.dispose();
     _yearController.dispose();
+    _currentLocationController.dispose();
+    _currentWorkOrderController.dispose();
+    _blockReasonController.dispose();
+    _registrationExpiryController.dispose();
+    _insuranceExpiryController.dispose();
+    _permitExpiryController.dispose();
+    _inspectionExpiryController.dispose();
+    _lastServiceDateController.dispose();
+    _nextServiceDueController.dispose();
+    _maintenanceNotesController.dispose();
+    _suspensionReasonController.dispose();
+    _preferredRoutesController.dispose();
+    _preferredCargoController.dispose();
+    _regionController.dispose();
+    _specialRestrictionsController.dispose();
     _disposeDocumentRows();
     super.dispose();
   }
@@ -64,18 +104,29 @@ class _TransportManagementScreenState
     final vehicleTypeState = ref.watch(vehicleTypeViewModelProvider);
     final vehicleTypeItems = vehicleTypeState.valueOrNull?.items ?? const [];
 
-    if (_selectedVehicleType != null) {
-      final exists =
-          vehicleTypeItems.any((item) => item.name == _selectedVehicleType);
-      if (!exists) {
-        _selectedVehicleType = null;
-      }
+    if (_selectedVehicleType == null) {
+      _selectedVehicleType = OmanFleetMaster.fleetTypes.first;
+      _autoVehicleClass =
+          OmanFleetMaster.vehicleClassForType(_selectedVehicleType!);
+      _autoVehicleCategory =
+          _autoVehicleClass == 'Light' ? 'Light Vehicle' : 'Heavy Vehicle';
     }
-    if (_selectedVehicleType == null && vehicleTypeItems.isNotEmpty) {
-      _selectVehicleType(vehicleTypeItems.first);
+
+    if (_selectedVehicleType != null) {
+      VehicleType? selectedTemplate;
+      for (final item in vehicleTypeItems) {
+        if (item.name == _selectedVehicleType) {
+          selectedTemplate = item;
+          break;
+        }
+      }
+      if (selectedTemplate != null) {
+        _selectVehicleType(selectedTemplate);
+      }
     }
 
     _selectedOwnershipType ??= _ownershipTypes.first;
+    _selectedBaseLocation ??= OmanFleetMaster.omanLocations.first;
     _selectedFuelType ??= _fuelTypes.first;
     _selectedStatus ??= _statusOptions.first;
     _selectedAvailability ??= _availabilityOptions.first;
@@ -154,28 +205,47 @@ class _TransportManagementScreenState
                     validator: _required,
                   ),
                   const SizedBox(height: 10),
+                  TextFormField(
+                    controller: _registrationController,
+                    decoration:
+                        const InputDecoration(labelText: 'Registration Number'),
+                    validator: _required,
+                  ),
+                  const SizedBox(height: 10),
                   DropdownButtonFormField<String>(
                     value: _selectedVehicleType,
                     decoration:
                         const InputDecoration(labelText: 'Vehicle Type'),
                     items: [
-                      for (final type in vehicleTypeItems)
+                      for (final type in OmanFleetMaster.fleetTypes)
                         DropdownMenuItem(
-                          value: type.name,
-                          child: Text('${type.name} (${type.code})'),
+                          value: type,
+                          child: Text(type),
                         ),
                     ],
-                    onChanged: vehicleTypeItems.isEmpty
-                        ? null
-                        : (value) {
-                            if (value == null) {
-                              return;
-                            }
-                            final selected = vehicleTypeItems.firstWhere(
-                              (item) => item.name == value,
-                            );
-                            setState(() => _selectVehicleType(selected));
-                          },
+                    onChanged: (value) {
+                      if (value == null) {
+                        return;
+                      }
+                      VehicleType? selected;
+                      for (final item in vehicleTypeItems) {
+                        if (item.name == value) {
+                          selected = item;
+                          break;
+                        }
+                      }
+                      setState(() {
+                        _selectedVehicleType = value;
+                        _autoVehicleClass =
+                            OmanFleetMaster.vehicleClassForType(value);
+                        _autoVehicleCategory = _autoVehicleClass == 'Light'
+                            ? 'Light Vehicle'
+                            : 'Heavy Vehicle';
+                        if (selected != null) {
+                          _selectVehicleType(selected);
+                        }
+                      });
+                    },
                     validator: (value) =>
                         (value == null || value.isEmpty) ? 'Required' : null,
                   ),
@@ -194,6 +264,22 @@ class _TransportManagementScreenState
                     readOnly: true,
                     decoration:
                         const InputDecoration(labelText: 'Vehicle Class'),
+                  ),
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<String>(
+                    value: _selectedBaseLocation,
+                    decoration:
+                        const InputDecoration(labelText: 'Base Location'),
+                    items: [
+                      for (final location in OmanFleetMaster.omanLocations)
+                        DropdownMenuItem(
+                            value: location, child: Text(location)),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) {
+                        setState(() => _selectedBaseLocation = value);
+                      }
+                    },
                   ),
                   const SizedBox(height: 12),
                   _sectionTitle(context, 'Ownership'),
@@ -216,7 +302,7 @@ class _TransportManagementScreenState
                     controller: _vendorNameController,
                     decoration: const InputDecoration(labelText: 'Vendor Name'),
                     validator: (value) {
-                      if (_selectedOwnershipType == 'Vendor Owned' &&
+                      if (_selectedOwnershipType == 'Contracted' &&
                           (value == null || value.trim().isEmpty)) {
                         return 'Vendor name required';
                       }
@@ -316,6 +402,182 @@ class _TransportManagementScreenState
                     },
                   ),
                   const SizedBox(height: 12),
+                  _sectionTitle(context, 'Operational Control'),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Assignment Allowed'),
+                    value: _assignmentAllowed,
+                    onChanged: (value) =>
+                        setState(() => _assignmentAllowed = value),
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Dispatch Blocked'),
+                    value: _dispatchBlocked,
+                    onChanged: (value) =>
+                        setState(() => _dispatchBlocked = value),
+                  ),
+                  TextFormField(
+                    controller: _blockReasonController,
+                    decoration:
+                        const InputDecoration(labelText: 'Block Reason'),
+                    validator: (value) {
+                      if (_dispatchBlocked &&
+                          (value == null || value.trim().isEmpty)) {
+                        return 'Block reason required';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: _suspensionReasonController,
+                    decoration:
+                        const InputDecoration(labelText: 'Suspension Reason'),
+                    validator: (value) {
+                      if (!_assignmentAllowed &&
+                          (value == null || value.trim().isEmpty)) {
+                        return 'Suspension reason required';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: _currentLocationController,
+                    decoration:
+                        const InputDecoration(labelText: 'Current Location'),
+                    validator: _required,
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: _currentWorkOrderController,
+                    decoration:
+                        const InputDecoration(labelText: 'Current Work Order'),
+                  ),
+                  const SizedBox(height: 12),
+                  _sectionTitle(context, 'Oman Compliance Summary'),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _dateField(
+                          controller: _registrationExpiryController,
+                          label: 'Registration Validity',
+                          requiredField: true,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _dateField(
+                          controller: _insuranceExpiryController,
+                          label: 'Insurance Validity',
+                          requiredField: true,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _dateField(
+                          controller: _permitExpiryController,
+                          label: 'Permit Validity',
+                          requiredField: true,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _dateField(
+                          controller: _inspectionExpiryController,
+                          label: 'Inspection Validity',
+                          requiredField: true,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('IVMS Installed'),
+                    value: _ivmsInstalled,
+                    onChanged: (value) =>
+                        setState(() => _ivmsInstalled = value),
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('DFMS Installed'),
+                    value: _dfmsInstalled,
+                    onChanged: (value) =>
+                        setState(() => _dfmsInstalled = value),
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Escort Required'),
+                    value: _escortRequired,
+                    onChanged: (value) =>
+                        setState(() => _escortRequired = value),
+                  ),
+                  const SizedBox(height: 12),
+                  _sectionTitle(context, 'Maintenance Info'),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _dateField(
+                          controller: _lastServiceDateController,
+                          label: 'Last Service Date',
+                          requiredField: true,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _dateField(
+                          controller: _nextServiceDueController,
+                          label: 'Next Service Due',
+                          requiredField: true,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: _maintenanceNotesController,
+                    decoration:
+                        const InputDecoration(labelText: 'Maintenance Notes'),
+                    maxLines: 2,
+                  ),
+                  const SizedBox(height: 12),
+                  _sectionTitle(context, 'Operational Preferences'),
+                  TextFormField(
+                    controller: _preferredRoutesController,
+                    decoration: const InputDecoration(
+                        labelText: 'Preferred Routes (comma separated)'),
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: _preferredCargoController,
+                    decoration: const InputDecoration(
+                        labelText: 'Preferred Cargo Types (comma separated)'),
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: _regionController,
+                    decoration:
+                        const InputDecoration(labelText: 'Region / Area'),
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Night Driving Allowed'),
+                    value: _nightDrivingAllowed,
+                    onChanged: (value) =>
+                        setState(() => _nightDrivingAllowed = value),
+                  ),
+                  TextFormField(
+                    controller: _specialRestrictionsController,
+                    decoration: const InputDecoration(
+                        labelText: 'Special Restrictions'),
+                    maxLines: 2,
+                  ),
+                  const SizedBox(height: 12),
                   _sectionTitle(context, 'Vehicle Documents'),
                   if (_documentRows.isEmpty)
                     const Padding(
@@ -342,9 +604,9 @@ class _TransportManagementScreenState
                   Align(
                     alignment: Alignment.centerRight,
                     child: FilledButton.icon(
-                      onPressed: selectedType == null
+                      onPressed: _selectedVehicleType == null
                           ? null
-                          : () => _submit(context, selectedType!),
+                          : () => _submit(context, selectedType),
                       icon: const Icon(Icons.add),
                       label: const Text('Create Vehicle'),
                     ),
@@ -376,14 +638,18 @@ class _TransportManagementScreenState
                                 const Color(0xFFEFF4FF)),
                             columns: const [
                               DataColumn(label: Text('Vehicle Number')),
+                              DataColumn(label: Text('Registration')),
                               DataColumn(label: Text('Vehicle Name')),
                               DataColumn(label: Text('Type')),
                               DataColumn(label: Text('Category')),
                               DataColumn(label: Text('Class')),
+                              DataColumn(label: Text('Base Location')),
                               DataColumn(label: Text('Ownership')),
                               DataColumn(label: Text('Vendor')),
                               DataColumn(label: Text('Status')),
                               DataColumn(label: Text('Availability')),
+                              DataColumn(label: Text('Compliance Ready')),
+                              DataColumn(label: Text('Assignment Eligible')),
                               DataColumn(label: Text('PDO Compliant')),
                               DataColumn(label: Text('Documents')),
                             ],
@@ -392,16 +658,23 @@ class _TransportManagementScreenState
                                 DataRow(
                                   cells: [
                                     DataCell(Text(item.vehicleNumber)),
+                                    DataCell(Text(item.registrationNumber)),
                                     DataCell(Text(item.vehicleName)),
                                     DataCell(Text(item.vehicleType)),
                                     DataCell(Text(item.vehicleCategory)),
                                     DataCell(Text(item.vehicleClass)),
+                                    DataCell(Text(item.baseLocation)),
                                     DataCell(Text(item.ownershipType)),
                                     DataCell(Text(item.vendorName.isEmpty
                                         ? '-'
                                         : item.vendorName)),
                                     DataCell(Text(item.status)),
                                     DataCell(Text(item.availabilityStatus)),
+                                    DataCell(Text(
+                                        item.complianceReady ? 'Yes' : 'No')),
+                                    DataCell(Text(item.assignmentEligible
+                                        ? 'Yes'
+                                        : 'No')),
                                     DataCell(
                                         Text(item.pdoCompliant ? 'Yes' : 'No')),
                                     DataCell(Text('${item.documents.length}')),
@@ -545,7 +818,7 @@ class _TransportManagementScreenState
     return const Color(0xFF16A34A);
   }
 
-  Future<void> _submit(BuildContext context, VehicleType selectedType) async {
+  Future<void> _submit(BuildContext context, VehicleType? selectedType) async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -569,7 +842,10 @@ class _TransportManagementScreenState
           vehicleClass: _autoVehicleClass,
           vehicleCategory: _autoVehicleCategory,
           vehicleType: _selectedVehicleType ?? '',
+          registrationNumber: _registrationController.text,
           ownershipType: _selectedOwnershipType ?? '',
+          baseLocation:
+              _selectedBaseLocation ?? OmanFleetMaster.omanLocations.first,
           vendorName: _vendorNameController.text,
           capacity: double.parse(_capacityController.text.trim()),
           capacityUnit: _autoCapacityUnit,
@@ -579,7 +855,30 @@ class _TransportManagementScreenState
           yearOfManufacture: int.parse(_yearController.text.trim()),
           status: _selectedStatus ?? '',
           availabilityStatus: _selectedAvailability ?? '',
-          isPdoVehicleType: selectedType.loadType == 'PDO',
+          assignmentAllowed: _assignmentAllowed,
+          dispatchBlocked: _dispatchBlocked,
+          blockReason: _blockReasonController.text,
+          currentLocation: _currentLocationController.text,
+          currentWorkOrder: _currentWorkOrderController.text,
+          registrationExpiry: _registrationExpiryController.text,
+          insuranceExpiry: _insuranceExpiryController.text,
+          permitExpiry: _permitExpiryController.text,
+          inspectionExpiry: _inspectionExpiryController.text,
+          ivmsInstalled: _ivmsInstalled,
+          dfmsInstalled: _dfmsInstalled,
+          escortRequired: _escortRequired,
+          lastServiceDate: _lastServiceDateController.text,
+          nextServiceDue: _nextServiceDueController.text,
+          maintenanceStatus:
+              _selectedAvailability == 'Maintenance' ? 'Maintenance' : 'Good',
+          maintenanceNotes: _maintenanceNotesController.text,
+          suspensionReason: _suspensionReasonController.text,
+          preferredRoutes: _csv(_preferredRoutesController.text),
+          preferredCargoTypes: _csv(_preferredCargoController.text),
+          region: _regionController.text,
+          nightDrivingAllowed: _nightDrivingAllowed,
+          specialRestrictions: _specialRestrictionsController.text,
+          isPdoVehicleType: selectedType?.loadType == 'PDO',
           documents: documents,
         );
 
@@ -596,13 +895,43 @@ class _TransportManagementScreenState
       _manufacturerController.clear();
       _modelController.clear();
       _yearController.clear();
-      if (_selectedVehicleType != null) {
+      _registrationController.clear();
+      _currentLocationController.clear();
+      _currentWorkOrderController.clear();
+      _blockReasonController.clear();
+      _registrationExpiryController.clear();
+      _insuranceExpiryController.clear();
+      _permitExpiryController.clear();
+      _inspectionExpiryController.clear();
+      _lastServiceDateController.clear();
+      _nextServiceDueController.clear();
+      _maintenanceNotesController.clear();
+      _suspensionReasonController.clear();
+      _preferredRoutesController.clear();
+      _preferredCargoController.clear();
+      _regionController.clear();
+      _specialRestrictionsController.clear();
+      _assignmentAllowed = true;
+      _dispatchBlocked = false;
+      _ivmsInstalled = true;
+      _dfmsInstalled = true;
+      _escortRequired = false;
+      _nightDrivingAllowed = true;
+      if (_selectedVehicleType != null && selectedType != null) {
         _selectVehicleType(selectedType);
       } else {
         _capacityController.clear();
       }
       setState(() {});
     }
+  }
+
+  List<String> _csv(String value) {
+    return value
+        .split(',')
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toList();
   }
 
   Widget _sectionTitle(BuildContext context, String title) {

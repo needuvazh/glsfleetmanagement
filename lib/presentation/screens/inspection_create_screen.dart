@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../domain/cargo_model.dart';
 import '../../domain/entities/inspection.dart';
 import '../../routes/route_paths.dart';
+import '../viewmodels/cargo_policy_viewmodel.dart';
+import '../viewmodels/cargo_viewmodel.dart';
 import '../viewmodels/inspection_viewmodel.dart';
 import '../widgets/ops_shell.dart';
 
@@ -29,6 +32,7 @@ class _InspectionCreateScreenState
   final _correctiveActionController = TextEditingController();
   final _recommendationController = TextEditingController();
   final _reviewerController = TextEditingController();
+  String? _selectedCargoCode;
 
   InspectionType _type = InspectionType.preTrip;
   DateTime _inspectionDateTime = DateTime.now();
@@ -70,6 +74,14 @@ class _InspectionCreateScreenState
 
   @override
   Widget build(BuildContext context) {
+    final cargoState = ref.watch(cargoViewModelProvider).valueOrNull;
+    final selectableCargo = (cargoState?.items ?? const <CargoModel>[])
+        .where((item) => item.isSelectable)
+        .toList();
+    final selectedCargo = ref
+        .read(cargoViewModelProvider.notifier)
+        .findByCode(_selectedCargoCode);
+
     return OpsShell(
       title: 'Create Inspection',
       currentRoute: RoutePaths.inspections,
@@ -105,6 +117,24 @@ class _InspectionCreateScreenState
                   ),
                   _field(_workOrderController, 'Linked Work Order',
                       required: true),
+                  SizedBox(
+                    width: 260,
+                    child: DropdownButtonFormField<String>(
+                      value: _selectedCargoCode,
+                      decoration:
+                          const InputDecoration(labelText: 'Linked Cargo'),
+                      items: [
+                        for (final cargo in selectableCargo)
+                          DropdownMenuItem(
+                            value: cargo.cargoCode,
+                            child:
+                                Text('${cargo.cargoName} (${cargo.cargoCode})'),
+                          ),
+                      ],
+                      onChanged: (value) =>
+                          setState(() => _selectedCargoCode = value),
+                    ),
+                  ),
                   _field(_fleetController, 'Linked Fleet', required: true),
                   _field(_trailerController, 'Linked Trailer'),
                   _field(_driverController, 'Linked Driver', required: true),
@@ -122,6 +152,35 @@ class _InspectionCreateScreenState
                 ],
               ),
             ),
+            if (selectedCargo != null)
+              _Section(
+                title: 'Cargo-driven Inspection Guidance',
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF7ED),
+                    border: Border.all(color: const Color(0xFFF59E0B)),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${selectedCargo.cargoName} (${selectedCargo.riskLevel.label})',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 6),
+                      for (final warning
+                          in _cargoInspectionWarnings(selectedCargo))
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Text('- $warning'),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
             _Section(
               title: 'B. Checklist Items',
               child: Column(
@@ -339,6 +398,36 @@ class _InspectionCreateScreenState
     return hasFailed ? InspectionResult.failed : InspectionResult.passed;
   }
 
+  List<String> _cargoInspectionWarnings(CargoModel cargo) {
+    final warnings = <String>[];
+    if (cargo.hazardous) {
+      warnings.add(
+          'Hazardous cargo selected. Include chemical/hazmat checkpoints.');
+    }
+    if (cargo.lashingRequired) {
+      warnings.add('Load securement checks should be explicitly verified.');
+    }
+    if (cargo.photoEvidenceMandatory) {
+      warnings.add('Photo evidence is mandatory for completion policy.');
+    }
+    if (cargo.videoEvidenceMandatory) {
+      warnings.add('Video evidence is mandatory for completion policy.');
+    }
+    if (cargo.preDispatchInspectionRequired) {
+      warnings.add('Pre-dispatch checks are expected for this cargo.');
+    }
+    if (cargo.inTransitCheckRequired) {
+      warnings.add('In-transit checkpoints are expected for this cargo.');
+    }
+    if (cargo.postDeliveryCheckRequired) {
+      warnings.add('Post-delivery checks are expected for this cargo.');
+    }
+    if (warnings.isEmpty) {
+      warnings.add('No special cargo rules; proceed with template checks.');
+    }
+    return warnings;
+  }
+
   Future<void> _pickInspectionDateTime() async {
     final date = await showDatePicker(
       context: context,
@@ -371,6 +460,16 @@ class _InspectionCreateScreenState
 
   void _submit(InspectionStatus status, InspectionResult result) {
     if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    final selectedCargo = ref
+        .read(cargoViewModelProvider.notifier)
+        .findByCode(_selectedCargoCode);
+    final hardBlockMode = ref.read(cargoPolicyViewModelProvider).hardBlockMode;
+    if (hardBlockMode && !_inspectionHardBlockPass(selectedCargo, status)) {
+      _toast(
+          'Blocked by cargo inspection policy. Required evidence/checks are missing.');
       return;
     }
 
@@ -420,6 +519,37 @@ class _InspectionCreateScreenState
     ref.read(inspectionViewModelProvider.notifier).createInspection(record);
     _toast('Inspection ${record.inspectionId} saved as ${status.label}.');
     context.go(RoutePaths.inspections);
+  }
+
+  bool _inspectionHardBlockPass(CargoModel? cargo, InspectionStatus status) {
+    if (status == InspectionStatus.draft) {
+      return true;
+    }
+    if (cargo == null) {
+      return false;
+    }
+    if (!cargo.isSelectable) {
+      return false;
+    }
+    final totalMedia =
+        _items.fold<int>(0, (sum, item) => sum + item.mediaCount);
+    if (cargo.photoEvidenceMandatory && totalMedia <= 0) {
+      return false;
+    }
+    if (cargo.videoEvidenceMandatory && totalMedia < 2) {
+      return false;
+    }
+    if (cargo.preDispatchInspectionRequired &&
+        _type != InspectionType.preTrip) {
+      return false;
+    }
+    if (cargo.inTransitCheckRequired && _type != InspectionType.trip) {
+      return false;
+    }
+    if (cargo.postDeliveryCheckRequired && _type == InspectionType.preTrip) {
+      return false;
+    }
+    return true;
   }
 
   String _fmtDateTime(DateTime dt) {

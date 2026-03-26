@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/constants/oman_fleet_master.dart';
 import '../../core/utils/responsive.dart';
 import '../../domain/entities/vehicle_type.dart';
 import '../../routes/route_paths.dart';
@@ -57,6 +58,16 @@ class _VehicleTypeFormScreenState extends ConsumerState<VehicleTypeFormScreen> {
 
           final form = ref.watch(vehicleTypeFormProvider);
           final notifier = ref.read(vehicleTypeFormProvider.notifier);
+
+          if (!OmanFleetMaster.fleetTypes.contains(form.name)) {
+            Future.microtask(() {
+              final first = OmanFleetMaster.fleetTypes.first;
+              notifier.setName(first);
+              notifier.setCode(OmanFleetMaster.codeForType(first));
+              notifier.setCategory(OmanFleetMaster.categoryForType(first));
+              notifier.setVehicleClass('Dry Movers');
+            });
+          }
 
           return ListView(
             padding: const EdgeInsets.all(16),
@@ -152,21 +163,45 @@ class _VehicleTypeFormScreenState extends ConsumerState<VehicleTypeFormScreen> {
                         isActive: _currentStep >= 0,
                         content: Column(
                           children: [
-                            TextFormField(
-                              initialValue: form.name,
+                            DropdownButtonFormField<String>(
+                              value:
+                                  OmanFleetMaster.fleetTypes.contains(form.name)
+                                      ? form.name
+                                      : OmanFleetMaster.fleetTypes.first,
                               decoration: const InputDecoration(
                                 labelText: 'Vehicle Type Name',
                               ),
-                              onChanged: notifier.setName,
-                              validator: _required,
+                              items: [
+                                for (final item in OmanFleetMaster.fleetTypes)
+                                  DropdownMenuItem(
+                                      value: item, child: Text(item)),
+                              ],
+                              onChanged: (value) {
+                                if (value == null) {
+                                  return;
+                                }
+                                notifier.setName(value);
+                                notifier.setCode(
+                                    OmanFleetMaster.codeForType(value));
+                                notifier.setCategory(
+                                    OmanFleetMaster.categoryForType(value));
+                                notifier.setVehicleClass(
+                                  OmanFleetMaster.vehicleClassForType(value) ==
+                                          'Light'
+                                      ? 'Dry Movers'
+                                      : 'XXXL',
+                                );
+                              },
                             ),
                             const SizedBox(height: 10),
                             TextFormField(
-                              initialValue: form.code,
+                              initialValue: form.code.trim().isEmpty
+                                  ? OmanFleetMaster.codeForType(form.name)
+                                  : form.code,
                               decoration: const InputDecoration(
                                 labelText: 'Short Code',
                               ),
-                              onChanged: notifier.setCode,
+                              readOnly: true,
                               validator: _required,
                             ),
                             const SizedBox(height: 10),

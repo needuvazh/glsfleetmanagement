@@ -4,11 +4,13 @@
     "clientId": "C001",
     "clientName": "Shell",
     "clientType": "PDO",
-    "cargo": "Oil Equipment",
+    "cargo": "Oilfield Equipment",
     "pickup": "Muscat",
     "drop": "Sohar",
     "weight": 1200,
-    "status": "Approved"
+    "status": "Approved",
+    "requiredVehicleType": "Prime Mover",
+    "tentativeDispatchDate": "2026-04-02"
   },
   {
     "requestId": "REQ002",
@@ -19,6 +21,60 @@
     "pickup": "Nizwa",
     "drop": "Duqm",
     "weight": 800,
-    "status": "Approved"
+    "status": "Approved",
+    "requiredVehicleType": "Tipper",
+    "tentativeDispatchDate": "2026-04-03"
+  },
+  {
+    "requestId": "REQ003",
+    "clientId": "C009",
+    "clientName": "PDO",
+    "clientType": "PDO",
+    "cargo": "Hazardous Chemical",
+    "pickup": "Muscat",
+    "drop": "Fahud",
+    "weight": 650,
+    "status": "Approved",
+    "requiredVehicleType": "Tanker",
+    "tentativeDispatchDate": "2026-04-04"
+  },
+  {
+    "requestId": "REQ004",
+    "clientId": "C010",
+    "clientName": "OQ Logistics",
+    "clientType": "Non-PDO",
+    "cargo": "Heavy Equipment",
+    "pickup": "Sohar",
+    "drop": "Ibri",
+    "weight": 3000,
+    "status": "Approved",
+    "requiredVehicleType": "Flatbed Truck",
+    "tentativeDispatchDate": "2026-04-05"
+  },
+  {
+    "requestId": "REQ005",
+    "clientId": "C011",
+    "clientName": "Muscat Municipality",
+    "clientType": "Non-PDO",
+    "cargo": "Water Supply",
+    "pickup": "Muscat",
+    "drop": "Barka",
+    "weight": 1500,
+    "status": "Approved",
+    "requiredVehicleType": "Water Tanker",
+    "tentativeDispatchDate": "2026-04-05"
+  },
+  {
+    "requestId": "REQ006",
+    "clientId": "C012",
+    "clientName": "DHL Oman",
+    "clientType": "Non-PDO",
+    "cargo": "Fragile Instrument",
+    "pickup": "Sohar",
+    "drop": "Salalah",
+    "weight": 450,
+    "status": "Approved",
+    "requiredVehicleType": "Box Truck",
+    "tentativeDispatchDate": "2026-04-06"
   }
 ]

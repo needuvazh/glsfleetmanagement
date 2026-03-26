@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../domain/cargo_model.dart';
 import '../../domain/entities/inspection.dart';
+import '../../domain/entities/logistics_flow.dart';
 import '../../routes/route_paths.dart';
+import '../viewmodels/cargo_viewmodel.dart';
 import '../viewmodels/compliance_viewmodel.dart';
 import '../viewmodels/inspection_viewmodel.dart';
 import '../viewmodels/logistics_viewmodel.dart';
@@ -17,6 +20,7 @@ class ComplianceDashboardScreen extends ConsumerWidget {
     final logistics = ref.watch(logisticsViewModelProvider);
     final inspections = ref.watch(inspectionViewModelProvider);
     final compliance = ref.watch(complianceViewModelProvider);
+    final cargo = ref.watch(cargoViewModelProvider);
 
     return OpsShell(
       title: 'Compliance Dashboard',
@@ -33,6 +37,7 @@ class ComplianceDashboardScreen extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(child: Text(error.toString())),
         data: (logisticsData) {
+          final cargoItems = cargo.valueOrNull?.items ?? const <CargoModel>[];
           final now = DateTime.now();
 
           final expiringLicenses = logisticsData.drivers.where((driver) {
@@ -115,19 +120,130 @@ class ComplianceDashboardScreen extends ConsumerWidget {
             ),
           ];
 
-          return GridView.builder(
-            itemCount: widgets.length,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: 1.75,
-            ),
-            itemBuilder: (context, index) => widgets[index],
+          final cargoAlerts = _buildCargoAlerts(
+            logisticsData.workOrders,
+            cargoItems,
+          );
+
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final width = constraints.maxWidth;
+              final count = width >= 1200 ? 3 : (width >= 760 ? 2 : 1);
+
+              return ListView(
+                children: [
+                  GridView.builder(
+                    itemCount: widgets.length,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: count,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                      childAspectRatio: 1.75,
+                    ),
+                    itemBuilder: (context, index) => widgets[index],
+                  ),
+                  const SizedBox(height: 12),
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Cargo Compliance Alerts',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Warnings generated from cargo master behavior rules.',
+                          ),
+                          const SizedBox(height: 10),
+                          if (cargoAlerts.isEmpty)
+                            const Text(
+                                'No cargo-driven compliance warnings at this time.')
+                          else
+                            for (final alert in cargoAlerts)
+                              Container(
+                                width: double.infinity,
+                                margin: const EdgeInsets.only(bottom: 8),
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFFF7ED),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: const Color(0xFFF59E0B),
+                                  ),
+                                ),
+                                child: Text(alert),
+                              ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
           );
         },
       ),
     );
+  }
+
+  List<String> _buildCargoAlerts(
+    List<WorkOrderFlowItem> workOrders,
+    List<CargoModel> cargoItems,
+  ) {
+    final alerts = <String>[];
+    for (final order in workOrders) {
+      CargoModel? profile;
+      for (final cargo in cargoItems) {
+        if (cargo.cargoName.toLowerCase() == order.cargo.toLowerCase()) {
+          profile = cargo;
+          break;
+        }
+      }
+      if (profile == null) {
+        continue;
+      }
+
+      final needsAttention = profile.specialComplianceRequired ||
+          profile.authorityApprovalNeeded ||
+          profile.hazardous ||
+          profile.requiredCertifications.isNotEmpty ||
+          profile.requiredPermits.isNotEmpty;
+      if (!needsAttention) {
+        continue;
+      }
+
+      final certs = profile.requiredCertifications.join(', ');
+      final permits = profile.requiredPermits.join(', ');
+      final points = <String>[];
+      if (profile.hazardous) {
+        points.add('hazardous handling');
+      }
+      if (profile.specialComplianceRequired) {
+        points.add('special compliance');
+      }
+      if (profile.authorityApprovalNeeded) {
+        points.add('authority approval');
+      }
+      if (certs.isNotEmpty) {
+        points.add('certifications: $certs');
+      }
+      if (permits.isNotEmpty) {
+        points.add('permits: $permits');
+      }
+
+      alerts.add(
+        '${order.woId} (${order.customer}) - ${profile.cargoName}: ${points.join(' | ')}',
+      );
+    }
+    return alerts;
   }
 }
 
@@ -162,7 +278,7 @@ class _ComplianceMetric extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.12),
+                  color: color.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(icon, color: color),

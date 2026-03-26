@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/constants/oman_fleet_master.dart';
+
 class RoleItem {
   const RoleItem({
     required this.name,
@@ -62,7 +64,9 @@ class TransportItem {
     required this.vehicleClass,
     required this.vehicleCategory,
     required this.vehicleType,
+    required this.registrationNumber,
     required this.ownershipType,
+    required this.baseLocation,
     required this.vendorName,
     required this.capacity,
     required this.capacityUnit,
@@ -72,6 +76,28 @@ class TransportItem {
     required this.yearOfManufacture,
     required this.status,
     required this.availabilityStatus,
+    required this.assignmentAllowed,
+    required this.dispatchBlocked,
+    required this.blockReason,
+    required this.currentLocation,
+    required this.currentWorkOrder,
+    required this.registrationExpiry,
+    required this.insuranceExpiry,
+    required this.permitExpiry,
+    required this.inspectionExpiry,
+    required this.ivmsInstalled,
+    required this.dfmsInstalled,
+    required this.escortRequired,
+    required this.lastServiceDate,
+    required this.nextServiceDue,
+    required this.maintenanceStatus,
+    required this.maintenanceNotes,
+    required this.suspensionReason,
+    required this.preferredRoutes,
+    required this.preferredCargoTypes,
+    required this.region,
+    required this.nightDrivingAllowed,
+    required this.specialRestrictions,
     required this.documents,
     required this.pdoCompliant,
   });
@@ -81,7 +107,9 @@ class TransportItem {
   final String vehicleClass;
   final String vehicleCategory;
   final String vehicleType;
+  final String registrationNumber;
   final String ownershipType;
+  final String baseLocation;
   final String vendorName;
   final double capacity;
   final String capacityUnit;
@@ -91,8 +119,57 @@ class TransportItem {
   final int yearOfManufacture;
   final String status;
   final String availabilityStatus;
+  final bool assignmentAllowed;
+  final bool dispatchBlocked;
+  final String blockReason;
+  final String currentLocation;
+  final String currentWorkOrder;
+  final String registrationExpiry;
+  final String insuranceExpiry;
+  final String permitExpiry;
+  final String inspectionExpiry;
+  final bool ivmsInstalled;
+  final bool dfmsInstalled;
+  final bool escortRequired;
+  final String lastServiceDate;
+  final String nextServiceDue;
+  final String maintenanceStatus;
+  final String maintenanceNotes;
+  final String suspensionReason;
+  final List<String> preferredRoutes;
+  final List<String> preferredCargoTypes;
+  final String region;
+  final bool nightDrivingAllowed;
+  final String specialRestrictions;
   final List<VehicleDocumentItem> documents;
   final bool pdoCompliant;
+
+  bool get complianceReady {
+    final regValid = _isDateValid(registrationExpiry);
+    final insuranceValid = _isDateValid(insuranceExpiry);
+    final permitValid = _isDateValid(permitExpiry);
+    final inspectionValid = _isDateValid(inspectionExpiry);
+    return regValid && insuranceValid && permitValid && inspectionValid;
+  }
+
+  bool get assignmentEligible {
+    final operationalStatus = status.toLowerCase() == 'active';
+    final available = availabilityStatus.toLowerCase() == 'available';
+    final suspended = suspensionReason.trim().isNotEmpty;
+    return operationalStatus &&
+        assignmentAllowed &&
+        available &&
+        !dispatchBlocked &&
+        !suspended;
+  }
+
+  static bool _isDateValid(String dateValue) {
+    final parsed = DateTime.tryParse(dateValue.trim());
+    if (parsed == null) {
+      return false;
+    }
+    return !parsed.isBefore(DateTime.now());
+  }
 }
 
 class VehicleDocumentItem {
@@ -302,7 +379,9 @@ class AccessControlNotifier extends Notifier<AccessControlState> {
     required String vehicleClass,
     required String vehicleCategory,
     required String vehicleType,
+    String registrationNumber = '',
     required String ownershipType,
+    String baseLocation = 'Muscat',
     required String vendorName,
     required double capacity,
     required String capacityUnit,
@@ -312,6 +391,28 @@ class AccessControlNotifier extends Notifier<AccessControlState> {
     required int yearOfManufacture,
     required String status,
     required String availabilityStatus,
+    bool assignmentAllowed = true,
+    bool dispatchBlocked = false,
+    String blockReason = '',
+    String currentLocation = '',
+    String currentWorkOrder = '',
+    String registrationExpiry = '',
+    String insuranceExpiry = '',
+    String permitExpiry = '',
+    String inspectionExpiry = '',
+    bool ivmsInstalled = true,
+    bool dfmsInstalled = true,
+    bool escortRequired = false,
+    String lastServiceDate = '',
+    String nextServiceDue = '',
+    String maintenanceStatus = 'Good',
+    String maintenanceNotes = '',
+    String suspensionReason = '',
+    List<String> preferredRoutes = const [],
+    List<String> preferredCargoTypes = const [],
+    String region = '',
+    bool nightDrivingAllowed = true,
+    String specialRestrictions = '',
     required bool isPdoVehicleType,
     required List<VehicleDocumentItem> documents,
   }) {
@@ -320,7 +421,9 @@ class AccessControlNotifier extends Notifier<AccessControlState> {
     final cleanVehicleClass = vehicleClass.trim();
     final cleanVehicleCategory = vehicleCategory.trim();
     final cleanVehicleType = vehicleType.trim();
+    final cleanRegistrationNumber = registrationNumber.trim();
     final cleanOwnershipType = ownershipType.trim();
+    final cleanBaseLocation = baseLocation.trim();
     final cleanVendorName = vendorName.trim();
     final cleanCapacityUnit = capacityUnit.trim();
     final cleanFuelType = fuelType.trim();
@@ -328,13 +431,21 @@ class AccessControlNotifier extends Notifier<AccessControlState> {
     final cleanModel = model.trim();
     final cleanStatus = status.trim();
     final cleanAvailabilityStatus = availabilityStatus.trim();
+    final cleanCurrentLocation = currentLocation.trim();
+    final cleanCurrentWorkOrder = currentWorkOrder.trim();
+    final cleanBlockReason = blockReason.trim();
+    final cleanSuspensionReason = suspensionReason.trim();
+    final cleanRegion = region.trim();
+    final cleanSpecialRestrictions = specialRestrictions.trim();
 
     if (cleanVehicleNumber.isEmpty ||
         cleanVehicleName.isEmpty ||
         cleanVehicleClass.isEmpty ||
         cleanVehicleCategory.isEmpty ||
         cleanVehicleType.isEmpty ||
+        cleanRegistrationNumber.isEmpty ||
         cleanOwnershipType.isEmpty ||
+        cleanBaseLocation.isEmpty ||
         cleanCapacityUnit.isEmpty ||
         cleanFuelType.isEmpty ||
         cleanManufacturer.isEmpty ||
@@ -344,8 +455,37 @@ class AccessControlNotifier extends Notifier<AccessControlState> {
       return 'All vehicle fields are required.';
     }
 
-    if (cleanOwnershipType == 'Vendor Owned' && cleanVendorName.isEmpty) {
-      return 'Vendor name is required for vendor-owned vehicles.';
+    if (cleanOwnershipType == 'Contracted' && cleanVendorName.isEmpty) {
+      return 'Vendor name is required for contracted vehicles.';
+    }
+
+    if (!OmanFleetMaster.fleetTypes.contains(cleanVehicleType)) {
+      return 'Vehicle type must be one of Oman Fleet Master types.';
+    }
+
+    if (!OmanFleetMaster.ownershipTypes.contains(cleanOwnershipType)) {
+      return 'Ownership type must be Owned or Contracted.';
+    }
+
+    if (!OmanFleetMaster.omanLocations.contains(cleanBaseLocation)) {
+      return 'Base location must be a supported Oman location.';
+    }
+
+    if (!OmanFleetMaster.activeStatuses.contains(cleanStatus)) {
+      return 'Status must be Active or Inactive.';
+    }
+
+    if (!OmanFleetMaster.availabilityStatuses
+        .contains(cleanAvailabilityStatus)) {
+      return 'Availability must be Available, Assigned, Maintenance, or Blocked.';
+    }
+
+    if (dispatchBlocked && cleanBlockReason.isEmpty) {
+      return 'Block reason is required when dispatch is blocked.';
+    }
+
+    if (!assignmentAllowed && cleanSuspensionReason.isEmpty) {
+      return 'Suspension reason is required when assignment is disabled.';
     }
 
     if (capacity <= 0) {
@@ -408,7 +548,19 @@ class AccessControlNotifier extends Notifier<AccessControlState> {
       return 'Cannot activate vehicle: mandatory documents are missing or expired.';
     }
 
-    final pdoCompliant = !isPdoVehicleType || (!missingMandatory && !expiredMandatory);
+    final pdoCompliant =
+        !isPdoVehicleType || (!missingMandatory && !expiredMandatory);
+
+    if (!datePattern.hasMatch(registrationExpiry.trim()) ||
+        !datePattern.hasMatch(insuranceExpiry.trim()) ||
+        !datePattern.hasMatch(permitExpiry.trim()) ||
+        !datePattern.hasMatch(inspectionExpiry.trim())) {
+      return 'Registration, insurance, permit, and inspection validity dates are required (YYYY-MM-DD).';
+    }
+
+    if (lastServiceDate.trim().isEmpty || nextServiceDue.trim().isEmpty) {
+      return 'Last service date and next service due date are required.';
+    }
 
     final normalizedDocuments = [
       for (final document in documents)
@@ -429,7 +581,9 @@ class AccessControlNotifier extends Notifier<AccessControlState> {
       vehicleClass: cleanVehicleClass,
       vehicleCategory: cleanVehicleCategory,
       vehicleType: cleanVehicleType,
+      registrationNumber: cleanRegistrationNumber,
       ownershipType: cleanOwnershipType,
+      baseLocation: cleanBaseLocation,
       vendorName: cleanVendorName,
       capacity: capacity,
       capacityUnit: cleanCapacityUnit,
@@ -439,6 +593,29 @@ class AccessControlNotifier extends Notifier<AccessControlState> {
       yearOfManufacture: yearOfManufacture,
       status: cleanStatus,
       availabilityStatus: cleanAvailabilityStatus,
+      assignmentAllowed: assignmentAllowed,
+      dispatchBlocked: dispatchBlocked,
+      blockReason: cleanBlockReason,
+      currentLocation: cleanCurrentLocation,
+      currentWorkOrder: cleanCurrentWorkOrder,
+      registrationExpiry: registrationExpiry.trim(),
+      insuranceExpiry: insuranceExpiry.trim(),
+      permitExpiry: permitExpiry.trim(),
+      inspectionExpiry: inspectionExpiry.trim(),
+      ivmsInstalled: ivmsInstalled,
+      dfmsInstalled: dfmsInstalled,
+      escortRequired: escortRequired,
+      lastServiceDate: lastServiceDate.trim(),
+      nextServiceDue: nextServiceDue.trim(),
+      maintenanceStatus:
+          maintenanceStatus.trim().isEmpty ? 'Good' : maintenanceStatus.trim(),
+      maintenanceNotes: maintenanceNotes.trim(),
+      suspensionReason: cleanSuspensionReason,
+      preferredRoutes: preferredRoutes,
+      preferredCargoTypes: preferredCargoTypes,
+      region: cleanRegion,
+      nightDrivingAllowed: nightDrivingAllowed,
+      specialRestrictions: cleanSpecialRestrictions,
       documents: normalizedDocuments,
       pdoCompliant: pdoCompliant,
     );
@@ -448,5 +625,227 @@ class AccessControlNotifier extends Notifier<AccessControlState> {
       return 'Vehicle created, but Vehicle not compliant for PDO.';
     }
     return 'Vehicle created successfully.';
+  }
+
+  String markMaintenance(String vehicleNumber, {String notes = ''}) {
+    final index = state.transports
+        .indexWhere((item) => item.vehicleNumber == vehicleNumber);
+    if (index < 0) {
+      return 'Fleet not found.';
+    }
+    final current = state.transports[index];
+    final updated = TransportItem(
+      vehicleNumber: current.vehicleNumber,
+      vehicleName: current.vehicleName,
+      vehicleClass: current.vehicleClass,
+      vehicleCategory: current.vehicleCategory,
+      vehicleType: current.vehicleType,
+      registrationNumber: current.registrationNumber,
+      ownershipType: current.ownershipType,
+      baseLocation: current.baseLocation,
+      vendorName: current.vendorName,
+      capacity: current.capacity,
+      capacityUnit: current.capacityUnit,
+      fuelType: current.fuelType,
+      manufacturer: current.manufacturer,
+      model: current.model,
+      yearOfManufacture: current.yearOfManufacture,
+      status: current.status,
+      availabilityStatus: 'Maintenance',
+      assignmentAllowed: false,
+      dispatchBlocked: true,
+      blockReason:
+          notes.trim().isEmpty ? 'Maintenance in progress' : notes.trim(),
+      currentLocation: current.currentLocation,
+      currentWorkOrder: current.currentWorkOrder,
+      registrationExpiry: current.registrationExpiry,
+      insuranceExpiry: current.insuranceExpiry,
+      permitExpiry: current.permitExpiry,
+      inspectionExpiry: current.inspectionExpiry,
+      ivmsInstalled: current.ivmsInstalled,
+      dfmsInstalled: current.dfmsInstalled,
+      escortRequired: current.escortRequired,
+      lastServiceDate: current.lastServiceDate,
+      nextServiceDue: current.nextServiceDue,
+      maintenanceStatus: 'Maintenance',
+      maintenanceNotes: notes.trim(),
+      suspensionReason: 'Maintenance',
+      preferredRoutes: current.preferredRoutes,
+      preferredCargoTypes: current.preferredCargoTypes,
+      region: current.region,
+      nightDrivingAllowed: current.nightDrivingAllowed,
+      specialRestrictions: current.specialRestrictions,
+      documents: current.documents,
+      pdoCompliant: current.pdoCompliant,
+    );
+
+    final next = [...state.transports];
+    next[index] = updated;
+    state = state.copyWith(transports: next);
+    return 'Fleet marked as maintenance.';
+  }
+
+  String deactivateTransport(String vehicleNumber, {String reason = ''}) {
+    final index = state.transports
+        .indexWhere((item) => item.vehicleNumber == vehicleNumber);
+    if (index < 0) {
+      return 'Fleet not found.';
+    }
+    final current = state.transports[index];
+    final updated = TransportItem(
+      vehicleNumber: current.vehicleNumber,
+      vehicleName: current.vehicleName,
+      vehicleClass: current.vehicleClass,
+      vehicleCategory: current.vehicleCategory,
+      vehicleType: current.vehicleType,
+      registrationNumber: current.registrationNumber,
+      ownershipType: current.ownershipType,
+      baseLocation: current.baseLocation,
+      vendorName: current.vendorName,
+      capacity: current.capacity,
+      capacityUnit: current.capacityUnit,
+      fuelType: current.fuelType,
+      manufacturer: current.manufacturer,
+      model: current.model,
+      yearOfManufacture: current.yearOfManufacture,
+      status: 'Inactive',
+      availabilityStatus: 'Blocked',
+      assignmentAllowed: false,
+      dispatchBlocked: true,
+      blockReason: reason.trim().isEmpty ? 'Deactivated' : reason.trim(),
+      currentLocation: current.currentLocation,
+      currentWorkOrder: current.currentWorkOrder,
+      registrationExpiry: current.registrationExpiry,
+      insuranceExpiry: current.insuranceExpiry,
+      permitExpiry: current.permitExpiry,
+      inspectionExpiry: current.inspectionExpiry,
+      ivmsInstalled: current.ivmsInstalled,
+      dfmsInstalled: current.dfmsInstalled,
+      escortRequired: current.escortRequired,
+      lastServiceDate: current.lastServiceDate,
+      nextServiceDue: current.nextServiceDue,
+      maintenanceStatus: current.maintenanceStatus,
+      maintenanceNotes: current.maintenanceNotes,
+      suspensionReason: reason.trim().isEmpty ? 'Deactivated' : reason.trim(),
+      preferredRoutes: current.preferredRoutes,
+      preferredCargoTypes: current.preferredCargoTypes,
+      region: current.region,
+      nightDrivingAllowed: current.nightDrivingAllowed,
+      specialRestrictions: current.specialRestrictions,
+      documents: current.documents,
+      pdoCompliant: current.pdoCompliant,
+    );
+
+    final next = [...state.transports];
+    next[index] = updated;
+    state = state.copyWith(transports: next);
+    return 'Fleet deactivated.';
+  }
+
+  String updateTransportBasics({
+    required String vehicleNumber,
+    required String vehicleType,
+    required String registrationNumber,
+    required String baseLocation,
+    required String ownershipType,
+    required String availabilityStatus,
+    required bool assignmentAllowed,
+    required bool dispatchBlocked,
+    required String blockReason,
+    required String status,
+    required String suspensionReason,
+    required String registrationExpiry,
+    required String insuranceExpiry,
+    required String permitExpiry,
+    required String inspectionExpiry,
+  }) {
+    final index = state.transports
+        .indexWhere((item) => item.vehicleNumber == vehicleNumber);
+    if (index < 0) {
+      return 'Fleet not found.';
+    }
+
+    if (!OmanFleetMaster.fleetTypes.contains(vehicleType)) {
+      return 'Invalid Oman fleet type selected.';
+    }
+    if (!OmanFleetMaster.omanLocations.contains(baseLocation)) {
+      return 'Invalid base location selected.';
+    }
+    if (!OmanFleetMaster.ownershipTypes.contains(ownershipType)) {
+      return 'Invalid ownership type selected.';
+    }
+    if (!OmanFleetMaster.activeStatuses.contains(status)) {
+      return 'Invalid status selected.';
+    }
+    if (!OmanFleetMaster.availabilityStatuses.contains(availabilityStatus)) {
+      return 'Invalid availability status selected.';
+    }
+    if (dispatchBlocked && blockReason.trim().isEmpty) {
+      return 'Block reason is required when dispatch is blocked.';
+    }
+    if (!assignmentAllowed && suspensionReason.trim().isEmpty) {
+      return 'Suspension reason is required when assignment is disabled.';
+    }
+
+    final datePattern = RegExp(r'^\d{4}-\d{2}-\d{2}$');
+    if (!datePattern.hasMatch(registrationExpiry.trim()) ||
+        !datePattern.hasMatch(insuranceExpiry.trim()) ||
+        !datePattern.hasMatch(permitExpiry.trim()) ||
+        !datePattern.hasMatch(inspectionExpiry.trim())) {
+      return 'Compliance validity dates must be in YYYY-MM-DD format.';
+    }
+
+    final current = state.transports[index];
+    final updated = TransportItem(
+      vehicleNumber: current.vehicleNumber,
+      vehicleName: current.vehicleName,
+      vehicleClass: OmanFleetMaster.vehicleClassForType(vehicleType),
+      vehicleCategory:
+          OmanFleetMaster.vehicleClassForType(vehicleType) == 'Light'
+              ? 'Light Vehicle'
+              : 'Heavy Vehicle',
+      vehicleType: vehicleType,
+      registrationNumber: registrationNumber.trim(),
+      ownershipType: ownershipType,
+      baseLocation: baseLocation,
+      vendorName: current.vendorName,
+      capacity: current.capacity,
+      capacityUnit: current.capacityUnit,
+      fuelType: current.fuelType,
+      manufacturer: current.manufacturer,
+      model: current.model,
+      yearOfManufacture: current.yearOfManufacture,
+      status: status,
+      availabilityStatus: availabilityStatus,
+      assignmentAllowed: assignmentAllowed,
+      dispatchBlocked: dispatchBlocked,
+      blockReason: blockReason.trim(),
+      currentLocation: current.currentLocation,
+      currentWorkOrder: current.currentWorkOrder,
+      registrationExpiry: registrationExpiry.trim(),
+      insuranceExpiry: insuranceExpiry.trim(),
+      permitExpiry: permitExpiry.trim(),
+      inspectionExpiry: inspectionExpiry.trim(),
+      ivmsInstalled: current.ivmsInstalled,
+      dfmsInstalled: current.dfmsInstalled,
+      escortRequired: current.escortRequired,
+      lastServiceDate: current.lastServiceDate,
+      nextServiceDue: current.nextServiceDue,
+      maintenanceStatus: current.maintenanceStatus,
+      maintenanceNotes: current.maintenanceNotes,
+      suspensionReason: suspensionReason.trim(),
+      preferredRoutes: current.preferredRoutes,
+      preferredCargoTypes: current.preferredCargoTypes,
+      region: current.region,
+      nightDrivingAllowed: current.nightDrivingAllowed,
+      specialRestrictions: current.specialRestrictions,
+      documents: current.documents,
+      pdoCompliant: current.pdoCompliant,
+    );
+
+    final next = [...state.transports];
+    next[index] = updated;
+    state = state.copyWith(transports: next);
+    return 'Fleet updated successfully.';
   }
 }

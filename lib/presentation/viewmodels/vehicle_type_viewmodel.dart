@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/constants/oman_fleet_master.dart';
 import '../../data/datasources/local/vehicle_type_local_datasource.dart';
 import '../../data/repositories/vehicle_type_repository_impl.dart';
 import '../../domain/entities/vehicle_type.dart';
@@ -78,10 +79,6 @@ final _updateVehicleTypeUseCaseProvider = Provider<UpdateVehicleTypeUseCase>(
   (ref) => UpdateVehicleTypeUseCase(ref.watch(_vehicleTypeRepositoryProvider)),
 );
 
-final _deleteVehicleTypeUseCaseProvider = Provider<DeleteVehicleTypeUseCase>(
-  (ref) => DeleteVehicleTypeUseCase(ref.watch(_vehicleTypeRepositoryProvider)),
-);
-
 final vehicleTypeViewModelProvider =
     AsyncNotifierProvider<VehicleTypeViewModel, VehicleTypeUiState>(
   VehicleTypeViewModel.new,
@@ -157,20 +154,15 @@ class VehicleTypeViewModel extends AsyncNotifier<VehicleTypeUiState> {
   }
 
   Future<String> deleteVehicleType(String code) async {
-    final current = state.valueOrNull;
-    if (current == null) {
-      return 'Vehicle type state is not ready.';
-    }
-
-    final next = await ref.read(_deleteVehicleTypeUseCaseProvider).call(code);
-    state =
-        AsyncData(current.copyWith(items: next, lastUpdated: DateTime.now()));
-    return 'Vehicle type deleted successfully.';
+    return 'Deletion disabled: Oman vehicle types are controlled by master list.';
   }
 
   String? _validate(VehicleType item, List<VehicleType> existing) {
     if (item.name.trim().isEmpty) {
       return 'Vehicle type name is required.';
+    }
+    if (!OmanFleetMaster.fleetTypes.contains(item.name)) {
+      return 'Vehicle type must be selected from Oman controlled list.';
     }
     if (item.code.trim().isEmpty) {
       return 'Short code is required.';
@@ -416,6 +408,7 @@ class VehicleTypeFormNotifier
   static const categories = [
     'Light Vehicle',
     'Heavy Vehicle',
+    'Specialized Vehicle',
     'Trailer',
     'Tanker',
   ];
@@ -627,7 +620,8 @@ class VehicleTypeFormNotifier
   void setDefaultCapacity(String value) =>
       state = state.copyWith(defaultCapacity: value);
 
-  void setCapacityUnit(String value) => state = state.copyWith(capacityUnit: value);
+  void setCapacityUnit(String value) =>
+      state = state.copyWith(capacityUnit: value);
 
   void toggleFeature(String feature) {
     final next = List<String>.from(state.features);
@@ -642,7 +636,8 @@ class VehicleTypeFormNotifier
   void setRequiresInsurance(bool value) =>
       state = state.copyWith(requiresInsurance: value);
 
-  void setRequiresPermit(bool value) => state = state.copyWith(requiresPermit: value);
+  void setRequiresPermit(bool value) =>
+      state = state.copyWith(requiresPermit: value);
 
   void setRequiresFitness(bool value) =>
       state = state.copyWith(requiresFitness: value);
@@ -650,7 +645,8 @@ class VehicleTypeFormNotifier
   void setRequiresPollution(bool value) =>
       state = state.copyWith(requiresPollution: value);
 
-  void setComplianceMode(String value) => state = state.copyWith(complianceMode: value);
+  void setComplianceMode(String value) =>
+      state = state.copyWith(complianceMode: value);
 
   void addDocumentRequirement() {
     final next = List<VehicleTypeDocumentRequirement>.from(
@@ -680,11 +676,13 @@ class VehicleTypeFormNotifier
   }
 
   void updateDocumentRequirementName(int index, String value) {
-    _updateDocumentRequirement(index, (entry) => entry.copyWith(documentName: value));
+    _updateDocumentRequirement(
+        index, (entry) => entry.copyWith(documentName: value));
   }
 
   void updateDocumentRequirementMandatory(int index, bool value) {
-    _updateDocumentRequirement(index, (entry) => entry.copyWith(mandatory: value));
+    _updateDocumentRequirement(
+        index, (entry) => entry.copyWith(mandatory: value));
   }
 
   void updateDocumentRequirementValidityValue(int index, String value) {
@@ -696,20 +694,24 @@ class VehicleTypeFormNotifier
   }
 
   void updateDocumentRequirementValidityUnit(int index, String value) {
-    _updateDocumentRequirement(index, (entry) => entry.copyWith(validityUnit: value));
+    _updateDocumentRequirement(
+        index, (entry) => entry.copyWith(validityUnit: value));
   }
 
   void updateDocumentRequirementApplicableFor(int index, String value) {
-    _updateDocumentRequirement(index, (entry) => entry.copyWith(applicableFor: value));
+    _updateDocumentRequirement(
+        index, (entry) => entry.copyWith(applicableFor: value));
   }
 
   void setStatus(String value) => state = state.copyWith(status: value);
 
-  void setIsDefaultType(bool value) => state = state.copyWith(isDefaultType: value);
+  void setIsDefaultType(bool value) =>
+      state = state.copyWith(isDefaultType: value);
 
   void _updateDocumentRequirement(
     int index,
-    VehicleTypeDocumentRequirement Function(VehicleTypeDocumentRequirement) update,
+    VehicleTypeDocumentRequirement Function(VehicleTypeDocumentRequirement)
+        update,
   ) {
     if (index < 0 || index >= state.documentRequirements.length) {
       return;
@@ -763,7 +765,8 @@ class VehicleTypeFormNotifier
     List<VehicleTypeDocumentRequirement> source,
     VehicleTypeDocumentRequirement entry,
   ) {
-    final exists = source.any((item) => item.documentName == entry.documentName);
+    final exists =
+        source.any((item) => item.documentName == entry.documentName);
     if (exists) {
       return source;
     }

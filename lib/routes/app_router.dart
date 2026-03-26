@@ -5,6 +5,9 @@ import 'package:go_router/go_router.dart';
 import '../presentation/screens/change_password_screen.dart';
 import '../presentation/screens/alerts_screen.dart';
 import '../presentation/screens/assignments_screen.dart';
+import '../presentation/screens/cargo_form_screen.dart';
+import '../presentation/screens/cargo_list_screen.dart';
+import '../presentation/screens/cargo_view_screen.dart';
 import '../presentation/screens/closure_screen.dart';
 import '../presentation/screens/customer_management_screen.dart';
 import '../presentation/screens/customer_form_screen.dart';
@@ -47,7 +50,6 @@ import '../presentation/screens/role_list_screen.dart';
 import '../presentation/screens/route_form_screen.dart';
 import '../presentation/screens/route_list_screen.dart';
 import '../presentation/screens/route_view_screen.dart';
-import '../presentation/screens/transport_management_screen.dart';
 import '../presentation/screens/trip_monitoring_screen.dart';
 import '../presentation/screens/trip_execution_screen.dart';
 import '../presentation/screens/user_form_screen.dart';
@@ -306,7 +308,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: RoutePaths.transportManagement,
-        builder: (context, state) => const TransportManagementScreen(),
+        redirect: (context, state) => RoutePaths.fleetManagement,
       ),
       GoRoute(
         path: RoutePaths.vehicleTypes,
@@ -364,6 +366,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: RoutePaths.routeLocationView,
         builder: (context, state) => RouteViewScreen(
           routeId: state.pathParameters['routeId'] ?? '',
+        ),
+      ),
+      GoRoute(
+        path: RoutePaths.cargoMaster,
+        builder: (context, state) => const CargoListScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.cargoMasterForm,
+        builder: (context, state) => CargoFormScreen(
+          editCargoCode: state.uri.queryParameters['code'],
+        ),
+      ),
+      GoRoute(
+        path: RoutePaths.cargoMasterView,
+        builder: (context, state) => CargoViewScreen(
+          cargoCode: state.pathParameters['cargoCode'] ?? '',
         ),
       ),
       GoRoute(
