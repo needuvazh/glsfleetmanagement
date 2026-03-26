@@ -165,8 +165,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: RoutePaths.createWorkOrder,
+        builder: (context, state) => const CreateWorkOrderScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.editWorkOrder,
         builder: (context, state) => CreateWorkOrderScreen(
-          editWorkOrderId: state.uri.queryParameters['id'],
+          editWorkOrderId: state.pathParameters['workOrderId'],
         ),
       ),
       GoRoute(

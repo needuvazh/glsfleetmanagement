@@ -440,7 +440,7 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
   }
 
   void _openEditWorkOrder(_WorkOrderRow item) {
-    context.push(RoutePaths.createWorkOrder);
+    context.push(RoutePaths.editWorkOrderById(item.woNumber));
   }
 
   void _openAudit(_WorkOrderRow item) {
@@ -849,6 +849,7 @@ class _FilterDropdown extends StatelessWidget {
       width: width,
       child: DropdownButtonFormField<String>(
         value: value,
+        isExpanded: true,
         decoration: InputDecoration(labelText: label),
         items: [
           for (final option in options)

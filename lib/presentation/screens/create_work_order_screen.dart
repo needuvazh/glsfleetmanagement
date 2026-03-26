@@ -7,7 +7,7 @@ import '../../domain/entities/logistics_flow.dart';
 import '../../domain/entities/work_order.dart';
 import '../../domain/entities/customer.dart';
 import '../../domain/route_model.dart';
-import '../../domain/cargo_model.dart';
+
 import '../../domain/vendor_model.dart';
 import '../../routes/route_paths.dart';
 import '../viewmodels/cargo_viewmodel.dart';
@@ -51,7 +51,7 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
   final _specialDocumentsController = TextEditingController();
   VendorServiceType _vendorServiceType = VendorServiceType.nonPdo;
   String? _vendorId;
-  String? _selectedCargoCode;
+
 
   WorkOrderPriority _priority = WorkOrderPriority.medium;
   DateTime? _requestedDate;
@@ -62,6 +62,7 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
   String? _journeyPlanId;
   String? _selectedRouteId;
   String? _selectedCustomerId;
+  String? _selectedQuotationRef;
   bool _didPopulateEditValues = false;
   final Set<String> _acknowledgedCustomerWarnings = <String>{};
 
@@ -129,7 +130,7 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
     final customerState = ref.watch(customerViewModelProvider);
     final routeState = ref.watch(routeViewModelProvider).valueOrNull;
     final vendorState = ref.watch(vendorViewModelProvider);
-    final cargoState = ref.watch(cargoViewModelProvider).valueOrNull;
+
 
     _tryPopulateEditValues(logisticsState);
 
@@ -144,32 +145,8 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
           final plans = planState.items;
           final customers = customerState.customers;
           _syncSelectedCustomerId(customers);
-          final selectedPlan = _findPlan(plans, _journeyPlanId);
-          final allCargo = cargoState?.items ?? const <CargoModel>[];
-          final selectableCargo =
-              allCargo.where((item) => item.isSelectable).toList();
-          CargoModel? selectedCargo;
-          if (_selectedCargoCode != null) {
-            selectedCargo = ref
-                .read(cargoViewModelProvider.notifier)
-                .findByCode(_selectedCargoCode);
-          }
-          selectedCargo ??= ref
-              .read(cargoViewModelProvider.notifier)
-              .findByName(_cargoTypeController.text);
+          final quotations = logisticsState.valueOrNull?.quotations ?? [];
 
-          if (selectedCargo != null) {
-            _selectedCargoCode = selectedCargo.cargoCode;
-            _cargoTypeController.text = selectedCargo.cargoName;
-          }
-
-          final cargoDropdownItems = <CargoModel>[...selectableCargo];
-          if (_isEditMode &&
-              selectedCargo != null &&
-              !cargoDropdownItems.any(
-                  (entry) => entry.cargoCode == selectedCargo?.cargoCode)) {
-            cargoDropdownItems.add(selectedCargo);
-          }
 
           final activeVendors = vendorState.valueOrNull?.vendors
                   .where(
@@ -194,60 +171,34 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
                     children: [
                       _threeColumnFields(
                         context,
-                        _requiredField(
-                          controller: _workOrderNumberController,
-                          label: 'Work Order Number',
-                          readOnly: _isEditMode,
-                        ),
-                        _requiredField(
-                          controller: _enquiryNumberController,
-                          label: 'Enquiry Number',
-                        ),
                         DropdownButtonFormField<String>(
-                          value: _selectedCustomerId,
+                          value: _selectedQuotationRef,
                           decoration: const InputDecoration(
-                            labelText: 'Customer',
+                            labelText: 'Reference Quotation *',
                           ),
-                          items: [
-                            for (final customer in customers)
-                              DropdownMenuItem(
-                                value: customer.id,
-                                child: Text(
-                                  '${customer.name} (${customer.shortCode})',
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                          ],
-                          onChanged: customerState.isLoading
-                              ? null
-                              : (value) async {
-                                  if (value == null) {
-                                    return;
-                                  }
-                                  final selectedCustomer =
-                                      _findCustomerById(customers, value);
-                                  if (selectedCustomer == null) {
-                                    return;
-                                  }
-                                  setState(() {
-                                    _selectedCustomerId = value;
-                                    _customerController.text =
-                                        selectedCustomer.name;
-                                    _acknowledgedCustomerWarnings.clear();
-                                  });
-                                  await _runCustomerControlChecks();
-                                },
                           validator: (value) {
                             if (value == null || value.trim().isEmpty) {
                               return 'Required';
                             }
                             return null;
                           },
+                          items: [
+                            ...quotations.map((q) => DropdownMenuItem(
+                                  value: q.quoteRef,
+                                  child: Text('${q.quoteRef} • ${q.customer}'),
+                                )),
+                          ],
+                          onChanged: (value) => _onQuotationSelected(
+                              value, logisticsState.valueOrNull),
+                          isExpanded: true,
                         ),
-                      ),
-                      const SizedBox(height: 12),
-                      _threeColumnFields(
-                        context,
+                        _isEditMode
+                            ? _requiredField(
+                                controller: _workOrderNumberController,
+                                label: 'Work Order Number',
+                                readOnly: true,
+                              )
+                            : const SizedBox.shrink(),
                         DropdownButtonFormField<WorkOrderPriority>(
                           value: _priority,
                           decoration:
@@ -264,27 +215,8 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
                               setState(() => _priority = value);
                             }
                           },
+                          isExpanded: true,
                         ),
-                        DropdownButtonFormField<String>(
-                          value: _journeyPlanId,
-                          decoration: const InputDecoration(
-                            labelText: 'Route Template (Optional)',
-                          ),
-                          items: [
-                            const DropdownMenuItem(
-                                value: null, child: Text('None')),
-                            for (final plan in plans)
-                              DropdownMenuItem(
-                                value: plan.id,
-                                child: Text(
-                                  '${plan.planName} (${plan.origin} -> ${plan.destination})',
-                                ),
-                              ),
-                          ],
-                          onChanged: (value) =>
-                              setState(() => _journeyPlanId = value),
-                        ),
-                        const SizedBox.shrink(),
                       ),
                       const SizedBox(height: 12),
                       TextFormField(
@@ -292,203 +224,47 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
                         maxLines: 2,
                         decoration: const InputDecoration(labelText: 'Remarks'),
                       ),
-                      if (selectedPlan != null) ...[
+                      if (_selectedQuotationRef != null) ...[
                         const SizedBox(height: 12),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            color: Theme.of(context)
-                                .colorScheme
-                                .primaryContainer
-                                .withValues(alpha: 0.35),
-                          ),
-                          child: Text(
-                            'Template Estimate: ${selectedPlan.distance.toStringAsFixed(1)} km, '
-                            '${selectedPlan.estimatedTime.toStringAsFixed(1)} hrs\n'
-                            'Stops: ${selectedPlan.stops.isEmpty ? 'None' : selectedPlan.stops.join(', ')}',
-                          ),
+                        _buildQuotationContext(
+                          quotations
+                              .where((q) => q.quoteRef == _selectedQuotationRef)
+                              .firstOrNull,
+                          logisticsState.valueOrNull,
+                          customers,
+                          routeState?.routes ?? [],
                         ),
                       ],
                     ],
                   ),
                 ),
+
                 _SectionCard(
-                  title: 'B. Cargo Details',
-                  child: Column(
-                    children: [
-                      _threeColumnFields(
-                        context,
-                        DropdownButtonFormField<String>(
-                          value: _selectedCargoCode,
-                          decoration:
-                              const InputDecoration(labelText: 'Cargo Type *'),
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return 'Required';
-                            }
-                            return null;
-                          },
-                          items: [
-                            for (final cargo in cargoDropdownItems)
-                              DropdownMenuItem(
-                                value: cargo.cargoCode,
-                                child: Text(
-                                    '${cargo.cargoName} (${cargo.cargoCode})'),
-                              ),
-                          ],
-                          onChanged: cargoDropdownItems.isEmpty
-                              ? null
-                              : (value) {
-                                  if (value == null) {
-                                    return;
-                                  }
-                                  final selected = ref
-                                      .read(cargoViewModelProvider.notifier)
-                                      .findByCode(value);
-                                  if (selected == null) {
-                                    return;
-                                  }
-                                  setState(() {
-                                    _selectedCargoCode = selected.cargoCode;
-                                    _cargoTypeController.text =
-                                        selected.cargoName;
-                                    _loadTypeController.text =
-                                        selected.preferredTrailerType;
-                                    _specialHandlingController.text =
-                                        selected.handlingInstructions;
-                                    _vendorServiceType = selected.hazardous
-                                        ? VendorServiceType.pdo
-                                        : VendorServiceType.nonPdo;
-                                    _vendorId = null;
-                                  });
-                                },
-                        ),
-                        TextFormField(
-                          controller: _quantityController,
-                          decoration:
-                              const InputDecoration(labelText: 'Quantity'),
-                        ),
-                        TextFormField(
-                          controller: _weightController,
-                          decoration:
-                              const InputDecoration(labelText: 'Weight'),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      _threeColumnFields(
-                        context,
-                        TextFormField(
-                          controller: _loadTypeController,
-                          decoration:
-                              const InputDecoration(labelText: 'Load Type'),
-                          onChanged: (value) {
-                            setState(() {
-                              _vendorServiceType = _inferServiceType(value);
-                              _vendorId = null;
-                            });
-                          },
-                        ),
-                        TextFormField(
-                          controller: _specialHandlingController,
-                          maxLines: 2,
-                          decoration: const InputDecoration(
-                            labelText: 'Special Handling Notes',
-                          ),
-                        ),
-                        const SizedBox.shrink(),
-                      ),
-                      if (selectedCargo != null) ...[
-                        const SizedBox(height: 12),
-                        _cargoWarningPanel(selectedCargo),
-                      ],
-                    ],
-                  ),
-                ),
-                _SectionCard(
-                  title: 'C. Route Details',
-                  child: Column(
-                    children: [
-                      DropdownButtonFormField<String?>(
-                        value: _selectedRouteId,
-                        decoration: const InputDecoration(
-                          labelText: 'Route Master Selection',
-                        ),
-                        items: [
-                          const DropdownMenuItem<String?>(
-                            value: null,
-                            child: Text('None'),
-                          ),
-                          for (final route in (routeState?.routes ??
-                              const <RouteLocationModel>[]))
-                            DropdownMenuItem<String?>(
-                              value: route.routeId,
-                              child: Text(
-                                  '${route.routeCode} • ${route.routeName}'),
-                            ),
-                        ],
-                        onChanged: (value) {
-                          setState(() => _selectedRouteId = value);
-                          _applySelectedRoute(
-                              value, routeState?.routes ?? const []);
-                        },
-                      ),
-                      const SizedBox(height: 12),
-                      _threeColumnFields(
-                        context,
-                        _requiredField(
-                          controller: _pickupController,
-                          label: 'Pickup Location',
-                        ),
-                        _requiredField(
-                          controller: _deliveryController,
-                          label: 'Delivery Location',
-                        ),
-                        TextFormField(
-                          controller: _stopPointsController,
-                          decoration: const InputDecoration(
-                            labelText: 'Intermediate Stop Points',
-                            hintText: 'Comma-separated',
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller: _routeNotesController,
-                        maxLines: 2,
-                        decoration:
-                            const InputDecoration(labelText: 'Route Notes'),
-                      ),
-                    ],
-                  ),
-                ),
-                _SectionCard(
-                  title: 'D. Schedule',
+                  title: 'B. Schedule',
                   child: _threeColumnFields(
                     context,
                     _DateField(
-                      label: 'Requested Date',
+                      label: 'Requested Date & Time',
                       value: _requestedDate,
-                      onTap: () =>
-                          _pickDate((v) => setState(() => _requestedDate = v)),
+                      onTap: () => _pickDateTime(
+                          (v) => setState(() => _requestedDate = v)),
                     ),
                     _DateField(
-                      label: 'Planned Dispatch Date',
+                      label: 'Planned Dispatch Time',
                       value: _plannedDispatchDate,
-                      onTap: () => _pickDate(
+                      onTap: () => _pickDateTime(
                           (v) => setState(() => _plannedDispatchDate = v)),
                     ),
                     _DateField(
-                      label: 'Planned Delivery Date',
+                      label: 'Planned Delivery Time',
                       value: _plannedDeliveryDate,
-                      onTap: () => _pickDate(
+                      onTap: () => _pickDateTime(
                           (v) => setState(() => _plannedDeliveryDate = v)),
                     ),
                   ),
                 ),
                 _SectionCard(
-                  title: 'E. Required Documents',
+                  title: 'C. Required Documents',
                   child: Column(
                     children: [
                       Wrap(
@@ -520,79 +296,9 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
                     ],
                   ),
                 ),
+
                 _SectionCard(
-                  title: 'G. Vendor Assignment',
-                  child: Column(
-                    children: [
-                      _threeColumnFields(
-                        context,
-                        DropdownButtonFormField<VendorServiceType>(
-                          value: _vendorServiceType,
-                          decoration:
-                              const InputDecoration(labelText: 'Service Type'),
-                          items: [
-                            for (final item in VendorServiceType.values)
-                              DropdownMenuItem(
-                                value: item,
-                                child: Text(item.label),
-                              ),
-                          ],
-                          onChanged: (value) {
-                            if (value == null) {
-                              return;
-                            }
-                            setState(() {
-                              _vendorServiceType = value;
-                              _vendorId = null;
-                            });
-                          },
-                        ),
-                        DropdownButtonFormField<String>(
-                          value: _vendorId,
-                          decoration: const InputDecoration(
-                            labelText: 'Vendor (Active only)',
-                          ),
-                          items: [
-                            for (final vendor in activeVendors)
-                              DropdownMenuItem(
-                                value: vendor.vendorId,
-                                child: Text(vendor.vendorName),
-                              ),
-                          ],
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Required';
-                            }
-                            return null;
-                          },
-                          onChanged: activeVendors.isEmpty
-                              ? null
-                              : (value) => setState(() => _vendorId = value),
-                        ),
-                        TextFormField(
-                          initialValue:
-                              'Vehicle & Driver mapping in next module',
-                          readOnly: true,
-                          decoration: const InputDecoration(
-                            labelText: 'Mapping Status',
-                          ),
-                        ),
-                      ),
-                      if (activeVendors.isEmpty)
-                        const Padding(
-                          padding: EdgeInsets.only(top: 8),
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              'No active vendors for selected service type.',
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                _SectionCard(
-                  title: 'F. Attachments',
+                  title: 'D. Attachments',
                   child: Wrap(
                     spacing: 12,
                     runSpacing: 12,
@@ -688,6 +394,7 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
       }
       setState(() {
         _workOrderNumberController.text = order.woId;
+        _selectedQuotationRef = order.linkedQuotationRef;
         _enquiryNumberController.text = order.linkedEnquiryNumber.isNotEmpty
             ? order.linkedEnquiryNumber
             : order.linkedQuotationRef;
@@ -703,6 +410,10 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
         _plannedDispatchDate = _parseIsoDate(order.serviceStartDate);
         _plannedDeliveryDate = _parseIsoDate(order.serviceEndDate);
       });
+      
+      if (order.linkedQuotationRef.isNotEmpty) {
+        _onQuotationSelected(order.linkedQuotationRef, data);
+      }
     });
   }
 
@@ -756,6 +467,195 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
         '${selected.routeCode} • ${selected.routeName} • Risk ${selected.riskLevel.label}';
   }
 
+  void _onQuotationSelected(String? quoteRef, LogisticsUiState? state) {
+    setState(() => _selectedQuotationRef = quoteRef);
+    if (quoteRef == null || state == null) return;
+    final quote = state.quotations.where((q) => q.quoteRef == quoteRef).firstOrNull;
+    if (quote == null) return;
+    
+    _enquiryNumberController.text = quote.enquiryRef;
+    
+    final enquiry = state.customerRequests.where((e) => e.enquiryNumber == quote.enquiryRef).firstOrNull;
+    if (enquiry != null) {
+      setState(() {
+         _customerController.text = enquiry.customerName;
+         final customer = ref.read(customerViewModelProvider).customers.where((c) => c.name.toLowerCase() == enquiry.customerName.toLowerCase()).firstOrNull;
+         if (customer != null) _selectedCustomerId = customer.id;
+
+         _cargoTypeController.text = enquiry.cargoType;
+         final cargoList = ref.read(cargoViewModelProvider).valueOrNull?.items ?? [];
+         final cargo = cargoList.where((c) => c.cargoName.toLowerCase() == enquiry.cargoType.toLowerCase()).firstOrNull;
+         if (cargo != null) {
+            _loadTypeController.text = cargo.preferredTrailerType;
+            _specialHandlingController.text = cargo.handlingInstructions;
+            _vendorServiceType = cargo.hazardous ? VendorServiceType.pdo : VendorServiceType.nonPdo;
+         }
+
+         _quantityController.text = enquiry.quantity;
+         _weightController.text = enquiry.weightVolume;
+         _pickupController.text = enquiry.pickup;
+         _deliveryController.text = enquiry.delivery;
+
+         _remarksController.text = quote.remarks.isNotEmpty ? quote.remarks : enquiry.notes;
+
+         if (enquiry.routeMasterId.isNotEmpty) {
+           _selectedRouteId = enquiry.routeMasterId;
+           final routes = ref.read(routeViewModelProvider).valueOrNull?.routes ?? [];
+           _applySelectedRoute(_selectedRouteId, routes);
+         } else {
+             _selectedRouteId = null;
+             _routeNotesController.text = enquiry.route;
+         }
+      });
+    }
+  }
+
+  Widget _twoColumnRow(Widget a, Widget b) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: a),
+          const SizedBox(width: 16),
+          Expanded(child: b),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuotationContext(
+    QuotationData? quote,
+    LogisticsUiState? state,
+    List<Customer> customers,
+    List<RouteLocationModel> routes,
+  ) {
+    if (quote == null || state == null) return const SizedBox.shrink();
+
+    final enquiry = state.customerRequests.where((e) => e.enquiryNumber == quote.enquiryRef).firstOrNull;
+    final customer = customers.where((c) => c.name.toLowerCase() == (enquiry?.customerName ?? quote.customer).toLowerCase()).firstOrNull;
+    final route = routes.where((r) => r.routeCode == enquiry?.routeMasterId || r.routeId == enquiry?.routeMasterId).firstOrNull;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.tertiaryContainer.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.description_outlined, color: Theme.of(context).colorScheme.primary),
+              const SizedBox(width: 8),
+              Text(
+                'Quotation & Context Reference',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          
+          // ── QUOTATION DETAILS ──
+          Text('QUOTATION DETAILS', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 1.2)),
+          const SizedBox(height: 12),
+          _twoColumnRow(
+            _contextItem('Quote Ref', quote.quoteRef),
+            _contextItem('Enquiry Ref', quote.enquiryRef),
+          ),
+          _twoColumnRow(
+            _contextItem('Rate', '${quote.rate.toStringAsFixed(2)} OMR'),
+            _contextItem('Validity', quote.validityDate.isEmpty ? '-' : quote.validityDate),
+          ),
+          _twoColumnRow(
+            _contextItem('Status', quote.status),
+            _contextItem('Cost Summary', quote.costSummary),
+          ),
+          
+          const Divider(height: 32),
+          
+          // ── CUSTOMER DETAILS ──
+          Text('CUSTOMER DETAILS', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 1.2)),
+          const SizedBox(height: 12),
+          _twoColumnRow(
+            _contextItem('Customer Name', customer?.name ?? quote.customer),
+            _contextItem('Contact Number', customer?.phoneNumber.isNotEmpty == true ? customer!.phoneNumber : '-'),
+          ),
+          _twoColumnRow(
+            _contextItem('Email Address', customer?.email.isNotEmpty == true ? customer!.email : '-'),
+            _contextItem('Credit Status', customer?.isBlocked == true ? 'Blocked' : (customer?.isCreditExceeded == true ? 'Exceeded' : 'Cleared')),
+          ),
+
+          if (enquiry != null) ...[
+            const Divider(height: 32),
+            
+            // ── CARGO DETAILS ──
+            Text('CARGO DETAILS', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 1.2)),
+            const SizedBox(height: 12),
+            _twoColumnRow(
+              _contextItem('Cargo Type', enquiry.cargoType),
+              _contextItem('Hazardous', enquiry.hazardous ? 'Yes' : 'No'),
+            ),
+            _twoColumnRow(
+              _contextItem('Weight / Volume', enquiry.weightVolume),
+              _contextItem('Quantity / Dimensions', '${enquiry.quantity} | ${enquiry.dimensions.isEmpty ? "-" : enquiry.dimensions}'),
+            ),
+            
+            const Divider(height: 32),
+            
+            // ── ROUTE DETAILS ──
+            Text('ROUTE DETAILS', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 1.2)),
+            const SizedBox(height: 12),
+            if (route != null) ...[
+              _twoColumnRow(
+                _contextItem('Route Master Assigned', '${route.routeCode} (${route.routeName})'),
+                _contextItem('Risk Level', route.riskLevel.label),
+              ),
+              _twoColumnRow(
+                _contextItem('Start Location (Pickup)', route.startLocation.locationName),
+                _contextItem('End Location (Delivery)', route.endLocation.locationName),
+              ),
+              _twoColumnRow(
+                _contextItem('Intermediate Stops', route.stopPoints.isEmpty ? 'None' : route.stopPoints.map((s) => s.location.locationName).join(', ')),
+                const SizedBox.shrink(),
+              ),
+            ] else ...[
+              _twoColumnRow(
+                _contextItem('Requested Pickup', enquiry.pickup),
+                _contextItem('Requested Delivery', enquiry.delivery),
+              ),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _contextItem(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+        Text(
+          value,
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+      ],
+    );
+  }
+
   Widget _threeColumnFields(
       BuildContext context, Widget a, Widget b, Widget c) {
     final isSmall = MediaQuery.of(context).size.width < 1100;
@@ -801,60 +701,7 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
     );
   }
 
-  Widget _cargoWarningPanel(CargoModel cargo) {
-    final warnings = <String>[];
-    if (cargo.hazardous) {
-      warnings.add('Hazardous cargo: compliance checks will increase.');
-    }
-    if (cargo.riskLevel == CargoRiskLevel.high ||
-        cargo.riskLevel == CargoRiskLevel.critical) {
-      warnings.add('High-risk cargo: strengthen planning and controls.');
-    }
-    if (cargo.oversized) {
-      warnings.add('Oversized cargo: route and clearance attention required.');
-    }
-    if (cargo.specialComplianceRequired) {
-      final certs = cargo.requiredCertifications.join(', ');
-      warnings.add(certs.isEmpty
-          ? 'Special compliance required.'
-          : 'Special compliance required: $certs');
-    }
-    if (cargo.inspectionRequired && cargo.photoEvidenceMandatory) {
-      warnings.add('Inspection should include mandatory photo evidence.');
-    }
-    if (cargo.inspectionRequired && cargo.videoEvidenceMandatory) {
-      warnings.add('Inspection should include mandatory video evidence.');
-    }
 
-    if (warnings.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF7ED),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFF59E0B)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Cargo Guidance',
-            style: TextStyle(fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 6),
-          for (final warning in warnings)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Text('- $warning'),
-            ),
-        ],
-      ),
-    );
-  }
 
   JourneyPlan? _findPlan(List<JourneyPlan> plans, String? planId) {
     if (planId == null) {
@@ -901,7 +748,7 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
     _selectedCustomerId = null;
   }
 
-  Future<void> _pickDate(ValueChanged<DateTime> onSelect) async {
+  Future<void> _pickDateTime(ValueChanged<DateTime> onSelect) async {
     final now = DateTime.now();
     final date = await showDatePicker(
       context: context,
@@ -910,7 +757,20 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
       initialDate: now,
     );
     if (date != null) {
-      onSelect(date);
+      if (!mounted) return;
+      final time = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.fromDateTime(now),
+      );
+      if (time != null) {
+        onSelect(DateTime(
+          date.year,
+          date.month,
+          date.day,
+          time.hour,
+          time.minute,
+        ));
+      }
     }
   }
 
@@ -994,43 +854,48 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
             ? selectedPlan.destination
             : _deliveryController.text.trim();
 
-    final message =
-        ref.read(logisticsViewModelProvider.notifier).upsertWorkOrderFromMaster(
-              workOrderNumber: _workOrderNumberController.text.trim(),
-              enquiryReference: _enquiryNumberController.text.trim(),
-              customer: _customerController.text.trim(),
-              cargo: _cargoTypeController.text.trim(),
-              origin: origin,
-              destination: destination,
-              plannedDispatchDate: _plannedDispatchDate,
-              plannedDeliveryDate: _plannedDeliveryDate,
-              internalNotes: _remarksController.text.trim(),
-              isEdit: _isEditMode,
-              routeMasterId: selectedRoute?.routeId ?? '',
-              routeCode: selectedRoute?.routeCode ?? '',
-              routeName: selectedRoute?.routeName ?? '',
-              routeRiskLevel: selectedRoute?.riskLevel.label ?? 'Low',
-              routeOperationalStatus: selectedRoute?.status.label ?? 'Active',
-              routeRestricted: selectedRoute != null
-                  ? !selectedRoute.isSelectableForNewOperations
-                  : false,
-              routeRestrictionReason: selectedRoute?.restrictionReason ?? '',
-            );
-
-    final isSuccess = message.toLowerCase().contains('successfully');
-    if (isSuccess) {
-      await ref.read(workOrderDraftProvider.notifier).clearDraft();
-    }
-
-    if (!mounted) {
-      return;
-    }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
+    final woNumber = _workOrderNumberController.text.trim();
+    
+    final newOrder = WorkOrderFlowItem(
+      woId: woNumber,
+      customer: _customerController.text.trim(),
+      route: '${origin.trim()} -> ${destination.trim()}',
+      cargo: _cargoTypeController.text.trim(),
+      status: _isEditMode ? 'Updated' : 'Open',
+      linkedQuotationRef: _selectedQuotationRef ?? '',
+      linkedEnquiryNumber: _enquiryNumberController.text.trim(),
+      routeMasterId: selectedRoute?.routeId ?? '',
+      routeCode: selectedRoute?.routeCode ?? '',
+      routeName: selectedRoute?.routeName ?? '',
+      routeRiskLevel: selectedRoute?.riskLevel.label ?? 'Low',
+      routeOperationalStatus: selectedRoute?.status.label ?? 'Active',
+      routeRestricted: selectedRoute != null
+          ? !selectedRoute.isSelectableForNewOperations
+          : false,
+      routeRestrictionReason: selectedRoute?.restrictionReason ?? '',
+      serviceStartDate: _plannedDispatchDate?.toIso8601String() ?? '',
+      serviceEndDate: _plannedDeliveryDate?.toIso8601String() ?? '',
+      internalNotes: _remarksController.text.trim(),
     );
-    if (isSuccess) {
-      context.go(RoutePaths.workOrders);
+
+    if (_isEditMode) {
+      final success = await ref.read(logisticsViewModelProvider.notifier).updateWorkOrder(newOrder);
+      if (success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Work Order updated successfully.')),
+        );
+        context.go(RoutePaths.workOrders);
+      }
+    } else {
+      final finalId = await ref.read(logisticsViewModelProvider.notifier).createWorkOrder(newOrder);
+      await ref.read(workOrderDraftProvider.notifier).clearDraft();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Work Order $finalId created successfully.')),
+        );
+        context.go(RoutePaths.workOrders);
+      }
     }
   }
 
@@ -1153,13 +1018,7 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
         .showSnackBar(SnackBar(content: Text(message)));
   }
 
-  VendorServiceType _inferServiceType(String value) {
-    final normalized = value.trim().toLowerCase();
-    if (normalized == 'pdo') {
-      return VendorServiceType.pdo;
-    }
-    return VendorServiceType.nonPdo;
-  }
+
 }
 
 class _SectionCard extends StatelessWidget {
@@ -1209,8 +1068,9 @@ class _DateField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = value == null
-        ? 'Select date'
-        : '${value!.day.toString().padLeft(2, '0')}/${value!.month.toString().padLeft(2, '0')}/${value!.year}';
+        ? 'Select date & time'
+        : '${value!.day.toString().padLeft(2, '0')}/${value!.month.toString().padLeft(2, '0')}/${value!.year} '
+            '${value!.hour.toString().padLeft(2, '0')}:${value!.minute.toString().padLeft(2, '0')}';
 
     return InkWell(
       onTap: onTap,
@@ -1218,7 +1078,7 @@ class _DateField extends StatelessWidget {
       child: InputDecorator(
         decoration: InputDecoration(
           labelText: label,
-          suffixIcon: const Icon(Icons.calendar_month_outlined),
+          suffixIcon: const Icon(Icons.access_time_outlined),
         ),
         child: Text(text),
       ),

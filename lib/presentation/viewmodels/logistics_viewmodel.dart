@@ -2353,7 +2353,54 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
     }
   }
 
+  Future<String> createWorkOrder(WorkOrderFlowItem order) async {
+    final current = state.valueOrNull;
+    if (current == null) return 'Error: Data not loaded';
+
+    final finalWoId = order.woId.isEmpty ? _nextWorkOrderNumber(current.workOrders) : order.woId;
+    final newOrder = order.copyWith(woId: finalWoId);
+
+    final updatedWorkOrders = [newOrder, ...current.workOrders];
+    await _persistWorkOrders(updatedWorkOrders);
+
+    state = AsyncData(current.copyWith(workOrders: updatedWorkOrders, lastUpdated: DateTime.now()));
+    return finalWoId;
+  }
+
+  Future<bool> updateWorkOrder(WorkOrderFlowItem order) async {
+    final current = state.valueOrNull;
+    if (current == null) return false;
+
+    final index = current.workOrders.indexWhere((item) => item.woId == order.woId);
+    if (index < 0) return false;
+
+    final updatedWorkOrders = [...current.workOrders];
+    updatedWorkOrders[index] = order;
+    await _persistWorkOrders(updatedWorkOrders);
+
+    state = AsyncData(current.copyWith(workOrders: updatedWorkOrders, lastUpdated: DateTime.now()));
+    return true;
+  }
+
+  String _nextWorkOrderNumber(List<WorkOrderFlowItem> existing) {
+    if (existing.isEmpty) return 'WO-2026-001';
+    
+    final pattern = RegExp(r'WO-2026-(\d+)');
+    int maxId = 0;
+    
+    for (final item in existing) {
+      final match = pattern.firstMatch(item.woId);
+      if (match != null) {
+        final val = int.parse(match.group(1)!);
+        if (val > maxId) maxId = val;
+      }
+    }
+    
+    return 'WO-2026-${(maxId + 1).toString().padLeft(3, '0')}';
+  }
+
   Future<List<WorkOrderFlowItem>> _loadCachedWorkOrders(
+
     List<WorkOrderFlowItem> fallback,
   ) async {
     try {

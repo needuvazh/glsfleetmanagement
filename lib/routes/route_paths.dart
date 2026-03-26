@@ -44,6 +44,7 @@ class RoutePaths {
   static const workOrders = '/work-orders';
   static const assignments = '/assignments';
   static const workOrderDetail = '/work-orders/:workOrderId';
+  static const editWorkOrder = '/work-orders/:workOrderId/edit';
   static const createWorkOrder = '/work-orders/create';
   static const journeyPlans = '/journey-plans';
   static const alerts = '/alerts';
@@ -101,7 +102,7 @@ class RoutePaths {
       '/work-orders/$workOrderId';
 
   static String editWorkOrderById(String workOrderId) =>
-      '/work-orders/create?id=$workOrderId';
+      '/work-orders/$workOrderId/edit';
 
   static String customerRequestViewById(String enquiryNumber) =>
       '/customer-request/view/$enquiryNumber';
