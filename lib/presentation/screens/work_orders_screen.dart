@@ -205,6 +205,8 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
                             _RowActions(
                               onOpen: () => _openWorkOrder(item),
                               onEdit: () => _openEditWorkOrder(item),
+                              onDelegate: () => _openAssignSupervisor(item),
+                              onAssignResources: () => _openAssignResources(item),
                               onDuplicate: () => _duplicateWorkOrder(item),
                               onCancel: () => _showCancelDialog(item),
                               onAudit: () => _openAudit(item),
@@ -264,6 +266,8 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
                   compact: true,
                   onOpen: () => _openWorkOrder(item),
                   onEdit: () => _openEditWorkOrder(item),
+                  onDelegate: () => _openAssignSupervisor(item),
+                  onAssignResources: () => _openAssignResources(item),
                   onDuplicate: () => _duplicateWorkOrder(item),
                   onCancel: () => _showCancelDialog(item),
                   onAudit: () => _openAudit(item),
@@ -443,6 +447,14 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
     context.push(RoutePaths.editWorkOrderById(item.woNumber));
   }
 
+  void _openAssignSupervisor(_WorkOrderRow item) {
+    context.push(RoutePaths.assignSupervisorById(item.woNumber));
+  }
+
+  void _openAssignResources(_WorkOrderRow item) {
+    context.go(RoutePaths.resourceAssignmentById(item.woNumber));
+  }
+
   void _openAudit(_WorkOrderRow item) {
     context
         .push('${RoutePaths.workOrderDetailById(item.woNumber)}?tab=history');
@@ -567,6 +579,8 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
         return const Color(0xFF15803D);
       case 'Cancelled':
         return const Color(0xFFB91C1C);
+      case 'Operationally Owned':
+        return const Color(0xFF15803D);
       default:
         return const Color(0xFF475569);
     }
@@ -869,6 +883,8 @@ class _RowActions extends StatelessWidget {
   const _RowActions({
     required this.onOpen,
     required this.onEdit,
+    required this.onDelegate,
+    required this.onAssignResources,
     required this.onDuplicate,
     required this.onCancel,
     required this.onAudit,
@@ -877,6 +893,8 @@ class _RowActions extends StatelessWidget {
 
   final VoidCallback onOpen;
   final VoidCallback onEdit;
+  final VoidCallback onDelegate;
+  final VoidCallback onAssignResources;
   final VoidCallback onDuplicate;
   final VoidCallback onCancel;
   final VoidCallback onAudit;
@@ -890,6 +908,8 @@ class _RowActions extends StatelessWidget {
         children: [
           TextButton(onPressed: onOpen, child: const Text('Open')),
           TextButton(onPressed: onEdit, child: const Text('Edit')),
+          TextButton(onPressed: onDelegate, child: const Text('Delegate')),
+          TextButton(onPressed: onAssignResources, child: const Text('Assign Resources')),
           TextButton(onPressed: onDuplicate, child: const Text('Duplicate')),
           TextButton(onPressed: onCancel, child: const Text('Cancel')),
           TextButton(onPressed: onAudit, child: const Text('Audit')),
@@ -909,6 +929,16 @@ class _RowActions extends StatelessWidget {
           tooltip: 'Edit',
           onPressed: onEdit,
           icon: const Icon(Icons.edit_outlined),
+        ),
+        IconButton(
+          tooltip: 'Delegate to Supervisor',
+          onPressed: onDelegate,
+          icon: const Icon(Icons.person_add_alt_1_outlined),
+        ),
+        IconButton(
+          tooltip: 'Assign Resources',
+          onPressed: onAssignResources,
+          icon: const Icon(Icons.assignment_ind_outlined),
         ),
         IconButton(
           tooltip: 'Duplicate',

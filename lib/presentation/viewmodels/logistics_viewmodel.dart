@@ -1253,6 +1253,7 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
     required String orderId,
     required String vehicleNo,
     required String driverId,
+    required String trailerId,
   }) {
     final current = state.valueOrNull;
     if (current == null) {
@@ -1326,7 +1327,12 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
 
     final updatedOrders = current.workOrders
         .map((item) =>
-            item.woId == orderId ? item.copyWith(status: 'Assigned') : item)
+            item.woId == orderId ? item.copyWith(
+              status: 'Assigned',
+              assignedVehicleNo: vehicleNo,
+              assignedDriverId: driverId,
+              assignedTrailerId: trailerId,
+            ) : item)
         .toList();
 
     final updatedDrivers = current.drivers.map((driver) {
@@ -2447,6 +2453,14 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
       serviceStartDate: map['serviceStartDate'] as String? ?? '',
       serviceEndDate: map['serviceEndDate'] as String? ?? '',
       internalNotes: map['internalNotes'] as String? ?? '',
+      assignedSupervisor: map['assignedSupervisor'] as String? ?? '',
+      supervisorRegion: map['supervisorRegion'] as String? ?? '',
+      assignmentDate: map['assignmentDate'] as String? ?? '',
+      assignmentRemarks: map['assignmentRemarks'] as String? ?? '',
+      assignedVehicleNo: map['assignedVehicleNo'] as String? ?? '',
+      assignedDriverId: map['assignedDriverId'] as String? ?? '',
+      assignedTrailerId: map['assignedTrailerId'] as String? ?? '',
+      isOperationallyOwned: map['isOperationallyOwned'] as bool? ?? false,
     );
   }
 
@@ -2471,6 +2485,50 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
       'serviceStartDate': item.serviceStartDate,
       'serviceEndDate': item.serviceEndDate,
       'internalNotes': item.internalNotes,
+      'assignedSupervisor': item.assignedSupervisor,
+      'supervisorRegion': item.supervisorRegion,
+      'assignmentDate': item.assignmentDate,
+      'assignmentRemarks': item.assignmentRemarks,
+      'assignedVehicleNo': item.assignedVehicleNo,
+      'assignedDriverId': item.assignedDriverId,
+      'assignedTrailerId': item.assignedTrailerId,
+      'isOperationallyOwned': item.isOperationallyOwned,
     };
+  }
+
+  Future<String> assignSupervisor({
+    required String workOrderId,
+    required String supervisorName,
+    required String region,
+    required String assignmentDate,
+    required String remarks,
+  }) async {
+    final current = state.valueOrNull;
+    if (current == null) return 'Data not loaded.';
+
+    final index = current.workOrders.indexWhere((wo) => wo.woId == workOrderId);
+    if (index < 0) return 'Work Order not found.';
+
+    final existing = current.workOrders[index];
+    final updated = existing.copyWith(
+      assignedSupervisor: supervisorName,
+      supervisorRegion: region,
+      assignmentDate: assignmentDate,
+      assignmentRemarks: remarks,
+      isOperationallyOwned: true,
+      status: 'Operationally Owned', // Transitioning status
+    );
+
+    final next = [...current.workOrders];
+    next[index] = updated;
+
+    await _persistWorkOrders(next);
+
+    state = AsyncData(current.copyWith(
+      workOrders: next,
+      lastUpdated: DateTime.now(),
+    ));
+
+    return 'Supervisor $supervisorName assigned to $workOrderId.';
   }
 }

@@ -242,6 +242,14 @@ class WorkOrderFlowItem {
     this.serviceStartDate = '',
     this.serviceEndDate = '',
     this.internalNotes = '',
+    this.assignedSupervisor = '',
+    this.supervisorRegion = '',
+    this.assignmentDate = '',
+    this.assignmentRemarks = '',
+    this.assignedVehicleNo = '',
+    this.assignedDriverId = '',
+    this.assignedTrailerId = '',
+    this.isOperationallyOwned = false,
   });
 
   final String woId;
@@ -263,6 +271,14 @@ class WorkOrderFlowItem {
   final String serviceStartDate;
   final String serviceEndDate;
   final String internalNotes;
+  final String assignedSupervisor;
+  final String supervisorRegion;
+  final String assignmentDate;
+  final String assignmentRemarks;
+  final String assignedVehicleNo;
+  final String assignedDriverId;
+  final String assignedTrailerId;
+  final bool isOperationallyOwned;
 
   WorkOrderFlowItem copyWith({
     String? woId,
@@ -284,6 +300,14 @@ class WorkOrderFlowItem {
     String? serviceStartDate,
     String? serviceEndDate,
     String? internalNotes,
+    String? assignedSupervisor,
+    String? supervisorRegion,
+    String? assignmentDate,
+    String? assignmentRemarks,
+    String? assignedVehicleNo,
+    String? assignedDriverId,
+    String? assignedTrailerId,
+    bool? isOperationallyOwned,
   }) {
     return WorkOrderFlowItem(
       woId: woId ?? this.woId,
@@ -307,6 +331,14 @@ class WorkOrderFlowItem {
       serviceStartDate: serviceStartDate ?? this.serviceStartDate,
       serviceEndDate: serviceEndDate ?? this.serviceEndDate,
       internalNotes: internalNotes ?? this.internalNotes,
+      assignedSupervisor: assignedSupervisor ?? this.assignedSupervisor,
+      supervisorRegion: supervisorRegion ?? this.supervisorRegion,
+      assignmentDate: assignmentDate ?? this.assignmentDate,
+      assignmentRemarks: assignmentRemarks ?? this.assignmentRemarks,
+      assignedVehicleNo: assignedVehicleNo ?? this.assignedVehicleNo,
+      assignedDriverId: assignedDriverId ?? this.assignedDriverId,
+      assignedTrailerId: assignedTrailerId ?? this.assignedTrailerId,
+      isOperationallyOwned: isOperationallyOwned ?? this.isOperationallyOwned,
     );
   }
 }

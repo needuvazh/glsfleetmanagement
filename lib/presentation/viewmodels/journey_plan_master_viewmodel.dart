@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:glsfleetmanagement/domain/entities/journey_plan.dart';
-import 'package:glsfleetmanagement/domain/entities/location.dart';
+import 'package:transport_fleet_management/domain/entities/journey_plan.dart';
+import 'package:transport_fleet_management/domain/entities/location.dart';
 
 final journeyPlanMasterViewModelProvider = StateNotifierProvider<JourneyPlanMasterViewModel, JourneyPlanMasterState>((ref) {
   return JourneyPlanMasterViewModel();

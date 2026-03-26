@@ -61,7 +61,7 @@ class OpsShell extends ConsumerWidget {
     RoutePaths.closure: 'Closure',
     RoutePaths.invoice: 'Invoices',
     RoutePaths.reports: 'Reports',
-    RoutePaths.assignments: 'Fleet Assignment',
+    RoutePaths.assignmentList: 'Fleet Assignment',
     RoutePaths.alerts: 'Alerts',
     RoutePaths.roleManagement: 'Role Management',
     RoutePaths.userManagement: 'User Management',
@@ -582,13 +582,12 @@ class _SidebarState extends ConsumerState<_Sidebar> {
           _OpsMenuItem('Feasibility Review', Icons.price_check_outlined, route: RoutePaths.feasibilityReview),
           _OpsMenuItem('Quotation', Icons.request_quote_outlined, route: RoutePaths.quotation),
           _OpsMenuItem('Work Order', Icons.assignment_outlined, route: RoutePaths.workOrders),
-          _OpsMenuItem('WO Delegation', Icons.assignment_ind_outlined, route: RoutePaths.woDelegation),
         ],
       ),
       _MenuGroup(
         'OPERATIONS',
         const [
-          _OpsMenuItem('Fleet Assignment', Icons.local_shipping_outlined, route: RoutePaths.assignments),
+          _OpsMenuItem('Fleet Assignment', Icons.local_shipping_outlined, route: RoutePaths.assignmentList),
           _OpsMenuItem('Compliance Readiness', Icons.shield_outlined, route: RoutePaths.dispatchReadiness),
           _OpsMenuItem('Journey Management Plan', Icons.alt_route_outlined, route: RoutePaths.journeyManagement),
           _OpsMenuItem('Pre-Trip Inspection', Icons.fact_check_outlined, route: RoutePaths.inspections),

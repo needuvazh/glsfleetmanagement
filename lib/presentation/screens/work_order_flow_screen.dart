@@ -525,11 +525,12 @@ class _WorkOrderFlowScreenState extends ConsumerState<WorkOrderFlowScreen> {
                             : () {
                                 final message = ref
                                     .read(logisticsViewModelProvider.notifier)
-                                    .assignFleetDriver(
-                                      orderId: _selectedOrderId!,
-                                      vehicleNo: _selectedVehicleNo!,
-                                      driverId: _selectedDriverId!,
-                                    );
+                                      .assignFleetDriver(
+                                        orderId: _selectedOrderId!,
+                                        vehicleNo: _selectedVehicleNo!,
+                                        driverId: _selectedDriverId!,
+                                        trailerId: '',
+                                      );
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(content: Text(message)),
                                 );

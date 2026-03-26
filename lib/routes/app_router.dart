@@ -4,7 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../presentation/screens/change_password_screen.dart';
 import '../presentation/screens/alerts_screen.dart';
-import '../presentation/screens/assignments_screen.dart';
+import '../presentation/screens/resource_assignment_screen.dart';
+import '../presentation/screens/assignment_list_screen.dart';
 import '../presentation/screens/cargo_form_screen.dart';
 import '../presentation/screens/cargo_list_screen.dart';
 import '../presentation/screens/cargo_view_screen.dart';
@@ -17,6 +18,7 @@ import '../presentation/screens/customer_request_view_screen.dart';
 import '../presentation/screens/customer_view_screen.dart';
 import '../presentation/screens/enquiry_details_screen.dart';
 import '../presentation/screens/create_work_order_screen.dart';
+import '../presentation/screens/assign_supervisor_screen.dart';
 import '../presentation/screens/compliance_dashboard_screen.dart';
 import '../presentation/screens/dispatch_readiness_screen.dart';
 import '../presentation/screens/delivery_pod_screen.dart';
@@ -165,8 +167,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const WorkOrdersScreen(),
       ),
       GoRoute(
-        path: RoutePaths.assignments,
-        builder: (context, state) => const AssignmentsScreen(),
+        path: RoutePaths.assignmentList,
+        builder: (context, state) => const AssignmentListScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.resourceAssignment,
+        builder: (context, state) => ResourceAssignmentScreen(
+          workOrderId: state.uri.queryParameters['workOrderId'],
+        ),
       ),
       GoRoute(
         path: RoutePaths.createWorkOrder,
@@ -176,6 +184,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: RoutePaths.editWorkOrder,
         builder: (context, state) => CreateWorkOrderScreen(
           editWorkOrderId: state.pathParameters['workOrderId'],
+        ),
+      ),
+      GoRoute(
+        path: RoutePaths.assignSupervisor,
+        builder: (context, state) => AssignSupervisorScreen(
+          workOrderId: state.pathParameters['workOrderId'] ?? 'Unknown',
         ),
       ),
       GoRoute(

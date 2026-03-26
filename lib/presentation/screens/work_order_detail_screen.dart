@@ -106,7 +106,16 @@ class _WorkOrderDetailScreenState extends ConsumerState<WorkOrderDetailScreen>
                             label: const Text('Edit Work Order'),
                           ),
                           OutlinedButton.icon(
-                            onPressed: () => context.go(RoutePaths.assignments),
+                            onPressed: () => context.push(
+                              RoutePaths.assignSupervisorById(widget.workOrderId),
+                            ),
+                            icon: const Icon(Icons.person_add_alt_1_outlined),
+                            label: const Text('Assign Supervisor'),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: () => context.go(
+                              RoutePaths.resourceAssignmentById(widget.workOrderId),
+                            ),
                             icon: const Icon(Icons.assignment_ind_outlined),
                             label: const Text('Assign Resources'),
                           ),
@@ -218,14 +227,57 @@ class _SummaryTab extends ConsumerWidget {
         const SizedBox(height: 16),
         _InfoCard(
           title: 'Planning Details',
-          rows: [
-            _Pair('Requested Date', _formatDate(order.serviceStartDate)),
-            _Pair('Planned Dispatch', _formatDateTime(order.serviceStartDate)),
-            _Pair('Planned Delivery', _formatDateTime(order.serviceEndDate)),
-            _Pair('Priority', order.routeRiskLevel), // Reusing for now
-            _Pair('Internal Notes', order.internalNotes),
+          icon: Icons.calendar_today_outlined,
+          children: [
+            Text('PLANNING DETAILS', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 1.2)),
+            const SizedBox(height: 12),
+            _GridRow(
+              label1: 'Requested Date', 
+              value1: _formatDate(order.serviceStartDate),
+              label2: 'Priority',
+              value2: order.routeRiskLevel,
+            ),
+            const SizedBox(height: 16),
+            _GridRow(
+              label1: 'Planned Dispatch',
+              value1: _formatDateTime(order.serviceStartDate),
+              label2: 'Planned Delivery',
+              value2: _formatDateTime(order.serviceEndDate),
+            ),
+            const SizedBox(height: 16),
+            _GridRow(
+              label1: 'Internal Notes',
+              value1: order.internalNotes,
+            ),
           ],
         ),
+        if (order.assignedSupervisor.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          _InfoCard(
+            title: 'Supervisor Assignment',
+            icon: Icons.assignment_ind_outlined,
+            children: [
+              Text('ASSIGNMENT DETAILS', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 1.2)),
+              const SizedBox(height: 12),
+              _GridRow(
+                label1: 'Assigned Supervisor',
+                value1: order.assignedSupervisor,
+                label2: 'Region / Responsibility',
+                value2: order.supervisorRegion.isNotEmpty ? order.supervisorRegion : 'N/A',
+              ),
+              const SizedBox(height: 16),
+              _GridRow(
+                label1: 'Assignment Date',
+                value1: order.assignmentDate,
+              ),
+              const SizedBox(height: 16),
+              _GridRow(
+                label1: 'Remarks',
+                value1: order.assignmentRemarks.isNotEmpty ? order.assignmentRemarks : 'N/A',
+              ),
+            ],
+          ),
+        ],
       ],
     );
   }
@@ -269,7 +321,7 @@ class _SummaryTab extends ConsumerWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.tertiaryContainer.withValues(alpha: 0.15),
+        color: Theme.of(context).colorScheme.tertiaryContainer.withOpacity(0.15),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
       ),
@@ -391,65 +443,148 @@ class _PlaceholderTab extends StatelessWidget {
   }
 }
 
+class _PairRow extends StatelessWidget {
+  const _PairRow({required this.label, required this.value});
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 210,
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            value,
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _InfoCard extends StatelessWidget {
-  const _InfoCard({required this.title, required this.rows, this.footer});
+  const _InfoCard({
+    required this.title,
+    required this.icon,
+    required this.children,
+    this.footer,
+  });
 
   final String title;
-  final List<_Pair> rows;
+  final IconData icon;
+  final List<Widget> children;
   final Widget? footer;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 10),
-            for (final row in rows)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(
-                      width: 210,
-                      child: Text(
-                        row.label,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodyMedium
-                            ?.copyWith(fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(child: Text(row.value)),
-                  ],
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colorScheme.tertiaryContainer.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colorScheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: colorScheme.primary),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: colorScheme.primary,
                 ),
               ),
-            if (footer != null) ...[
-              const SizedBox(height: 8),
-              footer!,
             ],
+          ),
+          const SizedBox(height: 16),
+          ...children,
+          if (footer != null) ...[
+            const SizedBox(height: 12),
+            footer!,
           ],
-        ),
+        ],
       ),
     );
   }
 }
 
-class _Pair {
-  const _Pair(this.label, this.value);
+class _GridRow extends StatelessWidget {
+  const _GridRow({
+    required this.label1,
+    required this.value1,
+    this.label2,
+    this.value2,
+  });
 
-  final String label;
-  final String value;
+  final String label1;
+  final String value1;
+  final String? label2;
+  final String? value2;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(child: _label(context, label1)),
+            if (label2 != null) ...[
+              const SizedBox(width: 16),
+              Expanded(child: _label(context, label2!)),
+            ],
+          ],
+        ),
+        const SizedBox(height: 4),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: _value(context, value1)),
+            if (value2 != null) ...[
+              const SizedBox(width: 16),
+              Expanded(child: _value(context, value2!)),
+            ],
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _label(BuildContext context, String text) {
+    return Text(
+      text.toUpperCase(),
+      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+          ),
+    );
+  }
+
+  Widget _value(BuildContext context, String text) {
+    return Text(
+      text,
+      style: const TextStyle(fontWeight: FontWeight.w700),
+    );
+  }
 }

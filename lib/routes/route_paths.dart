@@ -45,9 +45,11 @@ class RoutePaths {
   static const invoice = '/invoice';
   static const reports = '/reports';
   static const workOrders = '/work-orders';
-  static const assignments = '/assignments';
+  static const assignmentList = '/assignment-list';
+  static const resourceAssignment = '/resource-assignment';
   static const workOrderDetail = '/work-orders/:workOrderId';
   static const editWorkOrder = '/work-orders/:workOrderId/edit';
+  static const assignSupervisor = '/work-orders/:workOrderId/assign-supervisor';
   static const createWorkOrder = '/work-orders/create';
   static const journeyPlans = '/journey-plans';
   static const alerts = '/alerts';
@@ -108,6 +110,9 @@ class RoutePaths {
   static String editWorkOrderById(String workOrderId) =>
       '/work-orders/$workOrderId/edit';
 
+  static String assignSupervisorById(String workOrderId) =>
+      '/work-orders/$workOrderId/assign-supervisor';
+
   static String customerRequestViewById(String enquiryNumber) =>
       '/customer-request/view/$enquiryNumber';
 
@@ -157,4 +162,7 @@ class RoutePaths {
       '/media-preview/$evidenceId';
   static String feasibilityReviewById(String enquiryNumber) =>
       '/feasibility-review/$enquiryNumber';
+
+  static String resourceAssignmentById(String workOrderId) =>
+      '$resourceAssignment?workOrderId=$workOrderId';
 }

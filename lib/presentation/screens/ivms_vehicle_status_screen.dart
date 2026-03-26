@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:glsfleetmanagement/core/theme/app_theme.dart';
-import 'package:glsfleetmanagement/domain/entities/ivms_data.dart';
-import 'package:glsfleetmanagement/presentation/viewmodels/ivms_viewmodel.dart';
+import 'package:transport_fleet_management/core/theme/app_theme.dart';
+import 'package:transport_fleet_management/domain/entities/ivms_data.dart';
+import 'package:transport_fleet_management/presentation/viewmodels/ivms_viewmodel.dart';
 
 class IVMSVehicleStatusScreen extends ConsumerStatefulWidget {
   const IVMSVehicleStatusScreen({Key? key}) : super(key: key);

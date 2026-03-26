@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../domain/entities/inspection.dart';
 import '../../routes/route_paths.dart';
 import '../widgets/ops_shell.dart';
 import 'inspection_template_store.dart';

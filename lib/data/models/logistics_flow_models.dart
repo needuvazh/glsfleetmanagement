@@ -143,6 +143,14 @@ class WorkOrderFlowModel extends WorkOrderFlowItem {
     required super.serviceStartDate,
     required super.serviceEndDate,
     required super.internalNotes,
+    super.assignedSupervisor = '',
+    super.supervisorRegion = '',
+    super.assignmentDate = '',
+    super.assignmentRemarks = '',
+    super.assignedVehicleNo = '',
+    super.assignedDriverId = '',
+    super.assignedTrailerId = '',
+    super.isOperationallyOwned = false,
   });
 
   factory WorkOrderFlowModel.fromMap(Map<String, dynamic> map) {
@@ -171,6 +179,14 @@ class WorkOrderFlowModel extends WorkOrderFlowItem {
       serviceStartDate: map['serviceStartDate'] as String? ?? '',
       serviceEndDate: map['serviceEndDate'] as String? ?? '',
       internalNotes: map['internalNotes'] as String? ?? '',
+      assignedSupervisor: map['assignedSupervisor'] as String? ?? '',
+      supervisorRegion: map['supervisorRegion'] as String? ?? '',
+      assignmentDate: map['assignmentDate'] as String? ?? '',
+      assignmentRemarks: map['assignmentRemarks'] as String? ?? '',
+      assignedVehicleNo: map['assignedVehicleNo'] as String? ?? '',
+      assignedDriverId: map['assignedDriverId'] as String? ?? '',
+      assignedTrailerId: map['assignedTrailerId'] as String? ?? '',
+      isOperationallyOwned: map['isOperationallyOwned'] as bool? ?? false,
     );
   }
 }

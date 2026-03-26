@@ -515,6 +515,10 @@ class LogisticsLocalDataSourceImpl implements LogisticsLocalDataSource {
         'serviceStartDate': '2026-03-26T08:00:00.000Z',
         'serviceEndDate': '2026-03-27T18:00:00.000Z',
         'internalNotes': 'Follow PDO safety rules.',
+        'assignedSupervisor': '',
+        'assignedVehicleNo': '',
+        'assignedDriverId': '',
+        'assignedTrailerId': '',
       },
       {
         'woId': 'WO-2026-002',
@@ -578,6 +582,8 @@ class LogisticsLocalDataSourceImpl implements LogisticsLocalDataSource {
         'routeRiskLevel': 'Low',
         'serviceStartDate': '2026-03-25T07:30:00.000Z',
         'serviceEndDate': '2026-03-27T14:45:00.000Z',
+        'assignedVehicleNo': '',
+        'assignedDriverId': '',
       },
       {
         'woId': 'WO-2026-006',

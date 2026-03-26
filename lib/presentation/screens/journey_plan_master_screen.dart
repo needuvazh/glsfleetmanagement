@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:glsfleetmanagement/core/theme/app_theme.dart';
-import 'package:glsfleetmanagement/domain/entities/journey_plan.dart';
-import 'package:glsfleetmanagement/presentation/viewmodels/journey_plan_master_viewmodel.dart';
+import 'package:transport_fleet_management/core/theme/app_theme.dart';
+import 'package:transport_fleet_management/domain/entities/journey_plan.dart';
+import 'package:transport_fleet_management/presentation/viewmodels/journey_plan_master_viewmodel.dart';
 
 class JourneyPlanMasterScreen extends ConsumerStatefulWidget {
   const JourneyPlanMasterScreen({Key? key}) : super(key: key);

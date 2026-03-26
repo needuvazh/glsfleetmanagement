@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:glsfleetmanagement/domain/entities/ivms_data.dart';
+import 'package:transport_fleet_management/domain/entities/ivms_data.dart';
 
 final ivmsViewModelProvider = StateNotifierProvider<IVMSViewModel, IVMSState>((ref) {
   return IVMSViewModel();
