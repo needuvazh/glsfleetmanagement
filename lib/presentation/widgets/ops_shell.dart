@@ -41,6 +41,7 @@ class OpsShell extends ConsumerWidget {
     RoutePaths.complianceDashboard: 'Compliance Dashboard',
     RoutePaths.dispatchReadiness: 'Dispatch Readiness',
     RoutePaths.inspections: 'Inspections',
+    RoutePaths.inspectionDashboard: 'Inspection Dashboard',
     RoutePaths.inspectionTemplates: 'Inspection Templates',
     RoutePaths.inspectionFailedQueue: 'Failed Inspections',
     RoutePaths.inspectionCalendar: 'Inspection Calendar',
@@ -566,6 +567,8 @@ class _SidebarState extends State<_Sidebar> {
             'Inspections',
             Icons.verified_user_outlined,
             children: [
+              _OpsMenuItem('Dashboard', Icons.analytics_outlined,
+                  route: RoutePaths.inspectionDashboard),
               _OpsMenuItem('Inspection List', Icons.list_alt_outlined,
                   route: RoutePaths.inspections),
               _OpsMenuItem('Failed Queue', Icons.error_outline,

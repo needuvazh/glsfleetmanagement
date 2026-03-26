@@ -23,6 +23,7 @@ class RoutePaths {
   static const complianceDashboard = '/compliance-dashboard';
   static const dispatchReadiness = '/dispatch-readiness';
   static const inspections = '/inspections';
+  static const inspectionDashboard = '/inspection-dashboard';
   static const inspectionCreate = '/inspections/create';
   static const inspectionDetail = '/inspections/:inspectionId';
   static const inspectionApproval = '/inspections/:inspectionId/approval';
