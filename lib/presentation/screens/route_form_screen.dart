@@ -7,6 +7,7 @@ import '../../domain/location_model.dart';
 import '../../domain/route_model.dart';
 import '../../routes/route_paths.dart';
 import '../viewmodels/route_viewmodel.dart';
+import '../widgets/module_document_upload_section.dart';
 import '../widgets/ops_shell.dart';
 import '../widgets/ops_ui.dart';
 
@@ -379,6 +380,10 @@ class _RouteFormScreenState extends ConsumerState<RouteFormScreen> {
                           },
                         ),
                       ]),
+                      const ModuleDocumentUploadSection(
+                        moduleName: 'Route',
+                        title: 'Route Document Uploads',
+                      ),
                       const SizedBox(height: 16),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,

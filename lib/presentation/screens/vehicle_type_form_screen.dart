@@ -7,6 +7,7 @@ import '../../core/utils/responsive.dart';
 import '../../domain/entities/vehicle_type.dart';
 import '../../routes/route_paths.dart';
 import '../viewmodels/vehicle_type_viewmodel.dart';
+import '../widgets/module_document_upload_section.dart';
 import '../widgets/ops_shell.dart';
 import '../widgets/ops_ui.dart';
 
@@ -504,6 +505,11 @@ class _VehicleTypeFormScreenState extends ConsumerState<VehicleTypeFormScreen> {
                                   notifier.setComplianceMode(value);
                                 }
                               },
+                            ),
+                            const SizedBox(height: 12),
+                            const ModuleDocumentUploadSection(
+                              moduleName: 'Vehicle Types',
+                              title: 'Vehicle Type Compliance Uploads',
                             ),
                             const SizedBox(height: 12),
                             Row(

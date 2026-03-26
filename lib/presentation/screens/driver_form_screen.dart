@@ -5,7 +5,9 @@ import 'package:go_router/go_router.dart';
 import '../../core/constants/oman_fleet_master.dart';
 import '../../domain/entities/logistics_flow.dart';
 import '../../routes/route_paths.dart';
+import '../viewmodels/auth_viewmodel.dart';
 import '../viewmodels/logistics_viewmodel.dart';
+import '../viewmodels/module_document_viewmodel.dart';
 import '../widgets/ops_shell.dart';
 
 class DriverFormScreen extends ConsumerStatefulWidget {
@@ -34,6 +36,8 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
   late final TextEditingController _notesCtrl;
   late final TextEditingController _preferredRouteTypeCtrl;
   late final TextEditingController _preferredVehicleTypeCtrl;
+  final ScrollController _docsHorizontalController = ScrollController();
+  final List<_DriverUploadRow> _uploadRows = [];
 
   bool _initialized = false;
   bool _saving = false;
@@ -113,14 +117,49 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
     _notesCtrl.dispose();
     _preferredRouteTypeCtrl.dispose();
     _preferredVehicleTypeCtrl.dispose();
+    _docsHorizontalController.dispose();
+    for (final row in _uploadRows) {
+      row.dispose();
+    }
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(logisticsViewModelProvider);
+    final complianceState = ref.watch(moduleDocumentViewModelProvider).valueOrNull;
+    final authState = ref.watch(authViewModelProvider).valueOrNull;
     final isEdit = widget.editDriverId != null;
     final existing = _existingDriver(state);
+    final roleName = (authState?.userRole ?? '').toLowerCase();
+    final isComplianceRole =
+        roleName.contains('admin') || roleName.contains('compliance');
+
+    final driverRules = (complianceState?.items ?? const [])
+        .where(
+          (item) =>
+              item.applicableTo.toLowerCase() == 'driver' &&
+              item.status.toLowerCase() == 'active',
+        )
+        .toList();
+    final visibleRules = isComplianceRole
+        ? driverRules
+        : driverRules.where((item) => item.mandatory).toList();
+    final fileTypeOptions = visibleRules
+        .map((item) => item.documentName.trim())
+        .where((item) => item.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
+    final mandatoryByType = <String, bool>{
+      for (final item in driverRules) item.documentName.trim(): item.mandatory,
+    };
+
+    _syncUploadRowsWithOptions(
+      fileTypeOptions: fileTypeOptions,
+      existing: existing,
+      mandatoryByType: mandatoryByType,
+    );
 
     if (isEdit && existing == null && state.valueOrNull != null) {
       return const OpsShell(
@@ -281,6 +320,14 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
                       label: 'Notes',
                       maxLines: 2,
                     ),
+                    const SizedBox(height: 16),
+                    _sectionTitle('Driver Documents Upload'),
+                    _buildDocumentsUploader(
+                      context: context,
+                      fileTypeOptions: fileTypeOptions,
+                      mandatoryByType: mandatoryByType,
+                      isComplianceRole: isComplianceRole,
+                    ),
                   ],
                 ),
               ),
@@ -334,6 +381,221 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
     );
   }
 
+  Widget _buildDocumentsUploader({
+    required BuildContext context,
+    required List<String> fileTypeOptions,
+    required Map<String, bool> mandatoryByType,
+    required bool isComplianceRole,
+  }) {
+    final canAddRows = fileTypeOptions.isNotEmpty;
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFD9E2F0)),
+        color: const Color(0xFFFAFCFF),
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  isComplianceRole
+                      ? 'File types from Compliance Master (Driver - Active)'
+                      : 'Role-based view: mandatory Driver documents from Compliance Master',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
+              FilledButton.icon(
+                onPressed: canAddRows
+                    ? () => setState(() {
+                          _uploadRows.add(
+                            _DriverUploadRow(
+                              fileType: fileTypeOptions.first,
+                              mandatory: mandatoryByType[fileTypeOptions.first] ??
+                                  false,
+                            ),
+                          );
+                        })
+                    : null,
+                icon: const Icon(Icons.add),
+                label: const Text('Add File'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (_uploadRows.isEmpty)
+            const Text('No document rows yet. Click "Add File".')
+          else
+            Scrollbar(
+              thumbVisibility: true,
+              controller: _docsHorizontalController,
+              notificationPredicate: (notification) =>
+                  notification.metrics.axis == Axis.horizontal,
+              child: SingleChildScrollView(
+                controller: _docsHorizontalController,
+                scrollDirection: Axis.horizontal,
+                child: DataTable(
+                  horizontalMargin: 10,
+                  columnSpacing: 18,
+                  headingRowHeight: 46,
+                  dataRowMinHeight: 56,
+                  dataRowMaxHeight: 64,
+                  columns: const [
+                    DataColumn(label: Text('File Type')),
+                    DataColumn(label: Text('Required')),
+                    DataColumn(label: Text('File Name')),
+                    DataColumn(label: Text('Uploaded At')),
+                    DataColumn(label: Text('Actions')),
+                  ],
+                  rows: [
+                    for (var i = 0; i < _uploadRows.length; i++)
+                      _buildUploadRow(
+                        index: i,
+                        row: _uploadRows[i],
+                        fileTypeOptions: fileTypeOptions,
+                        mandatoryByType: mandatoryByType,
+                      ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  DataRow _buildUploadRow({
+    required int index,
+    required _DriverUploadRow row,
+    required List<String> fileTypeOptions,
+    required Map<String, bool> mandatoryByType,
+  }) {
+    final dropdownValue = fileTypeOptions.contains(row.fileType)
+        ? row.fileType
+        : (fileTypeOptions.isEmpty ? null : fileTypeOptions.first);
+
+    return DataRow(
+      cells: [
+        DataCell(
+          SizedBox(
+            width: 220,
+            child: DropdownButtonFormField<String>(
+              value: dropdownValue,
+              decoration: const InputDecoration(
+                isDense: true,
+                labelText: 'Type',
+              ),
+              items: [
+                for (final item in fileTypeOptions)
+                  DropdownMenuItem(value: item, child: Text(item)),
+              ],
+              onChanged: fileTypeOptions.isEmpty
+                  ? null
+                  : (value) {
+                      if (value != null) {
+                        setState(() {
+                          row.fileType = value;
+                          row.mandatory = mandatoryByType[value] ?? false;
+                        });
+                      }
+                    },
+            ),
+          ),
+        ),
+        DataCell(Text(row.mandatory ? 'Yes' : 'No')),
+        DataCell(
+          SizedBox(
+            width: 270,
+            child: TextFormField(
+              controller: row.fileNameController,
+              decoration: const InputDecoration(
+                isDense: true,
+                labelText: 'File name',
+              ),
+            ),
+          ),
+        ),
+        DataCell(Text(row.uploadedAtLabel)),
+        DataCell(
+          SizedBox(
+            width: 120,
+            child: Row(
+              children: [
+                IconButton(
+                  tooltip: 'Mock upload',
+                  onPressed: () {
+                    final now = DateTime.now();
+                    final stamp =
+                        '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
+                    setState(() {
+                      final type = row.fileType.isEmpty ? 'document' : row.fileType;
+                      row.fileNameController.text =
+                          '${type.replaceAll(' ', '_').toLowerCase()}_$stamp.pdf';
+                      row.uploadedAt = now;
+                    });
+                  },
+                  icon: const Icon(Icons.upload_file_outlined),
+                ),
+                IconButton(
+                  tooltip: 'Remove row',
+                  onPressed: () {
+                    setState(() {
+                      _uploadRows.removeAt(index).dispose();
+                    });
+                  },
+                  icon: const Icon(Icons.delete_outline),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _syncUploadRowsWithOptions({
+    required List<String> fileTypeOptions,
+    required DriverData? existing,
+    required Map<String, bool> mandatoryByType,
+  }) {
+    if (_uploadRows.isNotEmpty) {
+      for (final row in _uploadRows) {
+        if (row.fileType.isEmpty && fileTypeOptions.isNotEmpty) {
+          row.fileType = fileTypeOptions.first;
+        }
+        row.mandatory = mandatoryByType[row.fileType] ?? false;
+      }
+      return;
+    }
+
+    if (_initialized && existing != null && existing.certifications.isNotEmpty) {
+      for (final cert in existing.certifications) {
+        final type = cert.trim();
+        if (type.isEmpty) {
+          continue;
+        }
+        _uploadRows.add(
+          _DriverUploadRow(
+            fileType: type,
+            mandatory: mandatoryByType[type] ?? false,
+            fileName: '',
+          ),
+        );
+      }
+    } else if (fileTypeOptions.isNotEmpty) {
+      final first = fileTypeOptions.first;
+      _uploadRows.add(
+        _DriverUploadRow(
+          fileType: first,
+          mandatory: mandatoryByType[first] ?? false,
+        ),
+      );
+    }
+  }
+
   Future<void> _save(DriverData? existing) async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -342,6 +604,16 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
     setState(() => _saving = true);
     final vm = ref.read(logisticsViewModelProvider.notifier);
     final isEdit = widget.editDriverId != null;
+    final uploadedTypes = _uploadRows
+        .where((row) =>
+            row.fileType.trim().isNotEmpty &&
+            row.fileNameController.text.trim().isNotEmpty)
+        .map((row) => row.fileType.trim())
+        .toSet()
+        .toList();
+    if (uploadedTypes.isNotEmpty) {
+      _certCtrl.text = uploadedTypes.join(', ');
+    }
 
     final message = isEdit
         ? vm.updateDriver(
@@ -402,5 +674,34 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
         .map((item) => item.trim())
         .where((item) => item.isNotEmpty)
         .toList();
+  }
+}
+
+class _DriverUploadRow {
+  _DriverUploadRow({
+    required this.fileType,
+    required this.mandatory,
+    String fileName = '',
+    this.uploadedAt,
+  }) : fileNameController = TextEditingController(text: fileName);
+
+  final TextEditingController fileNameController;
+  String fileType;
+  bool mandatory;
+  DateTime? uploadedAt;
+
+  String get uploadedAtLabel {
+    final value = uploadedAt;
+    if (value == null) {
+      return '-';
+    }
+    final d = value.day.toString().padLeft(2, '0');
+    final m = value.month.toString().padLeft(2, '0');
+    final y = value.year.toString();
+    return '$d/$m/$y';
+  }
+
+  void dispose() {
+    fileNameController.dispose();
   }
 }

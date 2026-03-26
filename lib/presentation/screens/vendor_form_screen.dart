@@ -6,6 +6,7 @@ import '../../core/utils/responsive.dart';
 import '../../domain/vendor_model.dart';
 import '../../routes/route_paths.dart';
 import '../viewmodels/vendor_viewmodel.dart';
+import '../widgets/module_document_upload_section.dart';
 import '../widgets/ops_shell.dart';
 import '../widgets/ops_ui.dart';
 
@@ -188,6 +189,10 @@ class _VendorFormScreenState extends ConsumerState<VendorFormScreen> {
                             child: const Text('Save'),
                           ),
                         ],
+                      ),
+                      const ModuleDocumentUploadSection(
+                        moduleName: 'Vendor',
+                        title: 'Vendor Document Uploads',
                       ),
                     ],
                   ),

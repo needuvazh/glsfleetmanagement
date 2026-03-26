@@ -100,6 +100,7 @@ class RoutePaths {
   static const auditTrail = '/audit-trail';
   static const statusTimeline = '/status-timeline';
   static const trailerMaster = '/trailer';
+  static const trailerForm = '/trailer/form';
   static const trailerView = '/trailer/view/:trailerCode';
   static const trailerMasterLegacy = '/trailer-master';
 
@@ -156,7 +157,9 @@ class RoutePaths {
   static String editInspectionTemplateById(String templateId) =>
       '/inspections/templates/form?id=$templateId';
   static String trailerViewByCode(String trailerCode) =>
-      '/trailer/view/$trailerCode';
+      '/trailer/view/${Uri.encodeComponent(trailerCode)}';
+  static String editTrailerByCode(String trailerCode) =>
+      '/trailer/form?code=${Uri.encodeComponent(trailerCode)}';
 
   static String mediaPreviewById(String evidenceId) =>
       '/media-preview/$evidenceId';

@@ -10,6 +10,7 @@ import '../../routes/route_paths.dart';
 import '../viewmodels/cargo_viewmodel.dart';
 import '../viewmodels/route_viewmodel.dart';
 import '../viewmodels/vehicle_type_viewmodel.dart';
+import '../widgets/module_document_upload_section.dart';
 import '../widgets/ops_shell.dart';
 import '../widgets/ops_ui.dart';
 
@@ -634,6 +635,10 @@ class _CargoFormScreenState extends ConsumerState<CargoFormScreen> {
                       ),
                     ],
                   ),
+                ),
+                const ModuleDocumentUploadSection(
+                  moduleName: 'Cargo',
+                  title: 'Cargo Document Uploads',
                 ),
                 _section(
                   title: '7. Control / Status',

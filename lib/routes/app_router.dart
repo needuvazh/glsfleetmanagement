@@ -63,6 +63,7 @@ import '../presentation/screens/route_view_screen.dart';
 import '../presentation/screens/trip_monitoring_screen.dart';
 import '../presentation/screens/trip_execution_screen.dart';
 import '../presentation/screens/trailer_master_screen.dart';
+import '../presentation/screens/trailer_form_screen.dart';
 import '../presentation/screens/trailer_view_screen.dart';
 import '../presentation/screens/user_form_screen.dart';
 import '../presentation/screens/user_list_screen.dart';
@@ -569,6 +570,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: RoutePaths.trailerMaster,
         builder: (context, state) => const TrailerMasterScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.trailerForm,
+        builder: (context, state) => TrailerFormScreen(
+          editCode: state.uri.queryParameters['code'],
+        ),
       ),
       GoRoute(
         path: RoutePaths.trailerView,

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../routes/route_paths.dart';
 import '../widgets/ops_shell.dart';
 import '../widgets/ops_ui.dart';
+import 'trailer_store.dart';
 
 class TrailerMasterScreen extends StatefulWidget {
   const TrailerMasterScreen({super.key});
@@ -17,12 +18,6 @@ class _TrailerMasterScreenState extends State<TrailerMasterScreen> {
   final _horizontalController = ScrollController();
   final _verticalController = ScrollController();
 
-  final _rows = const <_TrailerRow>[
-    _TrailerRow('TRL-001', 'Flatbed', '40 FT', 'Active', 'Available'),
-    _TrailerRow('TRL-002', 'Lowbed', '60 FT', 'Active', 'Assigned'),
-    _TrailerRow('TRL-003', 'Tanker', '30 KL', 'Inactive', 'Blocked'),
-  ];
-
   @override
   void dispose() {
     _queryController.dispose();
@@ -34,7 +29,7 @@ class _TrailerMasterScreenState extends State<TrailerMasterScreen> {
   @override
   Widget build(BuildContext context) {
     final query = _queryController.text.trim().toLowerCase();
-    final items = _rows.where((item) {
+    final items = TrailerStore.all().where((item) {
       if (query.isEmpty) {
         return true;
       }
@@ -48,7 +43,7 @@ class _TrailerMasterScreenState extends State<TrailerMasterScreen> {
       currentRoute: RoutePaths.trailerMaster,
       actions: [
         FilledButton.icon(
-          onPressed: () {},
+          onPressed: () => context.go(RoutePaths.trailerForm),
           icon: const Icon(Icons.add),
           label: const Text('Create Trailer'),
         ),
@@ -153,7 +148,10 @@ class _TrailerMasterScreenState extends State<TrailerMasterScreen> {
                                                           minHeight: 34,
                                                         ),
                                                         padding: EdgeInsets.zero,
-                                                        onPressed: () {},
+                                                        onPressed: () => context.go(
+                                                          RoutePaths.editTrailerByCode(
+                                                              item.code),
+                                                        ),
                                                         icon: const Icon(
                                                             Icons.edit_outlined),
                                                       ),
@@ -179,20 +177,4 @@ class _TrailerMasterScreenState extends State<TrailerMasterScreen> {
       ),
     );
   }
-}
-
-class _TrailerRow {
-  const _TrailerRow(
-    this.code,
-    this.type,
-    this.capacity,
-    this.status,
-    this.availability,
-  );
-
-  final String code;
-  final String type;
-  final String capacity;
-  final String status;
-  final String availability;
 }

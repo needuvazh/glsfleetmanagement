@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../domain/entities/inspection.dart';
 import '../../routes/route_paths.dart';
+import '../widgets/module_document_upload_section.dart';
 import '../widgets/ops_shell.dart';
 import 'inspection_template_store.dart';
 
@@ -175,6 +176,10 @@ class _InspectionTemplateFormScreenState
                 child: Text(isEdit ? 'Save' : 'Create'),
               ),
             ],
+          ),
+          const ModuleDocumentUploadSection(
+            moduleName: 'Inspection Template',
+            title: 'Template Attachment Uploads',
           ),
         ],
       ),

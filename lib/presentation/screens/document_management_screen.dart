@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/module_document.dart';
 import '../../routes/route_paths.dart';
 import '../viewmodels/module_document_viewmodel.dart';
+import '../widgets/module_document_upload_section.dart';
 import '../widgets/ops_shell.dart';
 import '../widgets/ops_ui.dart';
 
@@ -45,6 +46,9 @@ class _DocumentManagementScreenState
   int? _sortColumnIndex;
   bool _sortAscending = true;
   int _rowsPerPage = PaginatedDataTable.defaultRowsPerPage;
+  final ScrollController _tableHorizontalScrollController =
+      ScrollController();
+  final ScrollController _tableVerticalScrollController = ScrollController();
 
   bool get _isEditMode => _editingRuleId != null;
 
@@ -54,6 +58,8 @@ class _DocumentManagementScreenState
     _documentNameController.dispose();
     _descriptionController.dispose();
     _alertDaysController.dispose();
+    _tableHorizontalScrollController.dispose();
+    _tableVerticalScrollController.dispose();
     super.dispose();
   }
 
@@ -70,100 +76,104 @@ class _DocumentManagementScreenState
         data: (data) {
           return Padding(
             padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(
-                  child: OpsSectionCard(
-                    title: 'Compliance Rule List',
-                    subtitle:
-                        'View all existing rules first, then create, edit, or view rule details from the header actions',
-                    icon: Icons.rule_folder_outlined,
-                    accent: const Color(0xFF16A34A),
-                    expandChild: true,
-                    child: Column(
-                      children: [
-                        _buildContentHeader(data),
-                        const SizedBox(height: 10),
-                        TextFormField(
-                          initialValue: data.query,
-                          decoration: const InputDecoration(
-                            labelText: 'Search by code/name/applicable/stage',
-                            prefixIcon: Icon(Icons.search),
-                          ),
-                          onChanged: ref
-                              .read(moduleDocumentViewModelProvider.notifier)
-                              .setQuery,
-                        ),
-                        const SizedBox(height: 10),
-                        _buildFilters(data),
-                        const SizedBox(height: 10),
-                        if (data.filteredItems.isEmpty)
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 18),
-                            child: Text(
-                                'No compliance rules found for selected filters.'),
-                          )
-                        else
-                          Expanded(
-                            child: _buildPaginatedTable(data.filteredItems),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-                if (_showEditor) ...[
-                  const SizedBox(height: 12),
-                  OpsSectionCard(
-                    title: _isEditMode
-                        ? 'Edit Compliance Rule'
-                        : 'Create New Compliance Rule',
-                    subtitle:
-                        'Define applicability, stage checks, severity, and evidence requirements',
-                    icon: _isEditMode
-                        ? Icons.edit_document
-                        : Icons.policy_outlined,
-                    accent: const Color(0xFF2563EB),
-                    trailing: TextButton.icon(
-                      onPressed: _closeEditor,
-                      icon: const Icon(Icons.close),
-                      label: const Text('Close'),
-                    ),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        children: [
-                          _buildBasicsRow(),
-                          const SizedBox(height: 10),
-                          _buildRequirementRow(),
-                          const SizedBox(height: 10),
-                          _buildStageRow(),
-                          const SizedBox(height: 10),
-                          _buildBlockingRow(),
-                          const SizedBox(height: 10),
-                          _buildEvidenceRow(),
-                          const SizedBox(height: 12),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: FilledButton.icon(
-                              onPressed: _submitRule,
-                              icon: Icon(_isEditMode
-                                  ? Icons.save_outlined
-                                  : Icons.add_task_outlined),
-                              label: Text(_isEditMode
-                                  ? 'Save Changes'
-                                  : 'Create Compliance Rule'),
-                            ),
-                          ),
-                        ],
+            child: _showEditor
+                ? SingleChildScrollView(
+                    child: _buildEditorCard(),
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: _buildListCard(data),
                       ),
-                    ),
+                    ],
                   ),
-                ],
-              ],
-            ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildListCard(ModuleDocumentUiState data) {
+    return OpsSectionCard(
+      title: 'Compliance Rule List',
+      subtitle:
+          'View all existing rules first, then create, edit, or view rule details from the header actions',
+      icon: Icons.rule_folder_outlined,
+      accent: const Color(0xFF16A34A),
+      expandChild: true,
+      child: Column(
+        children: [
+          _buildContentHeader(data),
+          const SizedBox(height: 10),
+          TextFormField(
+            initialValue: data.query,
+            decoration: const InputDecoration(
+              labelText: 'Search by code/name/applicable/stage',
+              prefixIcon: Icon(Icons.search),
+            ),
+            onChanged:
+                ref.read(moduleDocumentViewModelProvider.notifier).setQuery,
+          ),
+          const SizedBox(height: 10),
+          _buildFilters(data),
+          const SizedBox(height: 10),
+          if (data.filteredItems.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 18),
+              child: Text('No compliance rules found for selected filters.'),
+            ),
+          else
+            Expanded(
+              child: _buildPaginatedTable(data.filteredItems),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEditorCard() {
+    return OpsSectionCard(
+      title: _isEditMode ? 'Edit Compliance Rule' : 'Create New Compliance Rule',
+      subtitle:
+          'Define applicability, stage checks, severity, and evidence requirements',
+      icon: _isEditMode ? Icons.edit_document : Icons.policy_outlined,
+      accent: const Color(0xFF2563EB),
+      trailing: TextButton.icon(
+        onPressed: _closeEditor,
+        icon: const Icon(Icons.close),
+        label: const Text('Close'),
+      ),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          children: [
+            _buildBasicsRow(),
+            const SizedBox(height: 10),
+            _buildRequirementRow(),
+            const SizedBox(height: 10),
+            _buildStageRow(),
+            const SizedBox(height: 10),
+            _buildBlockingRow(),
+            const SizedBox(height: 10),
+            _buildEvidenceRow(),
+            const ModuleDocumentUploadSection(
+              moduleName: 'Compliance Master',
+              title: 'Policy Attachment Uploads',
+            ),
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton.icon(
+                onPressed: _submitRule,
+                icon: Icon(
+                    _isEditMode ? Icons.save_outlined : Icons.add_task_outlined),
+                label: Text(
+                    _isEditMode ? 'Save Changes' : 'Create Compliance Rule'),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -174,27 +184,29 @@ class _DocumentManagementScreenState
         data.items.where((item) => item.blockingType == 'Hard Block').length;
     final active = data.items.where((item) => item.status == 'Active').length;
 
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Expanded(
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 6,
-            children: [
-              OpsPill(label: 'Total $total', color: const Color(0xFF2563EB)),
-              OpsPill(label: 'Active $active', color: const Color(0xFF16A34A)),
-              OpsPill(
-                label: 'Hard Block $hardBlocks',
-                color: const Color(0xFFB91C1C),
-              ),
-            ],
-          ),
+        Wrap(
+          spacing: 8,
+          runSpacing: 6,
+          children: [
+            OpsPill(label: 'Total $total', color: const Color(0xFF2563EB)),
+            OpsPill(label: 'Active $active', color: const Color(0xFF16A34A)),
+            OpsPill(
+              label: 'Hard Block $hardBlocks',
+              color: const Color(0xFFB91C1C),
+            ),
+          ],
         ),
-        const SizedBox(width: 8),
-        FilledButton.icon(
-          onPressed: _openEditorForCreate,
-          icon: const Icon(Icons.add),
-          label: const Text('Create New Compliance'),
+        const SizedBox(height: 10),
+        Align(
+          alignment: Alignment.centerRight,
+          child: FilledButton.icon(
+            onPressed: _openEditorForCreate,
+            icon: const Icon(Icons.add),
+            label: const Text('Create New Compliance'),
+          ),
         ),
       ],
     );
@@ -214,25 +226,32 @@ class _DocumentManagementScreenState
         final viewportWidth = constraints.hasBoundedWidth
             ? constraints.maxWidth
             : MediaQuery.sizeOf(context).width;
-        final tableWidth = viewportWidth < 1200 ? 1200.0 : viewportWidth;
+        final tableWidth = viewportWidth < 1650 ? 1650.0 : viewportWidth;
 
         return Scrollbar(
           thumbVisibility: true,
+          trackVisibility: true,
+          controller: _tableVerticalScrollController,
           notificationPredicate: (notification) =>
               notification.metrics.axis == Axis.vertical,
           child: SingleChildScrollView(
+            controller: _tableVerticalScrollController,
             scrollDirection: Axis.vertical,
             child: Scrollbar(
               thumbVisibility: true,
+              trackVisibility: true,
+              controller: _tableHorizontalScrollController,
               notificationPredicate: (notification) =>
                   notification.metrics.axis == Axis.horizontal,
               child: SingleChildScrollView(
+                controller: _tableHorizontalScrollController,
                 scrollDirection: Axis.horizontal,
                 child: SizedBox(
                   width: tableWidth,
                   child: PaginatedDataTable(
                   header: const Text('Compliance Rules'),
                   showCheckboxColumn: false,
+                  showEmptyRows: false,
                   rowsPerPage: _rowsPerPage,
                   availableRowsPerPage: const [5, 10, 20, 50],
                   onRowsPerPageChanged: (value) {
@@ -344,64 +363,100 @@ class _DocumentManagementScreenState
   }
 
   Widget _buildBasicsRow() {
-    return Row(
-      children: [
-        Expanded(
-          child: TextFormField(
-            controller: _documentCodeController,
-            decoration: const InputDecoration(
-              labelText: 'Document Code',
-              hintText: 'Auto if empty',
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: TextFormField(
-            controller: _documentNameController,
-            decoration: const InputDecoration(labelText: 'Document Name *'),
-            validator: _required,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: DropdownButtonFormField<String>(
-            value: _selectedApplicableTo,
-            decoration: const InputDecoration(labelText: 'Applicable To *'),
-            items: [
-              for (final value in ModuleDocumentViewModel.applicableToOptions)
-                DropdownMenuItem(value: value, child: Text(value)),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 980;
+        if (compact) {
+          return Column(
+            children: [
+              TextFormField(
+                controller: _documentCodeController,
+                decoration: const InputDecoration(
+                  labelText: 'Document Code',
+                  hintText: 'Auto if empty',
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextFormField(
+                controller: _documentNameController,
+                decoration: const InputDecoration(labelText: 'Document Name *'),
+                validator: _required,
+              ),
+              const SizedBox(height: 10),
+              DropdownButtonFormField<String>(
+                value: _selectedApplicableTo,
+                decoration: const InputDecoration(labelText: 'Applicable To *'),
+                items: [
+                  for (final value in ModuleDocumentViewModel.applicableToOptions)
+                    DropdownMenuItem(value: value, child: Text(value)),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() => _selectedApplicableTo = value);
+                  }
+                },
+              ),
             ],
-            onChanged: (value) {
-              if (value != null) {
-                setState(() => _selectedApplicableTo = value);
-              }
-            },
-          ),
-        ),
-      ],
+          );
+        }
+        return Row(
+          children: [
+            Expanded(
+              child: TextFormField(
+                controller: _documentCodeController,
+                decoration: const InputDecoration(
+                  labelText: 'Document Code',
+                  hintText: 'Auto if empty',
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: TextFormField(
+                controller: _documentNameController,
+                decoration: const InputDecoration(labelText: 'Document Name *'),
+                validator: _required,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                value: _selectedApplicableTo,
+                decoration: const InputDecoration(labelText: 'Applicable To *'),
+                items: [
+                  for (final value in ModuleDocumentViewModel.applicableToOptions)
+                    DropdownMenuItem(value: value, child: Text(value)),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() => _selectedApplicableTo = value);
+                  }
+                },
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
   Widget _buildRequirementRow() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: TextFormField(
-            controller: _descriptionController,
-            decoration: const InputDecoration(
-              labelText: 'Description',
-              hintText: 'Business meaning and usage guidance',
-            ),
-            minLines: 2,
-            maxLines: 3,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 980;
+        if (compact) {
+          return Column(
             children: [
+              TextFormField(
+                controller: _descriptionController,
+                decoration: const InputDecoration(
+                  labelText: 'Description',
+                  hintText: 'Business meaning and usage guidance',
+                ),
+                minLines: 2,
+                maxLines: 3,
+              ),
+              const SizedBox(height: 10),
               SwitchListTile(
                 value: _mandatory,
                 onChanged: (value) => setState(() => _mandatory = value),
@@ -414,13 +469,7 @@ class _DocumentManagementScreenState
                 contentPadding: EdgeInsets.zero,
                 title: const Text('Has Expiry'),
               ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            children: [
+              const SizedBox(height: 10),
               TextFormField(
                 controller: _alertDaysController,
                 keyboardType: TextInputType.number,
@@ -445,9 +494,74 @@ class _DocumentManagementScreenState
                 },
               ),
             ],
-          ),
-        ),
-      ],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: TextFormField(
+                controller: _descriptionController,
+                decoration: const InputDecoration(
+                  labelText: 'Description',
+                  hintText: 'Business meaning and usage guidance',
+                ),
+                minLines: 2,
+                maxLines: 3,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                children: [
+                  SwitchListTile(
+                    value: _mandatory,
+                    onChanged: (value) => setState(() => _mandatory = value),
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Mandatory'),
+                  ),
+                  SwitchListTile(
+                    value: _hasExpiry,
+                    onChanged: (value) => setState(() => _hasExpiry = value),
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Has Expiry'),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                children: [
+                  TextFormField(
+                    controller: _alertDaysController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Alert Before Days',
+                    ),
+                    enabled: _hasExpiry,
+                    validator: _validateAlertDays,
+                  ),
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<String>(
+                    value: _selectedStatus,
+                    decoration: const InputDecoration(labelText: 'Status'),
+                    items: const [
+                      DropdownMenuItem(value: 'Active', child: Text('Active')),
+                      DropdownMenuItem(value: 'Inactive', child: Text('Inactive')),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) {
+                        setState(() => _selectedStatus = value);
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -484,64 +598,125 @@ class _DocumentManagementScreenState
   }
 
   Widget _buildBlockingRow() {
-    return Row(
-      children: [
-        Expanded(
-          child: DropdownButtonFormField<String>(
-            value: _selectedMissingAction,
-            decoration: const InputDecoration(labelText: 'Missing Action'),
-            items: [
-              for (final action in ModuleDocumentViewModel.actionTypes)
-                DropdownMenuItem(value: action, child: Text(action)),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 760;
+        if (compact) {
+          return Column(
+            children: [
+              DropdownButtonFormField<String>(
+                value: _selectedMissingAction,
+                decoration: const InputDecoration(labelText: 'Missing Action'),
+                items: [
+                  for (final action in ModuleDocumentViewModel.actionTypes)
+                    DropdownMenuItem(value: action, child: Text(action)),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() => _selectedMissingAction = value);
+                  }
+                },
+              ),
+              const SizedBox(height: 10),
+              DropdownButtonFormField<String>(
+                value: _selectedExpiredAction,
+                decoration: const InputDecoration(labelText: 'Expired Action'),
+                items: [
+                  for (final action in ModuleDocumentViewModel.actionTypes)
+                    DropdownMenuItem(value: action, child: Text(action)),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() => _selectedExpiredAction = value);
+                  }
+                },
+              ),
             ],
-            onChanged: (value) {
-              if (value != null) {
-                setState(() => _selectedMissingAction = value);
-              }
-            },
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: DropdownButtonFormField<String>(
-            value: _selectedExpiredAction,
-            decoration: const InputDecoration(labelText: 'Expired Action'),
-            items: [
-              for (final action in ModuleDocumentViewModel.actionTypes)
-                DropdownMenuItem(value: action, child: Text(action)),
-            ],
-            onChanged: (value) {
-              if (value != null) {
-                setState(() => _selectedExpiredAction = value);
-              }
-            },
-          ),
-        ),
-      ],
+          );
+        }
+        return Row(
+          children: [
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                value: _selectedMissingAction,
+                decoration: const InputDecoration(labelText: 'Missing Action'),
+                items: [
+                  for (final action in ModuleDocumentViewModel.actionTypes)
+                    DropdownMenuItem(value: action, child: Text(action)),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() => _selectedMissingAction = value);
+                  }
+                },
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                value: _selectedExpiredAction,
+                decoration: const InputDecoration(labelText: 'Expired Action'),
+                items: [
+                  for (final action in ModuleDocumentViewModel.actionTypes)
+                    DropdownMenuItem(value: action, child: Text(action)),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() => _selectedExpiredAction = value);
+                  }
+                },
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
   Widget _buildEvidenceRow() {
-    return Row(
-      children: [
-        Expanded(
-          child: SwitchListTile(
-            value: _uploadRequired,
-            onChanged: (value) => setState(() => _uploadRequired = value),
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Upload Required'),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: SwitchListTile(
-            value: _overrideAllowed,
-            onChanged: (value) => setState(() => _overrideAllowed = value),
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Override Allowed'),
-          ),
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 700;
+        if (compact) {
+          return Column(
+            children: [
+              SwitchListTile(
+                value: _uploadRequired,
+                onChanged: (value) => setState(() => _uploadRequired = value),
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Upload Required'),
+              ),
+              SwitchListTile(
+                value: _overrideAllowed,
+                onChanged: (value) => setState(() => _overrideAllowed = value),
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Override Allowed'),
+              ),
+            ],
+          );
+        }
+        return Row(
+          children: [
+            Expanded(
+              child: SwitchListTile(
+                value: _uploadRequired,
+                onChanged: (value) => setState(() => _uploadRequired = value),
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Upload Required'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: SwitchListTile(
+                value: _overrideAllowed,
+                onChanged: (value) => setState(() => _overrideAllowed = value),
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Override Allowed'),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
