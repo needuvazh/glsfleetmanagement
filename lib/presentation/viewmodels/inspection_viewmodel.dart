@@ -145,6 +145,20 @@ class InspectionViewModel extends StateNotifier<InspectionUiState> {
     );
   }
 
+  void updateInspection(InspectionRecord record) {
+    state = state.copyWith(
+      items: state.items.map((i) => i.inspectionId == record.inspectionId ? record : i).toList(),
+      lastUpdated: DateTime.now(),
+    );
+  }
+
+  void deleteInspection(String inspectionId) {
+    state = state.copyWith(
+      items: state.items.where((i) => i.inspectionId != inspectionId).toList(),
+      lastUpdated: DateTime.now(),
+    );
+  }
+
   InspectionRecord? byId(String inspectionId) {
     for (final item in state.items) {
       if (item.inspectionId == inspectionId) {

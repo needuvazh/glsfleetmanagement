@@ -3,6 +3,8 @@ enum InspectionType {
   trailer,
   safety,
   trip,
+  preDeparture,
+  loadSecurity,
 }
 
 extension InspectionTypeX on InspectionType {
@@ -16,6 +18,10 @@ extension InspectionTypeX on InspectionType {
         return 'Safety';
       case InspectionType.trip:
         return 'Trip';
+      case InspectionType.preDeparture:
+        return 'Pre Departure Inspection';
+      case InspectionType.loadSecurity:
+        return 'Load Security Inspection';
     }
   }
 }

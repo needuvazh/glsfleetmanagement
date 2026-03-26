@@ -5,13 +5,16 @@ import 'package:go_router/go_router.dart';
 import '../../domain/cargo_model.dart';
 import '../../domain/entities/inspection.dart';
 import '../../routes/route_paths.dart';
-import '../viewmodels/cargo_policy_viewmodel.dart';
 import '../viewmodels/cargo_viewmodel.dart';
+import '../viewmodels/inspection_master_viewmodel.dart';
 import '../viewmodels/inspection_viewmodel.dart';
+import '../viewmodels/vendor_viewmodel.dart';
 import '../widgets/ops_shell.dart';
 
 class InspectionCreateScreen extends ConsumerStatefulWidget {
-  const InspectionCreateScreen({super.key});
+  const InspectionCreateScreen({super.key, this.inspectionId});
+
+  final String? inspectionId;
 
   @override
   ConsumerState<InspectionCreateScreen> createState() =>
@@ -24,34 +27,73 @@ class _InspectionCreateScreenState
 
   final _inspectionIdController = TextEditingController();
   final _workOrderController = TextEditingController();
-  final _fleetController = TextEditingController();
+  final _fleetController = TextEditingController(); // Vehicle Code
+  final _mulkiyaExpiryController = TextEditingController();
+  final _rasExpiryController = TextEditingController();
   final _trailerController = TextEditingController();
+  final _trailerMulkiyaExpiryController = TextEditingController();
+  final _trailerRasExpiryController = TextEditingController();
   final _driverController = TextEditingController();
+  final _driverLicenseExpiryController = TextEditingController();
+  final _h2sPermitExpiryController = TextEditingController();
+  final _defensiveDrivingController = TextEditingController();
+  final _tyrePressureDriverSideController = TextEditingController();
+  final _tyrePressurePassengerSideController = TextEditingController();
+  final _tyreManufacturingDateController = TextEditingController();
+  final _inspectionRemarksController = TextEditingController();
+
   final _inspectorController = TextEditingController();
   final _notesController = TextEditingController();
   final _correctiveActionController = TextEditingController();
   final _recommendationController = TextEditingController();
   final _reviewerController = TextEditingController();
+
   String? _selectedCargoCode;
+  String? _selectedVendorId;
+  String? _selectedSubVendorId;
 
-  InspectionType _type = InspectionType.preTrip;
+  InspectionType _type = InspectionType.preDeparture; // Default to new type
   DateTime _inspectionDateTime = DateTime.now();
+  InspectionApprovalStatus _selectedApprovalStatus = InspectionApprovalStatus.pending;
 
-  late final List<_ChecklistDraft> _items;
+  List<_ChecklistDraft> _items = [];
+  final List<_DocumentDraftRow> _docRows = [_DocumentDraftRow()];
+
+  bool get _isEditing => widget.inspectionId != null;
+  bool _isReadOnly = false;
 
   @override
   void initState() {
     super.initState();
-    _inspectionIdController.text =
-        'INS-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}';
-    _items = [
-      _ChecklistDraft(itemName: 'Tyres'),
-      _ChecklistDraft(itemName: 'Brake'),
-      _ChecklistDraft(itemName: 'Lights'),
-      _ChecklistDraft(itemName: 'Fire Extinguisher'),
-      _ChecklistDraft(itemName: 'Vehicle Documents'),
-      _ChecklistDraft(itemName: 'Driver Documents'),
-    ];
+    if (_isEditing) {
+      _loadExistingInspection();
+    } else {
+      _inspectionIdController.text =
+          'INS-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}';
+    }
+  }
+
+  void _loadExistingInspection() {
+    final record = ref.read(inspectionViewModelProvider.notifier).byId(widget.inspectionId!);
+    if (record == null) return;
+
+    _inspectionIdController.text = record.inspectionId;
+    _workOrderController.text = record.workOrder;
+    _fleetController.text = record.fleet;
+    _trailerController.text = record.trailer;
+    _driverController.text = record.driver;
+    _inspectorController.text = record.inspector;
+    _inspectionDateTime = record.inspectedAt;
+    _type = record.inspectionType;
+    _selectedApprovalStatus = record.approvalStatus;
+    _notesController.text = record.notes;
+    _correctiveActionController.text = record.correctiveAction;
+    _recommendationController.text = record.recommendation;
+    _reviewerController.text = record.reviewerName;
+
+    // Read-only if Approved or Rejected
+    _isReadOnly = record.approvalStatus == InspectionApprovalStatus.approved ||
+        record.approvalStatus == InspectionApprovalStatus.rejected;
   }
 
   @override
@@ -59,8 +101,19 @@ class _InspectionCreateScreenState
     _inspectionIdController.dispose();
     _workOrderController.dispose();
     _fleetController.dispose();
+    _mulkiyaExpiryController.dispose();
+    _rasExpiryController.dispose();
     _trailerController.dispose();
+    _trailerMulkiyaExpiryController.dispose();
+    _trailerRasExpiryController.dispose();
     _driverController.dispose();
+    _driverLicenseExpiryController.dispose();
+    _h2sPermitExpiryController.dispose();
+    _defensiveDrivingController.dispose();
+    _tyrePressureDriverSideController.dispose();
+    _tyrePressurePassengerSideController.dispose();
+    _tyreManufacturingDateController.dispose();
+    _inspectionRemarksController.dispose();
     _inspectorController.dispose();
     _notesController.dispose();
     _correctiveActionController.dispose();
@@ -72,18 +125,84 @@ class _InspectionCreateScreenState
     super.dispose();
   }
 
+  void _rebuildChecklists() {
+    final types = ref.read(inspectionTypesProvider);
+    final checklists = ref.read(inspectionChecklistsProvider);
+
+    String? masterTypeId;
+    if (_type == InspectionType.preDeparture) masterTypeId = 'T1';
+    if (_type == InspectionType.loadSecurity) masterTypeId = 'T2';
+
+    if (masterTypeId == null) {
+      setState(() {
+        _items = [
+          _ChecklistDraft(sno: 1, itemName: 'Tyres', category: 'General'),
+          _ChecklistDraft(sno: 2, itemName: 'Brake', category: 'General'),
+          _ChecklistDraft(sno: 3, itemName: 'Lights', category: 'General'),
+          _ChecklistDraft(sno: 4, itemName: 'Fire Extinguisher', category: 'General'),
+          _ChecklistDraft(sno: 5, itemName: 'Vehicle Documents', category: 'General'),
+          _ChecklistDraft(sno: 6, itemName: 'Driver Documents', category: 'General'),
+        ];
+      });
+      return;
+    }
+
+    final masterType = types.firstWhere((t) => t.id == masterTypeId);
+    final categoryIds = masterType.categories.map((c) => c.id).toList();
+
+    final matchingItems =
+        checklists.where((c) => categoryIds.contains(c.categoryId)).toList();
+
+    setState(() {
+      _items = matchingItems.map((c) {
+        final categoryName = masterType.categories
+            .firstWhere((cat) => cat.id == c.categoryId)
+            .name;
+        return _ChecklistDraft(sno: c.sno, itemName: c.description, category: categoryName);
+      }).toList();
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_items.isEmpty) {
+      _rebuildChecklists();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final cargoState = ref.watch(cargoViewModelProvider).valueOrNull;
-    final selectableCargo = (cargoState?.items ?? const <CargoModel>[])
-        .where((item) => item.isSelectable)
-        .toList();
+    // Keep watching cargoViewModelProvider to ensure correct initialization, though it's now internal
     final selectedCargo = ref
         .read(cargoViewModelProvider.notifier)
         .findByCode(_selectedCargoCode);
 
+    final vendorState = ref.watch(vendorViewModelProvider).valueOrNull;
+    final activeVendors =
+        vendorState?.vendors.where((v) => v.isActive).toList() ?? [];
+
+    final subVendors = ref.watch(subVendorsProvider(_selectedVendorId ?? ''));
+
+    // Compute description options for Docs panel based on the selected type's categories
+    // Fixed master doc_type options for Upload Documents
+    final docDescriptions = [
+      'Tyre Photos',
+      'Vehicle Body Photos',
+      'Electrical & Lights Photos',
+      'Brake System Photos',
+      'Cabin / Interior Photos',
+      'Load Securing Photos',
+      'Additional Photos',
+      'Other Document',
+    ];
+
+    final screenTitle = _isReadOnly
+        ? 'View Inspection'
+        : (_isEditing ? 'Edit Inspection' : 'Create Inspection');
+
     return OpsShell(
-      title: 'Create Inspection',
+      title: screenTitle,
       currentRoute: RoutePaths.inspections,
       child: Form(
         key: _formKey,
@@ -96,7 +215,7 @@ class _InspectionCreateScreenState
                 runSpacing: 10,
                 children: [
                   _field(_inspectionIdController, 'Inspection ID',
-                      required: true, width: 260),
+                      required: true, width: 260, forceReadOnly: true),
                   SizedBox(
                     width: 260,
                     child: DropdownButtonFormField<InspectionType>(
@@ -108,37 +227,21 @@ class _InspectionCreateScreenState
                           DropdownMenuItem(
                               value: type, child: Text(type.label)),
                       ],
-                      onChanged: (value) {
-                        if (value != null) {
-                          setState(() => _type = value);
-                        }
-                      },
+                      onChanged: _isReadOnly
+                          ? null
+                          : (value) {
+                              if (value != null) {
+                                setState(() {
+                                  _type = value;
+                                  _rebuildChecklists();
+                                  _docRows.clear();
+                                  _docRows.add(_DocumentDraftRow());
+                                });
+                              }
+                            },
                     ),
                   ),
                   _field(_workOrderController, 'Linked Work Order',
-                      required: true),
-                  SizedBox(
-                    width: 260,
-                    child: DropdownButtonFormField<String>(
-                      value: _selectedCargoCode,
-                      decoration:
-                          const InputDecoration(labelText: 'Linked Cargo'),
-                      items: [
-                        for (final cargo in selectableCargo)
-                          DropdownMenuItem(
-                            value: cargo.cargoCode,
-                            child:
-                                Text('${cargo.cargoName} (${cargo.cargoCode})'),
-                          ),
-                      ],
-                      onChanged: (value) =>
-                          setState(() => _selectedCargoCode = value),
-                    ),
-                  ),
-                  _field(_fleetController, 'Linked Fleet', required: true),
-                  _field(_trailerController, 'Linked Trailer'),
-                  _field(_driverController, 'Linked Driver', required: true),
-                  _field(_inspectorController, 'Inspector Name',
                       required: true),
                   SizedBox(
                     width: 260,
@@ -149,6 +252,96 @@ class _InspectionCreateScreenState
                           'Inspection At: ${_fmtDateTime(_inspectionDateTime)}'),
                     ),
                   ),
+                ],
+              ),
+            ),
+            _Section(
+              title: 'Vehicle Details',
+              child: Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  _field(_fleetController, 'Vehicle Code', required: true),
+                  _field(_mulkiyaExpiryController, 'Mulkiya Expiry Date', isDate: true),
+                  _field(_rasExpiryController, 'RAS Expiry Date', isDate: true),
+                  _field(_trailerController, 'Trailer Code'),
+                  _field(_trailerMulkiyaExpiryController,
+                      'Trailer Mulkiya Expiry Date', isDate: true),
+                  _field(
+                      _trailerRasExpiryController, 'Trailer RAS Expiry Date', isDate: true),
+                  _field(_driverController, 'Driver Code', required: true),
+                  _field(_driverLicenseExpiryController, 'License Expiry Date', isDate: true),
+                  _field(_h2sPermitExpiryController, 'H2S Permit Expiry Date', isDate: true),
+                  _field(_defensiveDrivingController, 'Defensive Driving'),
+                  _field(_tyrePressureDriverSideController,
+                      'Tyre Pressure (Driver Side)'),
+                  _field(_tyrePressurePassengerSideController,
+                      'Tyre Pressure (Passenger Side)'),
+                  _field(_tyreManufacturingDateController,
+                      'Tyre Manufacturing Date', isDate: true),
+                ],
+              ),
+            ),
+            _Section(
+              title: 'Vendor Details',
+              child: Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  SizedBox(
+                    width: 260,
+                    child: DropdownButtonFormField<String>(
+                      value: _selectedVendorId,
+                      decoration: const InputDecoration(labelText: 'Vendor'),
+                      items: [
+                        for (final vendor in activeVendors)
+                          DropdownMenuItem(
+                            value: vendor.vendorId,
+                            child: Text(vendor.vendorName),
+                          ),
+                      ],
+                      onChanged: _isReadOnly
+                          ? null
+                          : (value) {
+                              setState(() {
+                                _selectedVendorId = value;
+                                _selectedSubVendorId = null;
+                              });
+                            },
+                    ),
+                  ),
+                  SizedBox(
+                    width: 260,
+                    child: DropdownButtonFormField<String>(
+                      value: _selectedSubVendorId,
+                      decoration:
+                          const InputDecoration(labelText: 'Sub Vendor Name'),
+                      items: [
+                        for (final sv in subVendors)
+                          DropdownMenuItem(
+                            value: sv.id,
+                            child: Text(sv.name),
+                          ),
+                      ],
+                      onChanged: (_isReadOnly || _selectedVendorId == null)
+                          ? null
+                          : (value) {
+                              setState(() {
+                                _selectedSubVendorId = value;
+                              });
+                            },
+                    ),
+                  ),
+                  SizedBox(
+                    width: double.infinity,
+                    child: TextFormField(
+                      controller: _inspectionRemarksController,
+                      readOnly: _isReadOnly,
+                      maxLines: 3,
+                      decoration: const InputDecoration(
+                          labelText: 'Inspection Remarks'),
+                    ),
+                  )
                 ],
               ),
             ),
@@ -182,102 +375,126 @@ class _InspectionCreateScreenState
                 ),
               ),
             _Section(
-              title: 'B. Checklist Items',
+              title: 'Checklist Items',
               child: Column(
+                children: _buildGroupedChecklistGrid(),
+              ),
+            ),
+            _Section(
+              title: 'Upload Documents',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  for (final item in _items)
-                    Card(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      child: Padding(
-                        padding: const EdgeInsets.all(10),
-                        child: Column(
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(item.itemName,
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.w700)),
-                                ),
-                                FilterChip(
-                                  selected: item.passed,
-                                  label: const Text('Pass'),
-                                  onSelected: (_) =>
-                                      setState(() => item.passed = true),
-                                ),
-                                const SizedBox(width: 8),
-                                FilterChip(
-                                  selected: !item.passed,
-                                  label: const Text('Fail'),
-                                  onSelected: (_) =>
-                                      setState(() => item.passed = false),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: TextFormField(
-                                    controller: item.remarksController,
-                                    decoration: const InputDecoration(
-                                        labelText: 'Remarks'),
+                  for (int i = 0; i < _docRows.length; i++)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Row(
+                        children: [
+                          Text('${i + 1}.',
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.bold)),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            flex: 2,
+                            child: DropdownButtonFormField<String>(
+                              value: _docRows[i].docType,
+                              decoration: const InputDecoration(
+                                  labelText: 'Doc Type'),
+                              isExpanded: true,
+                              items: [
+                                for (final desc in docDescriptions)
+                                  DropdownMenuItem(
+                                    value: desc,
+                                    child: Text(desc,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis),
                                   ),
-                                ),
-                                const SizedBox(width: 10),
-                                SizedBox(
-                                  width: 180,
-                                  child: DropdownButtonFormField<
-                                      InspectionFailureSeverity>(
-                                    value: item.severity,
-                                    decoration: const InputDecoration(
-                                        labelText: 'Severity if Failed'),
-                                    items: [
-                                      for (final severity
-                                          in InspectionFailureSeverity.values)
-                                        DropdownMenuItem(
-                                          value: severity,
-                                          child: Text(severity.label),
+                              ],
+                              onChanged: _isReadOnly
+                                  ? null
+                                  : (val) {
+                                      setState(() {
+                                        _docRows[i].docType = val;
+                                      });
+                                    },
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            flex: 2,
+                            child: OutlinedButton.icon(
+                              onPressed: _isReadOnly
+                                  ? null
+                                  : () async {
+                                      showDialog(
+                                        context: context,
+                                        barrierDismissible: false,
+                                        builder: (_) => const AlertDialog(
+                                          content: Row(
+                                            children: [
+                                              CircularProgressIndicator(),
+                                              SizedBox(width: 20),
+                                              Text('Uploading...'),
+                                            ],
+                                          ),
                                         ),
-                                    ],
-                                    onChanged: (value) {
-                                      if (value != null) {
-                                        setState(() => item.severity = value);
+                                      );
+                                      await Future.delayed(const Duration(seconds: 1));
+                                      if (mounted) {
+                                        Navigator.of(context).pop();
+                                        _toast('File uploaded successfully');
                                       }
                                     },
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                OutlinedButton.icon(
-                                  onPressed: () {
-                                    setState(() => item.mediaCount += 1);
-                                    _toast(
-                                        'Media attach placeholder: +1 evidence added.');
-                                  },
-                                  icon: const Icon(Icons.attachment_outlined),
-                                  label: Text('Media (${item.mediaCount})'),
-                                ),
-                              ],
+                              icon: const Icon(Icons.upload_file),
+                              label: const Text('Browse and upload'),
                             ),
-                          ],
-                        ),
+                          ),
+                          const SizedBox(width: 10),
+                          IconButton(
+                            icon: const Icon(Icons.add_circle_outline, color: Colors.green),
+                            onPressed: _isReadOnly
+                                ? null
+                                : () {
+                                    setState(() {
+                                      _docRows.insert(i + 1, _DocumentDraftRow());
+                                    });
+                                  },
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline,
+                                color: Colors.red),
+                            onPressed: _isReadOnly
+                                ? null
+                                : () {
+                                    setState(() {
+                                      if (_docRows.length > 1) {
+                                        _docRows.removeAt(i);
+                                      } else {
+                                        _docRows[i] = _DocumentDraftRow();
+                                      }
+                                    });
+                                  },
+                          )
+                        ],
                       ),
                     ),
                 ],
               ),
             ),
             _Section(
-              title: 'C. General Comments',
+              title: 'General Comments',
               child: Column(
                 children: [
                   TextFormField(
                     controller: _notesController,
+                    readOnly: _isReadOnly,
                     maxLines: 2,
                     decoration: const InputDecoration(labelText: 'Notes'),
                   ),
                   const SizedBox(height: 10),
                   TextFormField(
                     controller: _correctiveActionController,
+                    readOnly: _isReadOnly,
                     maxLines: 2,
                     decoration:
                         const InputDecoration(labelText: 'Corrective Action'),
@@ -285,6 +502,7 @@ class _InspectionCreateScreenState
                   const SizedBox(height: 10),
                   TextFormField(
                     controller: _recommendationController,
+                    readOnly: _isReadOnly,
                     maxLines: 2,
                     decoration:
                         const InputDecoration(labelText: 'Recommendation'),
@@ -293,79 +511,184 @@ class _InspectionCreateScreenState
               ),
             ),
             _Section(
-              title: 'D. Evidence',
+              title: 'Sign-off',
               child: Wrap(
                 spacing: 10,
                 runSpacing: 10,
                 children: [
-                  OutlinedButton.icon(
-                    onPressed: () => _toast('Upload image placeholder'),
-                    icon: const Icon(Icons.image_outlined),
-                    label: const Text('Upload Image'),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: () => _toast('Upload video placeholder'),
-                    icon: const Icon(Icons.videocam_outlined),
-                    label: const Text('Upload Video'),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: () => _toast('Attach document placeholder'),
-                    icon: const Icon(Icons.attach_file_outlined),
-                    label: const Text('Attach Document (Placeholder)'),
-                  ),
-                ],
-              ),
-            ),
-            _Section(
-              title: 'E. Sign-off',
-              child: Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: [
-                  _field(_inspectorController, 'Inspector Name',
-                      required: true),
                   _field(_reviewerController, 'Reviewer Name'),
                   OutlinedButton.icon(
-                    onPressed: () => _toast('Signature placeholder'),
+                    onPressed: _isReadOnly ? null : () => _toast('Signature placeholder'),
                     icon: const Icon(Icons.draw_outlined),
                     label: const Text('Signature (Placeholder)'),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 10,
-              runSpacing: 8,
-              children: [
-                OutlinedButton.icon(
-                  onPressed: () =>
-                      _submit(InspectionStatus.draft, InspectionResult.passed),
-                  icon: const Icon(Icons.save_outlined),
-                  label: const Text('Save Draft'),
+            _Section(
+              title: 'Inspection Status',
+              child: SizedBox(
+                width: 260,
+                child: DropdownButtonFormField<InspectionApprovalStatus>(
+                  value: _selectedApprovalStatus,
+                  decoration: const InputDecoration(labelText: 'Approval Status'),
+                  items: const [
+                    DropdownMenuItem(value: InspectionApprovalStatus.pending, child: Text('Pending')),
+                    DropdownMenuItem(value: InspectionApprovalStatus.approved, child: Text('Approved')),
+                    DropdownMenuItem(value: InspectionApprovalStatus.rejected, child: Text('Rejected')),
+                  ],
+                  onChanged: _isReadOnly
+                      ? null
+                      : (val) {
+                          if (val != null) {
+                            setState(() => _selectedApprovalStatus = val);
+                          }
+                        },
                 ),
-                FilledButton.icon(
-                  onPressed: () =>
-                      _submit(InspectionStatus.submitted, _computedResult()),
-                  icon: const Icon(Icons.send_outlined),
-                  label: const Text('Submit'),
-                ),
-                FilledButton.tonalIcon(
-                  onPressed: () =>
-                      _submit(InspectionStatus.passed, InspectionResult.passed),
-                  icon: const Icon(Icons.verified_outlined),
-                  label: const Text('Mark Passed'),
-                ),
-                FilledButton.tonalIcon(
-                  onPressed: () =>
-                      _submit(InspectionStatus.failed, InspectionResult.failed),
-                  icon: const Icon(Icons.block_outlined),
-                  label: const Text('Mark Failed'),
-                ),
-              ],
+              ),
             ),
+            const SizedBox(height: 8),
+            if (_isReadOnly)
+              Center(
+                child: FilledButton.icon(
+                  onPressed: () => context.go(RoutePaths.inspections),
+                  icon: const Icon(Icons.close),
+                  label: const Text('Close'),
+                ),
+              )
+            else
+              Wrap(
+                spacing: 10,
+                runSpacing: 8,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () =>
+                        _submit(InspectionStatus.draft, InspectionResult.passed),
+                    icon: const Icon(Icons.save_outlined),
+                    label: const Text('Save Draft'),
+                  ),
+                  FilledButton.icon(
+                    onPressed: () =>
+                        _submit(InspectionStatus.submitted, _computedResult()),
+                    icon: const Icon(Icons.send_outlined),
+                    label: const Text('Submit'),
+                  ),
+                  FilledButton.tonalIcon(
+                    onPressed: () =>
+                        _submit(InspectionStatus.passed, InspectionResult.passed),
+                    icon: const Icon(Icons.verified_outlined),
+                    label: const Text('Mark Passed'),
+                  ),
+                  FilledButton.tonalIcon(
+                    onPressed: () =>
+                        _submit(InspectionStatus.failed, InspectionResult.failed),
+                    icon: const Icon(Icons.block_outlined),
+                    label: const Text('Mark Failed'),
+                  ),
+                ],
+              ),
           ],
         ),
+      ),
+    );
+  }
+
+  List<Widget> _buildGroupedChecklistGrid() {
+    final Map<String, List<_ChecklistDraft>> grouped = {};
+    for (final item in _items) {
+      grouped.putIfAbsent(item.category, () => []).add(item);
+    }
+
+    final children = <Widget>[];
+
+    for (final entry in grouped.entries) {
+      final category = entry.key;
+      final items = entry.value;
+
+      children.add(
+        Container(
+          width: double.infinity,
+          color: Colors.grey[300],
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          margin: const EdgeInsets.only(top: 16),
+          child: Text(
+            category,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+        ),
+      );
+
+      children.add(
+        Table(
+          border: TableBorder.all(color: Colors.grey),
+          columnWidths: const {
+            0: FixedColumnWidth(30),
+            1: FlexColumnWidth(1),
+            2: FixedColumnWidth(40),
+            3: FixedColumnWidth(30),
+            4: FlexColumnWidth(1),
+            5: FixedColumnWidth(40),
+            6: FixedColumnWidth(30),
+            7: FlexColumnWidth(1),
+            8: FixedColumnWidth(40),
+          },
+          defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+          children: [
+            for (int i = 0; i < items.length; i += 3)
+              TableRow(
+                children: [
+                  _buildCellSno(items, i),
+                  _buildCellDesc(items, i),
+                  _buildCellCheck(items, i),
+                  _buildCellSno(items, i + 1),
+                  _buildCellDesc(items, i + 1),
+                  _buildCellCheck(items, i + 1),
+                  _buildCellSno(items, i + 2),
+                  _buildCellDesc(items, i + 2),
+                  _buildCellCheck(items, i + 2),
+                ],
+              ),
+          ],
+        ),
+      );
+    }
+    return children;
+  }
+
+  Widget _buildCellSno(List<_ChecklistDraft> items, int index) {
+    if (index >= items.length) return const SizedBox();
+    return Padding(
+      padding: const EdgeInsets.all(4.0),
+      child: Center(child: Text('${items[index].sno}')),
+    );
+  }
+
+  Widget _buildCellDesc(List<_ChecklistDraft> items, int index) {
+    if (index >= items.length) return const SizedBox();
+    return Padding(
+      padding: const EdgeInsets.all(4.0),
+      child: Text(items[index].itemName, style: const TextStyle(fontSize: 12)),
+    );
+  }
+
+  Widget _buildCellCheck(List<_ChecklistDraft> items, int index) {
+    if (index >= items.length) return const SizedBox();
+    final item = items[index];
+    return InkWell(
+      onTap: _isReadOnly
+          ? null
+          : () {
+              setState(() {
+                item.passed = !item.passed;
+              });
+      },
+      child: Container(
+        height: 32,
+        alignment: Alignment.center,
+        child: item.passed
+            ? const Icon(Icons.check, color: Colors.green, size: 20)
+            : const SizedBox(height: 20, width: 20),
       ),
     );
   }
@@ -375,26 +698,40 @@ class _InspectionCreateScreenState
     String label, {
     bool required = false,
     double width = 260,
+    bool isDate = false,
+    bool forceReadOnly = false,
   }) {
+    final effectiveReadOnly = _isReadOnly || forceReadOnly || isDate;
     return SizedBox(
       width: width,
       child: TextFormField(
         controller: controller,
-        decoration: InputDecoration(labelText: label),
-        validator: required
-            ? (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Required';
+        readOnly: effectiveReadOnly,
+        onTap: (isDate && !_isReadOnly && !forceReadOnly)
+            ? () async {
+                final date = await showDatePicker(
+                  context: context,
+                  initialDate: DateTime.now(),
+                  firstDate: DateTime(2000),
+                  lastDate: DateTime(2100),
+                );
+                if (date != null && mounted) {
+                  controller.text =
+                      '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
                 }
-                return null;
               }
             : null,
+        decoration: InputDecoration(
+          labelText: required ? '$label *' : label,
+          suffixIcon: isDate ? const Icon(Icons.calendar_today, size: 20) : null,
+        ),
       ),
     );
   }
 
   InspectionResult _computedResult() {
-    final hasFailed = _items.any((item) => !item.passed);
+    final hasFailed =
+        _items.any((item) => !item.passed);
     return hasFailed ? InspectionResult.failed : InspectionResult.passed;
   }
 
@@ -429,6 +766,7 @@ class _InspectionCreateScreenState
   }
 
   Future<void> _pickInspectionDateTime() async {
+    if (_isReadOnly) return;
     final date = await showDatePicker(
       context: context,
       firstDate: DateTime.now().subtract(const Duration(days: 365)),
@@ -459,19 +797,7 @@ class _InspectionCreateScreenState
   }
 
   void _submit(InspectionStatus status, InspectionResult result) {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-
-    final selectedCargo = ref
-        .read(cargoViewModelProvider.notifier)
-        .findByCode(_selectedCargoCode);
-    final hardBlockMode = ref.read(cargoPolicyViewModelProvider).hardBlockMode;
-    if (hardBlockMode && !_inspectionHardBlockPass(selectedCargo, status)) {
-      _toast(
-          'Blocked by cargo inspection policy. Required evidence/checks are missing.');
-      return;
-    }
+    // Removed form validation and checklist completion checks as requested
 
     final checklist = _items
         .map(
@@ -486,13 +812,7 @@ class _InspectionCreateScreenState
         )
         .toList();
 
-    final approvalStatus = status == InspectionStatus.submitted
-        ? InspectionApprovalStatus.pending
-        : (status == InspectionStatus.approved
-            ? InspectionApprovalStatus.approved
-            : (status == InspectionStatus.rejected
-                ? InspectionApprovalStatus.rejected
-                : InspectionApprovalStatus.none));
+    final approvalStatus = _selectedApprovalStatus;
 
     final record = InspectionRecord(
       inspectionId: _inspectionIdController.text.trim(),
@@ -509,48 +829,26 @@ class _InspectionCreateScreenState
       mediaCount: checklist.fold<int>(0, (sum, item) => sum + item.mediaCount),
       lastUpdated: DateTime.now(),
       checklistItems: checklist,
-      notes: _notesController.text.trim(),
+      notes: _notesController.text.trim() +
+          (_inspectionRemarksController.text.isNotEmpty
+              ? '\nVendor Remarks: ${_inspectionRemarksController.text}'
+              : ''),
       correctiveAction: _correctiveActionController.text.trim(),
       recommendation: _recommendationController.text.trim(),
       reviewerName: _reviewerController.text.trim(),
       signaturePlaceholder: true,
     );
 
-    ref.read(inspectionViewModelProvider.notifier).createInspection(record);
-    _toast('Inspection ${record.inspectionId} saved as ${status.label}.');
+    if (_isEditing) {
+      ref.read(inspectionViewModelProvider.notifier).updateInspection(record);
+      _toast('Inspection ${record.inspectionId} updated as ${status.label}.');
+    } else {
+      ref.read(inspectionViewModelProvider.notifier).createInspection(record);
+      _toast('Inspection ${record.inspectionId} saved as ${status.label}.');
+    }
     context.go(RoutePaths.inspections);
   }
 
-  bool _inspectionHardBlockPass(CargoModel? cargo, InspectionStatus status) {
-    if (status == InspectionStatus.draft) {
-      return true;
-    }
-    if (cargo == null) {
-      return false;
-    }
-    if (!cargo.isSelectable) {
-      return false;
-    }
-    final totalMedia =
-        _items.fold<int>(0, (sum, item) => sum + item.mediaCount);
-    if (cargo.photoEvidenceMandatory && totalMedia <= 0) {
-      return false;
-    }
-    if (cargo.videoEvidenceMandatory && totalMedia < 2) {
-      return false;
-    }
-    if (cargo.preDispatchInspectionRequired &&
-        _type != InspectionType.preTrip) {
-      return false;
-    }
-    if (cargo.inTransitCheckRequired && _type != InspectionType.trip) {
-      return false;
-    }
-    if (cargo.postDeliveryCheckRequired && _type == InspectionType.preTrip) {
-      return false;
-    }
-    return true;
-  }
 
   String _fmtDateTime(DateTime dt) {
     final day = dt.day.toString().padLeft(2, '0');
@@ -596,12 +894,21 @@ class _Section extends StatelessWidget {
 }
 
 class _ChecklistDraft {
-  _ChecklistDraft({required this.itemName})
-      : remarksController = TextEditingController();
+  _ChecklistDraft({
+    required this.sno,
+    required this.itemName,
+    required this.category,
+  }) : remarksController = TextEditingController();
 
+  final int sno;
   final String itemName;
+  final String category;
   final TextEditingController remarksController;
   bool passed = true;
   int mediaCount = 0;
   InspectionFailureSeverity severity = InspectionFailureSeverity.low;
+}
+
+class _DocumentDraftRow {
+  String? docType;
 }

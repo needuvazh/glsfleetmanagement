@@ -33,7 +33,8 @@ import '../presentation/screens/invoice_screen.dart';
 import '../presentation/screens/inspection_approval_screen.dart';
 import '../presentation/screens/inspection_calendar_screen.dart';
 import '../presentation/screens/inspection_create_screen.dart';
-import '../presentation/screens/inspection_detail_screen.dart';
+import '../presentation/screens/inspection_dashboard_screen.dart';
+
 import '../presentation/screens/inspection_failed_queue_screen.dart';
 import '../presentation/screens/inspection_list_screen.dart';
 import '../presentation/screens/inspection_template_management_screen.dart';
@@ -221,6 +222,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const InspectionListScreen(),
       ),
       GoRoute(
+        path: RoutePaths.inspectionDashboard,
+        builder: (context, state) => const InspectionDashboardScreen(),
+      ),
+      GoRoute(
         path: RoutePaths.inspectionCreate,
         builder: (context, state) => const InspectionCreateScreen(),
       ),
@@ -244,9 +249,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: RoutePaths.inspectionDetail,
-        builder: (context, state) => InspectionDetailScreen(
-          inspectionId: state.pathParameters['inspectionId'] ?? 'Unknown',
-        ),
+        builder: (context, state) {
+          final id = state.pathParameters['inspectionId'];
+          return InspectionCreateScreen(inspectionId: id);
+        },
       ),
       GoRoute(
         path: RoutePaths.complianceInspection,

@@ -126,66 +126,48 @@ class InspectionListScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 10),
           Expanded(
-            child: Card(
-              child: filtered.isEmpty
-                  ? const Center(
-                      child: Text('No inspections match current filters'))
-                  : SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: SingleChildScrollView(
-                        child: DataTable(
-                          columns: const [
-                            DataColumn(label: Text('Inspection ID')),
-                            DataColumn(label: Text('Inspection Type')),
-                            DataColumn(label: Text('Work Order')),
-                            DataColumn(label: Text('Fleet')),
-                            DataColumn(label: Text('Trailer')),
-                            DataColumn(label: Text('Driver')),
-                            DataColumn(label: Text('Inspector')),
-                            DataColumn(label: Text('Inspected At')),
-                            DataColumn(label: Text('Overall Result')),
-                            DataColumn(label: Text('Approval Status')),
-                            DataColumn(label: Text('Media Count')),
-                            DataColumn(label: Text('Last Updated')),
-                            DataColumn(label: Text('Action')),
-                          ],
-                          rows: [
-                            for (final item in filtered)
-                              DataRow(
-                                cells: [
-                                  DataCell(Text(item.inspectionId)),
-                                  DataCell(Text(item.inspectionType.label)),
-                                  DataCell(Text(item.workOrder)),
-                                  DataCell(Text(item.fleet)),
-                                  DataCell(Text(item.trailer)),
-                                  DataCell(Text(item.driver)),
-                                  DataCell(Text(item.inspector)),
-                                  DataCell(
-                                      Text(_fmtDateTime(item.inspectedAt))),
-                                  DataCell(_resultChip(item.overallResult)),
-                                  DataCell(_approvalChip(item.approvalStatus)),
-                                  DataCell(Text('${item.mediaCount}')),
-                                  DataCell(
-                                      Text(_fmtDateTime(item.lastUpdated))),
-                                  DataCell(
-                                    IconButton(
-                                      tooltip: 'Open Inspection Detail',
-                                      onPressed: () => context.push(
-                                        RoutePaths.inspectionDetailById(
-                                          item.inspectionId,
-                                        ),
-                                      ),
-                                      icon:
-                                          const Icon(Icons.open_in_new_rounded),
-                                    ),
+            child: filtered.isEmpty
+                ? const Card(
+                    child: Center(
+                        child: Text('No inspections match current filters')))
+                : LayoutBuilder(
+                    builder: (context, constraints) {
+                      return SingleChildScrollView(
+                        child: SizedBox(
+                            width: constraints.maxWidth,
+                            child: PaginatedDataTable(
+                              showCheckboxColumn: false,
+                                  header: const Text('Inspection Queue', 
+                                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+                                  rowsPerPage: 10,
+                                  availableRowsPerPage: const [10, 20, 50],
+                                  columns: const [
+                                    DataColumn(label: Text('Inspection ID')),
+                                    DataColumn(label: Text('Type')),
+                                    DataColumn(label: Text('WO')),
+                                    DataColumn(label: Text('Fleet')),
+                                    DataColumn(label: Text('Trailer')),
+                                    DataColumn(label: Text('Driver')),
+                                    DataColumn(label: Text('Inspector')),
+                                    DataColumn(label: Text('Inspected At')),
+                                    DataColumn(label: Text('Overall Result')),
+                                    DataColumn(label: Text('Status')),
+                                    DataColumn(label: Text('Media')),
+                                    DataColumn(label: Text('Last Updated')),
+                                    DataColumn(label: Text('Action')),
+                                  ],
+                                  source: _InspectionDataSource(
+                                    context: context,
+                                    items: filtered,
+                                    onDelete: vm.deleteInspection,
+                                    resultChip: _resultChip,
+                                    approvalChip: _approvalChip,
                                   ),
-                                ],
-                              ),
-                          ],
-                        ),
-                      ),
+                               ),
+                            ),
+                          );
+                      },
                     ),
-            ),
           ),
         ],
       ),
@@ -276,4 +258,106 @@ class _FilterDrop extends StatelessWidget {
       ),
     );
   }
+}
+
+class _InspectionDataSource extends DataTableSource {
+  _InspectionDataSource({
+    required this.context,
+    required this.items,
+    required this.onDelete,
+    required this.resultChip,
+    required this.approvalChip,
+  });
+
+  final BuildContext context;
+  final List<InspectionRecord> items;
+  final void Function(String) onDelete;
+  final Widget Function(InspectionResult) resultChip;
+  final Widget Function(InspectionApprovalStatus) approvalChip;
+
+  @override
+  DataRow? getRow(int index) {
+    if (index >= items.length) return null;
+    final item = items[index];
+    final bool canEditDelete = item.approvalStatus == InspectionApprovalStatus.pending;
+
+    return DataRow.byIndex(
+      index: index,
+      cells: [
+        DataCell(Text(item.inspectionId)),
+        DataCell(Text(item.inspectionType.label)),
+        DataCell(Text(item.workOrder)),
+        DataCell(Text(item.fleet)),
+        DataCell(Text(item.trailer)),
+        DataCell(Text(item.driver)),
+        DataCell(Text(item.inspector)),
+        DataCell(Text(InspectionListScreen._fmtDateTime(item.inspectedAt))),
+        DataCell(resultChip(item.overallResult)),
+        DataCell(approvalChip(item.approvalStatus)),
+        DataCell(Text('${item.mediaCount}')),
+        DataCell(Text(InspectionListScreen._fmtDateTime(item.lastUpdated))),
+        DataCell(
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextButton.icon(
+                onPressed: () => context.push(
+                  RoutePaths.inspectionDetailById(item.inspectionId),
+                ),
+                icon: const Icon(Icons.visibility_outlined, size: 16),
+                label: const Text('View'),
+              ),
+              if (canEditDelete) ...[
+                const SizedBox(width: 8),
+                TextButton.icon(
+                  onPressed: () => context.push(
+                    RoutePaths.inspectionDetailById(item.inspectionId),
+                  ),
+                  icon: const Icon(Icons.edit_outlined, size: 16),
+                  label: const Text('Edit'),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  tooltip: 'Delete',
+                  onPressed: () => _confirmDelete(item.inspectionId),
+                  icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _confirmDelete(String inspectionId) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Inspection'),
+        content: Text('Are you sure you want to delete inspection $inspectionId?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () {
+              Navigator.pop(ctx);
+              onDelete(inspectionId);
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  bool get isRowCountApproximate => false;
+  @override
+  int get rowCount => items.length;
+  @override
+  int get selectedRowCount => 0;
 }
