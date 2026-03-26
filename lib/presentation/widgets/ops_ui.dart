@@ -9,6 +9,7 @@ class OpsSectionCard extends StatelessWidget {
     this.accent = const Color(0xFF0EA5E9),
     required this.child,
     this.trailing,
+    this.expandChild = false,
   });
 
   final String title;
@@ -17,6 +18,7 @@ class OpsSectionCard extends StatelessWidget {
   final Color accent;
   final Widget child;
   final Widget? trailing;
+  final bool expandChild;
 
   @override
   Widget build(BuildContext context) {
@@ -80,7 +82,7 @@ class OpsSectionCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            child,
+            if (expandChild) Expanded(child: child) else child,
           ],
         ),
       ),
@@ -108,7 +110,8 @@ class OpsPill extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 12),
+        style:
+            TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 12),
       ),
     );
   }

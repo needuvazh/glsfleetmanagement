@@ -30,6 +30,7 @@ class ModuleDocumentRepositoryImpl implements ModuleDocumentRepository {
   Future<List<ModuleDocument>> addDocument(ModuleDocument document) async {
     final list = await _ensureLoaded();
     _cache = [document, ...list];
+    await _localDataSource.saveDocuments(_cache!);
     return List<ModuleDocument>.from(_cache!);
   }
 
@@ -45,6 +46,7 @@ class ModuleDocumentRepositoryImpl implements ModuleDocumentRepository {
       }
       return item;
     }).toList();
+    await _localDataSource.saveDocuments(_cache!);
     return List<ModuleDocument>.from(_cache!);
   }
 
@@ -52,6 +54,7 @@ class ModuleDocumentRepositoryImpl implements ModuleDocumentRepository {
   Future<List<ModuleDocument>> deleteDocument(String id) async {
     final list = await _ensureLoaded();
     _cache = list.where((item) => item.id != id).toList();
+    await _localDataSource.saveDocuments(_cache!);
     return List<ModuleDocument>.from(_cache!);
   }
 }

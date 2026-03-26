@@ -1,4 +1,3 @@
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/datasources/local/module_document_local_datasource.dart';
@@ -124,7 +123,7 @@ class ModuleDocumentUiState {
 
 final _moduleDocumentLocalDataSourceProvider =
     Provider<ModuleDocumentLocalDataSource>(
-  (ref) => ModuleDocumentLocalDataSourceImpl(assetBundle: rootBundle),
+  (ref) => ModuleDocumentLocalDataSourceImpl(),
 );
 
 final _moduleDocumentRepositoryProvider = Provider<ModuleDocumentRepository>(
@@ -182,10 +181,9 @@ class ModuleDocumentViewModel extends AsyncNotifier<ModuleDocumentUiState> {
   Future<ModuleDocumentUiState> build() async {
     List<ModuleDocument> items;
     try {
-      final loaded = await ref.watch(_getModuleDocumentsUseCaseProvider).call();
-      items = loaded.isEmpty ? _fallbackRules() : loaded;
+      items = await ref.watch(_getModuleDocumentsUseCaseProvider).call();
     } catch (_) {
-      items = _fallbackRules();
+      items = const [];
     }
     return ModuleDocumentUiState(
       items: items,
@@ -198,74 +196,6 @@ class ModuleDocumentViewModel extends AsyncNotifier<ModuleDocumentUiState> {
       expiryTrackingFilter: 'All',
       lastUpdated: DateTime.now(),
     );
-  }
-
-  List<ModuleDocument> _fallbackRules() {
-    return const [
-      ModuleDocument(
-        id: 'CDM-001',
-        documentCode: 'DRV-LIC',
-        documentName: 'Driver License',
-        description:
-            'Valid driver license is required before assigning or dispatching trips.',
-        applicableTo: 'Driver',
-        status: 'Active',
-        mandatory: true,
-        hasExpiry: true,
-        alertBeforeDays: 30,
-        checkAtAssignment: true,
-        checkAtInspection: false,
-        checkAtDispatch: true,
-        checkAtTripStart: true,
-        checkAtDeliveryClosure: false,
-        missingAction: 'Hard Block',
-        expiredAction: 'Hard Block',
-        uploadRequired: true,
-        overrideAllowed: false,
-      ),
-      ModuleDocument(
-        id: 'CDM-002',
-        documentCode: 'CUS-POD',
-        documentName: 'POD Required',
-        description:
-            'Customer contract requires POD submission during delivery closure.',
-        applicableTo: 'Customer',
-        status: 'Active',
-        mandatory: true,
-        hasExpiry: false,
-        alertBeforeDays: 0,
-        checkAtAssignment: false,
-        checkAtInspection: false,
-        checkAtDispatch: false,
-        checkAtTripStart: false,
-        checkAtDeliveryClosure: true,
-        missingAction: 'Hard Block',
-        expiredAction: 'Ignore',
-        uploadRequired: true,
-        overrideAllowed: true,
-      ),
-      ModuleDocument(
-        id: 'CDM-003',
-        documentCode: 'CRG-HAZ',
-        documentName: 'Hazardous Permit',
-        description:
-            'Hazardous cargo requires permit validation before dispatch.',
-        applicableTo: 'Cargo',
-        status: 'Active',
-        mandatory: true,
-        hasExpiry: true,
-        alertBeforeDays: 15,
-        checkAtAssignment: true,
-        checkAtInspection: true,
-        checkAtDispatch: true,
-        checkAtTripStart: false,
-        checkAtDeliveryClosure: false,
-        missingAction: 'Hard Block',
-        expiredAction: 'Hard Block',
-        uploadRequired: true,
-        overrideAllowed: false,
-      ),
-    ];
   }
 
   void setQuery(String value) {

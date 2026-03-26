@@ -80,6 +80,7 @@ class _DocumentManagementScreenState
                         'View all existing rules first, then create, edit, or view rule details from the header actions',
                     icon: Icons.rule_folder_outlined,
                     accent: const Color(0xFF16A34A),
+                    expandChild: true,
                     child: Column(
                       children: [
                         _buildContentHeader(data),
@@ -104,8 +105,7 @@ class _DocumentManagementScreenState
                                 'No compliance rules found for selected filters.'),
                           )
                         else
-                          Flexible(
-                            fit: FlexFit.loose,
+                          Expanded(
                             child: _buildPaginatedTable(data.filteredItems),
                           ),
                       ],
@@ -211,59 +211,70 @@ class _DocumentManagementScreenState
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        return SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minWidth: constraints.maxWidth),
-            child: PaginatedDataTable(
-              header: const Text('Compliance Rules'),
-              showCheckboxColumn: false,
-              rowsPerPage: _rowsPerPage,
-              availableRowsPerPage: const [5, 10, 20, 50],
-              onRowsPerPageChanged: (value) {
-                if (value != null) {
-                  setState(() => _rowsPerPage = value);
-                }
-              },
-              sortColumnIndex: _sortColumnIndex,
-              sortAscending: _sortAscending,
-              columns: [
-                DataColumn(
-                  label: const Text('Code'),
-                  onSort: _setSort,
+        final viewportWidth = constraints.hasBoundedWidth
+            ? constraints.maxWidth
+            : MediaQuery.sizeOf(context).width;
+        final tableWidth = viewportWidth < 1200 ? 1200.0 : viewportWidth;
+
+        return Scrollbar(
+          thumbVisibility: true,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.vertical,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SizedBox(
+                width: tableWidth,
+                child: PaginatedDataTable(
+                  header: const Text('Compliance Rules'),
+                  showCheckboxColumn: false,
+                  rowsPerPage: _rowsPerPage,
+                  availableRowsPerPage: const [5, 10, 20, 50],
+                  onRowsPerPageChanged: (value) {
+                    if (value != null) {
+                      setState(() => _rowsPerPage = value);
+                    }
+                  },
+                  sortColumnIndex: _sortColumnIndex,
+                  sortAscending: _sortAscending,
+                  columns: [
+                    DataColumn(
+                      label: const Text('Code'),
+                      onSort: _setSort,
+                    ),
+                    DataColumn(
+                      label: const Text('Rule Name'),
+                      onSort: _setSort,
+                    ),
+                    DataColumn(
+                      label: const Text('Applicable To'),
+                      onSort: _setSort,
+                    ),
+                    DataColumn(
+                      label: const Text('Mandatory'),
+                      onSort: _setSort,
+                    ),
+                    DataColumn(
+                      label: const Text('Required Stage'),
+                      onSort: _setSort,
+                    ),
+                    DataColumn(
+                      label: const Text('Blocking Type'),
+                      onSort: _setSort,
+                    ),
+                    DataColumn(
+                      label: const Text('Alert Days'),
+                      numeric: true,
+                      onSort: _setSort,
+                    ),
+                    DataColumn(
+                      label: const Text('Status'),
+                      onSort: _setSort,
+                    ),
+                    const DataColumn(label: Text('Actions')),
+                  ],
+                  source: source,
                 ),
-                DataColumn(
-                  label: const Text('Rule Name'),
-                  onSort: _setSort,
-                ),
-                DataColumn(
-                  label: const Text('Applicable To'),
-                  onSort: _setSort,
-                ),
-                DataColumn(
-                  label: const Text('Mandatory'),
-                  onSort: _setSort,
-                ),
-                DataColumn(
-                  label: const Text('Required Stage'),
-                  onSort: _setSort,
-                ),
-                DataColumn(
-                  label: const Text('Blocking Type'),
-                  onSort: _setSort,
-                ),
-                DataColumn(
-                  label: const Text('Alert Days'),
-                  numeric: true,
-                  onSort: _setSort,
-                ),
-                DataColumn(
-                  label: const Text('Status'),
-                  onSort: _setSort,
-                ),
-                const DataColumn(label: Text('Actions')),
-              ],
-              source: source,
+              ),
             ),
           ),
         );

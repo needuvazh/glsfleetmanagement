@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import '../../domain/entities/module_document.dart';
 
 class ModuleDocumentModel extends ModuleDocument {
@@ -46,6 +48,48 @@ class ModuleDocumentModel extends ModuleDocument {
       uploadRequired: map['uploadRequired'] as bool? ?? false,
       overrideAllowed: map['overrideAllowed'] as bool? ?? false,
     );
+  }
+
+  static Map<String, dynamic> toMap(ModuleDocument item) {
+    return {
+      'id': item.id,
+      'documentCode': item.documentCode,
+      'documentName': item.documentName,
+      'description': item.description,
+      'applicableTo': item.applicableTo,
+      'status': item.status,
+      'mandatory': item.mandatory,
+      'hasExpiry': item.hasExpiry,
+      'alertBeforeDays': item.alertBeforeDays,
+      'checkAtAssignment': item.checkAtAssignment,
+      'checkAtInspection': item.checkAtInspection,
+      'checkAtDispatch': item.checkAtDispatch,
+      'checkAtTripStart': item.checkAtTripStart,
+      'checkAtDeliveryClosure': item.checkAtDeliveryClosure,
+      'missingAction': item.missingAction,
+      'expiredAction': item.expiredAction,
+      'uploadRequired': item.uploadRequired,
+      'overrideAllowed': item.overrideAllowed,
+    };
+  }
+
+  static String encodeList(List<ModuleDocument> items) {
+    final payload = items.map(toMap).toList();
+    return jsonEncode(payload);
+  }
+
+  static List<ModuleDocument> decodeList(String raw) {
+    final decoded = jsonDecode(raw);
+    if (decoded is! List) {
+      return const [];
+    }
+    return decoded
+        .whereType<Map>()
+        .map((entry) => entry.map(
+              (key, value) => MapEntry(key.toString(), value),
+            ))
+        .map(ModuleDocumentModel.fromMap)
+        .toList();
   }
 
   static int _toInt(dynamic value, {required int fallback}) {
