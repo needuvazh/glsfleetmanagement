@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/utils/responsive.dart';
 import '../../domain/entities/inspection.dart';
 import '../../domain/entities/logistics_flow.dart';
 import '../../routes/route_paths.dart';
@@ -27,8 +28,7 @@ class OpsDashboardScreen extends ConsumerWidget {
         error: (error, _) => Center(child: Text(error.toString())),
         data: (data) {
           final dashboard = data.dashboard;
-          final width = MediaQuery.sizeOf(context).width;
-          final isMobile = width < 800;
+          final isMobile = Responsive.isMobile(context);
           final inspections = inspectionState.items;
           final now = DateTime.now();
 

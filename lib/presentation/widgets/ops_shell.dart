@@ -91,14 +91,14 @@ class OpsShell extends ConsumerWidget {
             right: -60,
             child: _GlowBlob(
                 size: 220,
-                color: colorScheme.primaryContainer.withOpacity(0.3)),
+                color: colorScheme.primaryContainer.withValues(alpha: 0.3)),
           ),
           Positioned(
             bottom: -100,
             left: -70,
             child: _GlowBlob(
                 size: 260,
-                color: colorScheme.secondaryContainer.withOpacity(0.3)),
+                color: colorScheme.secondaryContainer.withValues(alpha: 0.3)),
           ),
           isDesktop
               ? Row(
@@ -136,7 +136,8 @@ class OpsShell extends ConsumerWidget {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHighest.withOpacity(0.45),
+                color:
+                    colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: colorScheme.outlineVariant),
               ),
@@ -176,6 +177,22 @@ class OpsShell extends ConsumerWidget {
                       fontWeight: FontWeight.w800,
                     ),
                   ),
+                  if (actions.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        const Spacer(),
+                        Flexible(
+                          child: Wrap(
+                            alignment: WrapAlignment.end,
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: actions,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -276,7 +293,6 @@ class OpsShell extends ConsumerWidget {
         // User Profile Menu
         _UserProfileMenu(),
         const SizedBox(width: 8),
-        ...actions,
       ],
     );
   }
@@ -331,7 +347,7 @@ class _UserProfileMenu extends ConsumerWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
+          color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: colorScheme.outlineVariant),
         ),
@@ -643,7 +659,7 @@ class _SidebarState extends State<_Sidebar> {
                 color: Colors.white,
                 boxShadow: [
                   BoxShadow(
-                    color: colorScheme.shadow.withOpacity(0.1),
+                    color: colorScheme.shadow.withValues(alpha: 0.1),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -785,10 +801,10 @@ class _MenuTile extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         color: selected
-            ? colorScheme.primary.withOpacity(0.12)
+            ? colorScheme.primary.withValues(alpha: 0.12)
             : Colors.transparent,
         border: selected
-            ? Border.all(color: colorScheme.primary.withOpacity(0.3))
+            ? Border.all(color: colorScheme.primary.withValues(alpha: 0.3))
             : null,
       ),
       child: Material(
@@ -893,7 +909,7 @@ class _ParentMenuTile extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         color: selected
-            ? colorScheme.primary.withOpacity(0.08)
+            ? colorScheme.primary.withValues(alpha: 0.08)
             : Colors.transparent,
       ),
       child: Material(

@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../core/providers/data_source_mode_provider.dart';
@@ -310,6 +312,7 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
   Timer? _timer;
   final Random _random = Random();
   static const _pdoClients = {'shell', 'dhl', 'bsc', 'agreeko', 'stc'};
+  static const _workOrdersCacheKey = 'work_order_records_v1';
 
   @override
   Future<LogisticsUiState> build() async {
@@ -334,7 +337,8 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
     final customerRequests =
         _normalizeCustomerRequests(await useCase.getCustomerRequests());
     final quotations = await useCase.getQuotations();
-    final workOrders = await useCase.getFlowWorkOrders();
+    final sourceWorkOrders = await useCase.getFlowWorkOrders();
+    final workOrders = await _loadCachedWorkOrders(sourceWorkOrders);
     final fallbackVehicles = await useCase.getVehicles();
     final fallbackDrivers = await useCase.getDrivers();
     final journeys = await useCase.getJourneyMaster();
@@ -1006,6 +1010,7 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
         lastUpdated: DateTime.now(),
       ),
     );
+    unawaited(_persistWorkOrders(state.valueOrNull?.workOrders ?? const []));
 
     return 'Work order ${wo.woId} created and ready for allocation flow.';
   }
@@ -1070,6 +1075,7 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
         lastUpdated: DateTime.now(),
       ),
     );
+    unawaited(_persistWorkOrders(state.valueOrNull?.workOrders ?? const []));
 
     return 'Work order copied. New WO created: $newWoId';
   }
@@ -1127,7 +1133,90 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
         lastUpdated: DateTime.now(),
       ),
     );
+    unawaited(_persistWorkOrders(state.valueOrNull?.workOrders ?? const []));
     return 'Fleet and driver assigned.';
+  }
+
+  String upsertWorkOrderFromMaster({
+    required String workOrderNumber,
+    required String enquiryReference,
+    required String customer,
+    required String cargo,
+    required String origin,
+    required String destination,
+    required DateTime? plannedDispatchDate,
+    required DateTime? plannedDeliveryDate,
+    required String internalNotes,
+    required bool isEdit,
+  }) {
+    final current = state.valueOrNull;
+    if (current == null) {
+      return 'Data not loaded.';
+    }
+
+    final woId = workOrderNumber.trim();
+    if (woId.isEmpty) {
+      return 'Work order number is required.';
+    }
+    if (enquiryReference.trim().isEmpty) {
+      return 'Enquiry / reference is required.';
+    }
+    if (customer.trim().isEmpty) {
+      return 'Customer is required.';
+    }
+    if (cargo.trim().isEmpty) {
+      return 'Cargo type is required.';
+    }
+    if (origin.trim().isEmpty || destination.trim().isEmpty) {
+      return 'Origin and destination are required.';
+    }
+    if (plannedDispatchDate == null || plannedDeliveryDate == null) {
+      return 'Planned dispatch and delivery dates are required.';
+    }
+    if (plannedDeliveryDate.isBefore(plannedDispatchDate)) {
+      return 'Planned delivery date cannot be before dispatch date.';
+    }
+
+    final existingIndex =
+        current.workOrders.indexWhere((item) => item.woId == woId);
+    if (!isEdit && existingIndex >= 0) {
+      return 'Work order number already exists. Use a unique WO number.';
+    }
+    if (isEdit && existingIndex < 0) {
+      return 'Work order not found for update.';
+    }
+
+    final nextItem = WorkOrderFlowItem(
+      woId: woId,
+      customer: customer.trim(),
+      route: '${origin.trim()} -> ${destination.trim()}',
+      cargo: cargo.trim(),
+      status: 'Open',
+      linkedQuotationRef: '',
+      linkedEnquiryNumber: enquiryReference.trim(),
+      customerPoReference: '',
+      jobFileReference: '',
+      serviceStartDate: _formatDate(plannedDispatchDate),
+      serviceEndDate: _formatDate(plannedDeliveryDate),
+      internalNotes: internalNotes.trim(),
+    );
+
+    List<WorkOrderFlowItem> updated;
+    if (isEdit) {
+      updated = [...current.workOrders];
+      updated[existingIndex] = nextItem;
+    } else {
+      updated = [nextItem, ...current.workOrders];
+    }
+
+    state = AsyncData(current.copyWith(
+      workOrders: updated,
+      lastUpdated: DateTime.now(),
+    ));
+    unawaited(_persistWorkOrders(updated));
+    return isEdit
+        ? 'Work order $woId updated successfully.'
+        : 'Work order $woId created successfully.';
   }
 
   String addDriver({
@@ -1578,5 +1667,64 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
       }
       counter += 1;
     }
+  }
+
+  Future<List<WorkOrderFlowItem>> _loadCachedWorkOrders(
+    List<WorkOrderFlowItem> fallback,
+  ) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_workOrdersCacheKey);
+      if (raw != null && raw.isNotEmpty) {
+        final decoded = jsonDecode(raw) as List<dynamic>;
+        return decoded
+            .map((entry) => _workOrderFromMap(Map<String, dynamic>.from(entry)))
+            .toList();
+      }
+      await _persistWorkOrders(fallback);
+      return fallback;
+    } catch (_) {
+      return fallback;
+    }
+  }
+
+  Future<void> _persistWorkOrders(List<WorkOrderFlowItem> items) async {
+    final prefs = await SharedPreferences.getInstance();
+    final payload = items.map(_workOrderToMap).toList();
+    await prefs.setString(_workOrdersCacheKey, jsonEncode(payload));
+  }
+
+  WorkOrderFlowItem _workOrderFromMap(Map<String, dynamic> map) {
+    return WorkOrderFlowItem(
+      woId: map['woId'] as String? ?? '',
+      customer: map['customer'] as String? ?? '',
+      route: map['route'] as String? ?? '',
+      cargo: map['cargo'] as String? ?? '',
+      status: map['status'] as String? ?? 'Open',
+      linkedQuotationRef: map['linkedQuotationRef'] as String? ?? '',
+      linkedEnquiryNumber: map['linkedEnquiryNumber'] as String? ?? '',
+      customerPoReference: map['customerPoReference'] as String? ?? '',
+      jobFileReference: map['jobFileReference'] as String? ?? '',
+      serviceStartDate: map['serviceStartDate'] as String? ?? '',
+      serviceEndDate: map['serviceEndDate'] as String? ?? '',
+      internalNotes: map['internalNotes'] as String? ?? '',
+    );
+  }
+
+  Map<String, dynamic> _workOrderToMap(WorkOrderFlowItem item) {
+    return {
+      'woId': item.woId,
+      'customer': item.customer,
+      'route': item.route,
+      'cargo': item.cargo,
+      'status': item.status,
+      'linkedQuotationRef': item.linkedQuotationRef,
+      'linkedEnquiryNumber': item.linkedEnquiryNumber,
+      'customerPoReference': item.customerPoReference,
+      'jobFileReference': item.jobFileReference,
+      'serviceStartDate': item.serviceStartDate,
+      'serviceEndDate': item.serviceEndDate,
+      'internalNotes': item.internalNotes,
+    };
   }
 }

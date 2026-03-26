@@ -6,9 +6,10 @@ import '../../domain/entities/customer.dart';
 import '../../routes/route_paths.dart';
 import '../viewmodels/customer_viewmodel.dart';
 import '../widgets/ops_shell.dart';
+import '../widgets/ops_ui.dart';
 
 class CustomerManagementScreen extends ConsumerStatefulWidget {
-  const CustomerManagementScreen({Key? key}) : super(key: key);
+  const CustomerManagementScreen({super.key});
 
   @override
   ConsumerState<CustomerManagementScreen> createState() =>
@@ -19,7 +20,9 @@ class _CustomerManagementScreenState
     extends ConsumerState<CustomerManagementScreen> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
-  String _selectedCategory = 'All';
+  String _statusFilter = 'All';
+  bool _highRiskOnly = false;
+  bool _creditExceededOnly = false;
 
   @override
   void dispose() {
@@ -29,25 +32,23 @@ class _CustomerManagementScreenState
 
   @override
   Widget build(BuildContext context) {
-    final primaryColor = Theme.of(context).colorScheme.primary;
     final customerState = ref.watch(customerViewModelProvider);
-    final customerViewModel = ref.read(customerViewModelProvider.notifier);
     final isDesktop = MediaQuery.of(context).size.width >= 1000;
 
-    var filteredCustomers = customerState.customers
-        .where((cust) =>
-            cust.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-            cust.email.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-            cust.contactPerson
-                .toLowerCase()
-                .contains(_searchQuery.toLowerCase()))
-        .toList();
+    var filteredCustomers = customerState.customers.where((cust) {
+      final query = _searchQuery.trim().toLowerCase();
+      final matchesSearch = query.isEmpty ||
+          cust.name.toLowerCase().contains(query) ||
+          cust.id.toLowerCase().contains(query) ||
+          cust.shortCode.toLowerCase().contains(query);
+      final matchesStatus =
+          _statusFilter == 'All' || cust.status == _statusFilter;
+      final matchesRisk = !_highRiskOnly || cust.isHighRisk;
+      final matchesCredit = !_creditExceededOnly || cust.isCreditExceeded;
+      return matchesSearch && matchesStatus && matchesRisk && matchesCredit;
+    }).toList();
 
-    if (_selectedCategory != 'All') {
-      filteredCustomers = filteredCustomers
-          .where((cust) => cust.category == _selectedCategory)
-          .toList();
-    }
+    filteredCustomers.sort((a, b) => b.riskScore.compareTo(a.riskScore));
 
     return OpsShell(
       title: 'Customer Management',
@@ -59,8 +60,28 @@ class _CustomerManagementScreenState
                 Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _metricChip(
+                            label: 'Total ${customerState.customers.length}',
+                            color: const Color(0xFF2563EB),
+                          ),
+                          _metricChip(
+                            label:
+                                'High Risk ${customerState.customers.where((c) => c.isHighRisk).length}',
+                            color: const Color(0xFFDC2626),
+                          ),
+                          _metricChip(
+                            label:
+                                'Credit Exceeded ${customerState.customers.where((c) => c.isCreditExceeded).length}',
+                            color: const Color(0xFFF59E0B),
+                          ),
+                        ],
+                      ),
                       FilledButton.icon(
                         onPressed: () => context.go(RoutePaths.customerForm),
                         icon: const Icon(Icons.add),
@@ -71,80 +92,73 @@ class _CustomerManagementScreenState
                 ),
                 Padding(
                   padding: const EdgeInsets.only(bottom: 12),
-                  child: Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        children: [
-                          TextField(
-                            controller: _searchController,
-                            onChanged: (value) {
-                              setState(() => _searchQuery = value);
-                            },
-                            decoration: InputDecoration(
-                              hintText: 'Search customers...',
-                              prefixIcon: const Icon(Icons.search),
-                              suffixIcon: _searchQuery.isNotEmpty
-                                  ? IconButton(
-                                      icon: const Icon(Icons.clear),
-                                      onPressed: () {
-                                        _searchController.clear();
-                                        setState(() => _searchQuery = '');
-                                      },
-                                    )
-                                  : null,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide:
-                                    const BorderSide(color: Colors.grey),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide:
-                                    const BorderSide(color: Colors.grey),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide:
-                                    BorderSide(color: primaryColor, width: 2),
-                              ),
-                            ),
+                  child: OpsSectionCard(
+                    title: 'Customer Filters',
+                    subtitle:
+                        'Search by customer name/code and isolate risk-driven accounts',
+                    icon: Icons.filter_alt_outlined,
+                    accent: const Color(0xFF0EA5E9),
+                    child: Column(
+                      children: [
+                        TextField(
+                          controller: _searchController,
+                          onChanged: (value) {
+                            setState(() => _searchQuery = value);
+                          },
+                          decoration: InputDecoration(
+                            hintText: 'Search by name, ID, or short code...',
+                            prefixIcon: const Icon(Icons.search),
+                            suffixIcon: _searchQuery.isNotEmpty
+                                ? IconButton(
+                                    icon: const Icon(Icons.clear),
+                                    onPressed: () {
+                                      _searchController.clear();
+                                      setState(() => _searchQuery = '');
+                                    },
+                                  )
+                                : null,
                           ),
-                          const SizedBox(height: 12),
-                          SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: Row(
-                              children:
-                                  ['All', 'PDO', 'NON-PDO'].map((category) {
-                                final isSelected =
-                                    _selectedCategory == category;
-                                return Padding(
+                        ),
+                        const SizedBox(height: 10),
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              for (final status in const [
+                                'All',
+                                'Active',
+                                'Inactive',
+                              ])
+                                Padding(
                                   padding: const EdgeInsets.only(right: 8),
                                   child: FilterChip(
-                                    label: Text(category),
-                                    selected: isSelected,
-                                    onSelected: (selected) {
-                                      setState(
-                                          () => _selectedCategory = category);
+                                    label: Text(status),
+                                    selected: _statusFilter == status,
+                                    onSelected: (_) {
+                                      setState(() => _statusFilter = status);
                                     },
-                                    backgroundColor: Colors.grey[200],
-                                    selectedColor:
-                                        primaryColor.withOpacity(0.3),
-                                    labelStyle: TextStyle(
-                                      color: isSelected
-                                          ? primaryColor
-                                          : Colors.grey[700],
-                                      fontWeight: isSelected
-                                          ? FontWeight.bold
-                                          : FontWeight.normal,
-                                    ),
                                   ),
-                                );
-                              }).toList(),
-                            ),
+                                ),
+                              FilterChip(
+                                label: const Text('High Risk'),
+                                selected: _highRiskOnly,
+                                onSelected: (selected) {
+                                  setState(() => _highRiskOnly = selected);
+                                },
+                              ),
+                              const SizedBox(width: 8),
+                              FilterChip(
+                                label: const Text('Credit Exceeded'),
+                                selected: _creditExceededOnly,
+                                onSelected: (selected) {
+                                  setState(
+                                      () => _creditExceededOnly = selected);
+                                },
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -152,100 +166,17 @@ class _CustomerManagementScreenState
                   child: filteredCustomers.isEmpty
                       ? Center(
                           child: Text(
-                            'No customers found',
+                            'No customers match your filters.',
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
                         )
                       : isDesktop
-                          ? Card(
-                              child: LayoutBuilder(
-                                builder: (context, constraints) {
-                                  return SingleChildScrollView(
-                                    scrollDirection: Axis.horizontal,
-                                    child: ConstrainedBox(
-                                      constraints: BoxConstraints(
-                                        minWidth: constraints.maxWidth,
-                                      ),
-                                      child: DataTable(
-                                        columns: const [
-                                          DataColumn(
-                                              label: Text('Customer ID')),
-                                          DataColumn(label: Text('Name')),
-                                          DataColumn(label: Text('Category')),
-                                          DataColumn(
-                                              label: Text('Contact Person')),
-                                          DataColumn(label: Text('Email')),
-                                          DataColumn(label: Text('Phone')),
-                                          DataColumn(label: Text('Currency')),
-                                          DataColumn(label: Text('Actions')),
-                                        ],
-                                        rows: [
-                                          for (final customer
-                                              in filteredCustomers)
-                                            DataRow(cells: [
-                                              DataCell(Text(customer.id)),
-                                              DataCell(Text(customer.name)),
-                                              DataCell(Text(customer.category)),
-                                              DataCell(
-                                                  Text(customer.contactPerson)),
-                                              DataCell(Text(customer.email)),
-                                              DataCell(
-                                                  Text(customer.phoneNumber)),
-                                              DataCell(Text(customer.currency)),
-                                              DataCell(
-                                                Wrap(
-                                                  spacing: 4,
-                                                  children: [
-                                                    TextButton.icon(
-                                                      onPressed: () =>
-                                                          context.go(
-                                                        RoutePaths
-                                                            .customerViewById(
-                                                                customer.id),
-                                                      ),
-                                                      icon: const Icon(Icons
-                                                          .visibility_outlined),
-                                                      label: const Text('View'),
-                                                    ),
-                                                    TextButton.icon(
-                                                      onPressed: () =>
-                                                          context.go(
-                                                        RoutePaths
-                                                            .editCustomerById(
-                                                                customer.id),
-                                                      ),
-                                                      icon: const Icon(
-                                                          Icons.edit_outlined),
-                                                      label: const Text('Edit'),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            ]),
-                                        ],
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            )
+                          ? _desktopTable(context, filteredCustomers)
                           : ListView.builder(
                               itemCount: filteredCustomers.length,
                               itemBuilder: (context, index) {
                                 final customer = filteredCustomers[index];
-                                return _CustomerCard(
-                                  customer: customer,
-                                  onEdit: () => context.go(
-                                    RoutePaths.editCustomerById(customer.id),
-                                  ),
-                                  onDelete: () => _showDeleteConfirmation(
-                                    context,
-                                    customer,
-                                    customerViewModel,
-                                  ),
-                                  onView: () => context.go(
-                                      RoutePaths.customerViewById(customer.id)),
-                                );
+                                return _CustomerCard(customer: customer);
                               },
                             ),
                 ),
@@ -254,176 +185,230 @@ class _CustomerManagementScreenState
     );
   }
 
-  void _showDeleteConfirmation(
-      BuildContext context, Customer customer, CustomerViewModel viewModel) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Customer'),
-        content: Text('Are you sure you want to delete "${customer.name}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              viewModel.deleteCustomer(customer.id);
-              Navigator.pop(context);
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CustomerCard extends StatelessWidget {
-  final Customer customer;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
-  final VoidCallback onView;
-
-  const _CustomerCard({
-    required this.customer,
-    required this.onEdit,
-    required this.onDelete,
-    required this.onView,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final primaryColor = Theme.of(context).colorScheme.primary;
+  Widget _desktopTable(BuildContext context, List<Customer> customers) {
     return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(
-        onTap: onView,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: primaryColor.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      Icons.business,
-                      color: primaryColor,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          customer.name,
-                          style:
-                              Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minWidth: constraints.maxWidth),
+              child: DataTable(
+                columns: const [
+                  DataColumn(label: Text('Customer ID')),
+                  DataColumn(label: Text('Short Code')),
+                  DataColumn(label: Text('Name')),
+                  DataColumn(label: Text('Status')),
+                  DataColumn(label: Text('Risk')),
+                  DataColumn(label: Text('Credit Usage')),
+                  DataColumn(label: Text('Indicators')),
+                  DataColumn(label: Text('Actions')),
+                ],
+                rows: [
+                  for (final customer in customers)
+                    DataRow(
+                      cells: [
+                        DataCell(Text(customer.id)),
+                        DataCell(Text(customer.shortCode)),
+                        DataCell(Text(customer.name)),
+                        DataCell(
+                          OpsPill(
+                            label: customer.status,
+                            color: customer.isActive
+                                ? const Color(0xFF16A34A)
+                                : const Color(0xFF6B7280),
+                          ),
                         ),
-                        Text(
-                          customer.contactPerson,
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: Colors.grey[600],
-                                  ),
+                        DataCell(
+                          OpsPill(
+                            label: '${customer.riskScore}',
+                            color: customer.riskScore >= 70
+                                ? const Color(0xFFDC2626)
+                                : customer.riskScore >= 40
+                                    ? const Color(0xFFF59E0B)
+                                    : const Color(0xFF16A34A),
+                          ),
+                        ),
+                        DataCell(
+                          Text(
+                            '${customer.outstandingAmount.toStringAsFixed(0)} / ${customer.creditLimit.toStringAsFixed(0)} ${customer.currency}',
+                          ),
+                        ),
+                        DataCell(_indicatorWrap(customer)),
+                        DataCell(
+                          Wrap(
+                            spacing: 4,
+                            children: [
+                              TextButton.icon(
+                                onPressed: () => context.go(
+                                  RoutePaths.customerViewById(customer.id),
+                                ),
+                                icon: const Icon(Icons.visibility_outlined),
+                                label: const Text('View'),
+                              ),
+                              TextButton.icon(
+                                onPressed: () => context.go(
+                                  RoutePaths.editCustomerById(customer.id),
+                                ),
+                                icon: const Icon(Icons.edit_outlined),
+                                label: const Text('Edit'),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
-                  ),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: customer.category == 'PDO'
-                          ? Colors.green.withOpacity(0.2)
-                          : Colors.orange.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      customer.category,
-                      style: TextStyle(
-                        color: customer.category == 'PDO'
-                            ? Colors.green
-                            : Colors.orange,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _metricChip({required String label, required Color color}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(color: color, fontWeight: FontWeight.w700),
+      ),
+    );
+  }
+
+  Widget _indicatorWrap(Customer customer) {
+    final indicators = <Widget>[];
+    if (customer.hasOverduePayments || customer.overdueInvoices > 0) {
+      indicators.add(const Tooltip(
+        message: 'Overdue payments',
+        child: Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626)),
+      ));
+    }
+    if (customer.isNearCreditLimit) {
+      indicators.add(const Tooltip(
+        message: 'Near credit limit',
+        child: Icon(Icons.error_outline, color: Color(0xFFF59E0B)),
+      ));
+    }
+    if (customer.isBlocked) {
+      indicators.add(const Tooltip(
+        message: 'Blocked customer',
+        child: Icon(Icons.block, color: Color(0xFF7F1D1D)),
+      ));
+    }
+
+    if (indicators.isEmpty) {
+      return const Text('-');
+    }
+    return Row(mainAxisSize: MainAxisSize.min, children: indicators);
+  }
+}
+
+class _CustomerCard extends ConsumerWidget {
+  const _CustomerCard({required this.customer});
+
+  final Customer customer;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final viewModel = ref.read(customerViewModelProvider.notifier);
+
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        customer.name,
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
                       ),
-                    ),
+                      Text(
+                        '${customer.id} - ${customer.shortCode}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Icon(Icons.email, size: 16, color: Colors.grey[600]),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      customer.email,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.grey[600],
-                          ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                ),
+                OpsPill(
+                  label: customer.status,
+                  color: customer.isActive
+                      ? const Color(0xFF16A34A)
+                      : const Color(0xFF6B7280),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                OpsPill(
+                    label: customer.segment, color: const Color(0xFF2563EB)),
+                OpsPill(
+                  label: 'Risk ${customer.riskScore}',
+                  color: customer.riskScore >= 70
+                      ? const Color(0xFFDC2626)
+                      : customer.riskScore >= 40
+                          ? const Color(0xFFF59E0B)
+                          : const Color(0xFF16A34A),
+                ),
+                if (customer.hasOverduePayments)
+                  const OpsPill(label: 'Overdue', color: Color(0xFFDC2626)),
+                if (customer.isNearCreditLimit)
+                  const OpsPill(label: 'Near Limit', color: Color(0xFFF59E0B)),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Outstanding ${customer.outstandingAmount.toStringAsFixed(0)} / ${customer.creditLimit.toStringAsFixed(0)} ${customer.currency}',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton.icon(
+                  onPressed: () =>
+                      context.go(RoutePaths.customerViewById(customer.id)),
+                  icon: const Icon(Icons.visibility_outlined),
+                  label: const Text('View'),
+                ),
+                TextButton.icon(
+                  onPressed: () =>
+                      context.go(RoutePaths.editCustomerById(customer.id)),
+                  icon: const Icon(Icons.edit_outlined),
+                  label: const Text('Edit'),
+                ),
+                TextButton.icon(
+                  onPressed: () {
+                    final newStatus =
+                        customer.status == 'Active' ? 'Inactive' : 'Active';
+                    viewModel.setCustomerStatus(customer.id, newStatus);
+                  },
+                  icon: const Icon(Icons.toggle_on_outlined),
+                  label: Text(
+                    customer.status == 'Active' ? 'Deactivate' : 'Activate',
                   ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Icon(Icons.phone, size: 16, color: Colors.grey[600]),
-                  const SizedBox(width: 8),
-                  Text(
-                    customer.phoneNumber,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.grey[600],
-                        ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton.icon(
-                    onPressed: onView,
-                    icon: const Icon(Icons.visibility_outlined),
-                    label: const Text('View'),
-                  ),
-                  const SizedBox(width: 8),
-                  TextButton.icon(
-                    onPressed: onEdit,
-                    icon: const Icon(Icons.edit),
-                    label: const Text('Edit'),
-                  ),
-                  const SizedBox(width: 8),
-                  TextButton.icon(
-                    onPressed: onDelete,
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    label: const Text('Delete'),
-                    style: TextButton.styleFrom(foregroundColor: Colors.red),
-                  ),
-                ],
-              ),
-            ],
-          ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );

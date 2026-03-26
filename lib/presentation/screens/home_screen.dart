@@ -35,12 +35,12 @@ class HomeScreen extends ConsumerWidget {
       return Scaffold(
         body: Row(
           children: [
-            SizedBox(
-              width: 270,
+            Expanded(
+              flex: 23,
               child: _OpsSidebar(useLiveApi: useLiveApi),
             ),
             const VerticalDivider(width: 1),
-            const Expanded(child: _OperationsHubContent()),
+            const Expanded(flex: 77, child: _OperationsHubContent()),
           ],
         ),
       );

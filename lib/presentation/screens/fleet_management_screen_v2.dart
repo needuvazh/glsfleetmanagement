@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/utils/responsive.dart';
 import '../../domain/entities/fleet.dart';
 import '../viewmodels/fleet_viewmodel.dart';
 import '../widgets/ops_shell.dart';
@@ -10,10 +11,12 @@ class FleetManagementScreenV2 extends ConsumerStatefulWidget {
   const FleetManagementScreenV2({super.key});
 
   @override
-  ConsumerState<FleetManagementScreenV2> createState() => _FleetManagementScreenV2State();
+  ConsumerState<FleetManagementScreenV2> createState() =>
+      _FleetManagementScreenV2State();
 }
 
-class _FleetManagementScreenV2State extends ConsumerState<FleetManagementScreenV2> {
+class _FleetManagementScreenV2State
+    extends ConsumerState<FleetManagementScreenV2> {
   String _searchQuery = '';
   String _filterStatus = 'All';
   String _sortBy = 'Vehicle Number';
@@ -23,6 +26,8 @@ class _FleetManagementScreenV2State extends ConsumerState<FleetManagementScreenV
     final fleetState = ref.watch(fleetViewModelProvider);
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final isMobile = Responsive.isMobile(context);
+    final isTablet = Responsive.isTablet(context);
 
     return OpsShell(
       title: 'Fleet Management',
@@ -45,16 +50,21 @@ class _FleetManagementScreenV2State extends ConsumerState<FleetManagementScreenV
           // Filter and sort vehicles
           var filteredVehicles = vehicles.where((v) {
             final matchesSearch = _searchQuery.isEmpty ||
-                v.vehicleNumber.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+                v.vehicleNumber
+                    .toLowerCase()
+                    .contains(_searchQuery.toLowerCase()) ||
                 v.type.toLowerCase().contains(_searchQuery.toLowerCase());
-            final matchesStatus = _filterStatus == 'All' || v.status == _filterStatus;
+            final matchesStatus =
+                _filterStatus == 'All' || v.status.label == _filterStatus;
             return matchesSearch && matchesStatus;
           }).toList();
 
           if (_sortBy == 'Vehicle Number') {
-            filteredVehicles.sort((a, b) => a.vehicleNumber.compareTo(b.vehicleNumber));
+            filteredVehicles
+                .sort((a, b) => a.vehicleNumber.compareTo(b.vehicleNumber));
           } else if (_sortBy == 'Status') {
-            filteredVehicles.sort((a, b) => a.status.compareTo(b.status));
+            filteredVehicles
+                .sort((a, b) => a.status.label.compareTo(b.status.label));
           }
 
           return ListView(
@@ -62,7 +72,7 @@ class _FleetManagementScreenV2State extends ConsumerState<FleetManagementScreenV
             children: [
               // Summary Cards
               GridView.count(
-                crossAxisCount: MediaQuery.of(context).size.width < 720 ? 2 : 4,
+                crossAxisCount: isMobile ? 2 : (isTablet ? 3 : 4),
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 mainAxisSpacing: 12,
@@ -77,19 +87,28 @@ class _FleetManagementScreenV2State extends ConsumerState<FleetManagementScreenV
                   ),
                   _SummaryCard(
                     title: 'Active',
-                    value: vehicles.where((v) => v.status == 'Active').length.toString(),
+                    value: vehicles
+                        .where((v) => v.status == FleetStatus.active)
+                        .length
+                        .toString(),
                     icon: Icons.check_circle_outlined,
                     color: colorScheme.tertiary,
                   ),
                   _SummaryCard(
                     title: 'Maintenance',
-                    value: vehicles.where((v) => v.status == 'Maintenance').length.toString(),
+                    value: vehicles
+                        .where((v) => v.status == FleetStatus.maintenance)
+                        .length
+                        .toString(),
                     icon: Icons.build_outlined,
                     color: colorScheme.secondary,
                   ),
                   _SummaryCard(
-                    title: 'Inactive',
-                    value: vehicles.where((v) => v.status == 'Inactive').length.toString(),
+                    title: 'Idle',
+                    value: vehicles
+                        .where((v) => v.status == FleetStatus.idle)
+                        .length
+                        .toString(),
                     icon: Icons.block_outlined,
                     color: colorScheme.error,
                   ),
@@ -99,7 +118,8 @@ class _FleetManagementScreenV2State extends ConsumerState<FleetManagementScreenV
               // Search and Filter Section
               Card(
                 elevation: 2,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
@@ -115,14 +135,17 @@ class _FleetManagementScreenV2State extends ConsumerState<FleetManagementScreenV
                       const SizedBox(height: 12),
                       // Search Field
                       TextField(
-                        onChanged: (value) => setState(() => _searchQuery = value),
+                        onChanged: (value) =>
+                            setState(() => _searchQuery = value),
                         decoration: InputDecoration(
                           hintText: 'Search by vehicle number or type...',
-                          prefixIcon: Icon(Icons.search_outlined, color: colorScheme.onSurfaceVariant),
+                          prefixIcon: Icon(Icons.search_outlined,
+                              color: colorScheme.onSurfaceVariant),
                           suffixIcon: _searchQuery.isNotEmpty
                               ? IconButton(
                                   icon: const Icon(Icons.clear_outlined),
-                                  onPressed: () => setState(() => _searchQuery = ''),
+                                  onPressed: () =>
+                                      setState(() => _searchQuery = ''),
                                 )
                               : null,
                         ),
@@ -138,14 +161,16 @@ class _FleetManagementScreenV2State extends ConsumerState<FleetManagementScreenV
                                 labelText: 'Status',
                                 prefixIcon: Icon(Icons.filter_list_outlined),
                               ),
-                              items: ['All', 'Active', 'Maintenance', 'Inactive']
+                              items: ['All', 'Active', 'Maintenance', 'Idle']
                                   .map((status) => DropdownMenuItem(
                                         value: status,
                                         child: Text(status),
                                       ))
                                   .toList(),
                               onChanged: (value) {
-                                if (value != null) setState(() => _filterStatus = value);
+                                if (value != null) {
+                                  setState(() => _filterStatus = value);
+                                }
                               },
                             ),
                           ),
@@ -164,7 +189,9 @@ class _FleetManagementScreenV2State extends ConsumerState<FleetManagementScreenV
                                       ))
                                   .toList(),
                               onChanged: (value) {
-                                if (value != null) setState(() => _sortBy = value);
+                                if (value != null) {
+                                  setState(() => _sortBy = value);
+                                }
                               },
                             ),
                           ),
@@ -190,11 +217,13 @@ class _FleetManagementScreenV2State extends ConsumerState<FleetManagementScreenV
                     padding: const EdgeInsets.all(32),
                     child: Column(
                       children: [
-                        Icon(Icons.local_shipping_outlined, size: 48, color: colorScheme.outline),
+                        Icon(Icons.local_shipping_outlined,
+                            size: 48, color: colorScheme.outline),
                         const SizedBox(height: 12),
                         Text(
                           'No vehicles found',
-                          style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
+                          style: textTheme.bodyMedium
+                              ?.copyWith(color: colorScheme.onSurfaceVariant),
                         ),
                       ],
                     ),
@@ -249,7 +278,7 @@ class _SummaryCard extends StatelessWidget {
               height: 40,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: color.withOpacity(0.15),
+                color: color.withValues(alpha: 0.15),
               ),
               child: Icon(icon, color: color, size: 20),
             ),
@@ -279,19 +308,17 @@ class _SummaryCard extends StatelessWidget {
 class _VehicleCard extends StatelessWidget {
   const _VehicleCard({required this.vehicle});
 
-  final FleetItem vehicle;
+  final Fleet vehicle;
 
-  Color _getStatusColor(BuildContext context, String status) {
+  Color _getStatusColor(BuildContext context, FleetStatus status) {
     final colorScheme = Theme.of(context).colorScheme;
     switch (status) {
-      case 'Active':
+      case FleetStatus.active:
         return colorScheme.tertiary;
-      case 'Maintenance':
+      case FleetStatus.maintenance:
         return colorScheme.secondary;
-      case 'Inactive':
+      case FleetStatus.idle:
         return colorScheme.error;
-      default:
-        return colorScheme.outline;
     }
   }
 
@@ -317,9 +344,10 @@ class _VehicleCard extends StatelessWidget {
                   height: 50,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(12),
-                    color: colorScheme.primaryContainer.withOpacity(0.3),
+                    color: colorScheme.primaryContainer.withValues(alpha: 0.3),
                   ),
-                  child: Icon(Icons.local_shipping_rounded, color: colorScheme.primary),
+                  child: Icon(Icons.local_shipping_rounded,
+                      color: colorScheme.primary),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -344,14 +372,16 @@ class _VehicleCard extends StatelessWidget {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.15),
+                    color: statusColor.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: statusColor.withOpacity(0.3)),
+                    border:
+                        Border.all(color: statusColor.withValues(alpha: 0.3)),
                   ),
                   child: Text(
-                    vehicle.status,
+                    vehicle.status.label,
                     style: textTheme.labelSmall?.copyWith(
                       color: statusColor,
                       fontWeight: FontWeight.w600,
@@ -373,23 +403,24 @@ class _VehicleCard extends StatelessWidget {
               childAspectRatio: 2.5,
               children: [
                 _DetailItem(
-                  label: 'Capacity',
-                  value: vehicle.capacity,
-                  icon: Icons.storage_outlined,
+                  label: 'Driver',
+                  value: vehicle.driver,
+                  icon: Icons.person_outline,
                 ),
                 _DetailItem(
-                  label: 'Fuel Type',
-                  value: vehicle.fuelType,
+                  label: 'Fuel Level',
+                  value: '${vehicle.fuelLevel}%',
                   icon: Icons.local_gas_station_outlined,
                 ),
                 _DetailItem(
-                  label: 'IVMS Device',
-                  value: vehicle.ivmsDeviceId,
-                  icon: Icons.gps_fixed_outlined,
+                  label: 'Odometer',
+                  value: '${vehicle.odometerKm} km',
+                  icon: Icons.speed_outlined,
                 ),
                 _DetailItem(
                   label: 'Last Service',
-                  value: '15 days ago',
+                  value:
+                      '${vehicle.lastServiceDate.day}/${vehicle.lastServiceDate.month}/${vehicle.lastServiceDate.year}',
                   icon: Icons.calendar_today_outlined,
                 ),
               ],

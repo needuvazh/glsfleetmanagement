@@ -5,13 +5,14 @@ import 'package:go_router/go_router.dart';
 import '../../domain/entities/journey_plan.dart';
 import '../../domain/entities/logistics_flow.dart';
 import '../../domain/entities/work_order.dart';
+import '../../domain/entities/customer.dart';
 import '../../domain/vendor_model.dart';
 import '../../routes/route_paths.dart';
+import '../viewmodels/customer_viewmodel.dart';
 import '../viewmodels/journey_plan_viewmodel.dart';
 import '../viewmodels/logistics_viewmodel.dart';
 import '../viewmodels/vendor_viewmodel.dart';
 import '../viewmodels/work_order_draft_viewmodel.dart';
-import '../viewmodels/work_orders_viewmodel.dart';
 import '../widgets/ops_shell.dart';
 
 class CreateWorkOrderScreen extends ConsumerStatefulWidget {
@@ -33,6 +34,7 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
   final _workOrderNumberController = TextEditingController();
   final _enquiryNumberController = TextEditingController();
   final _customerController = TextEditingController();
+  final _customerFocusNode = FocusNode();
   final _remarksController = TextEditingController();
   final _cargoTypeController = TextEditingController();
   final _quantityController = TextEditingController();
@@ -55,6 +57,7 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
   bool _dnRequired = true;
   String? _journeyPlanId;
   bool _didPopulateEditValues = false;
+  final Set<String> _acknowledgedCustomerWarnings = <String>{};
 
   bool get _isEditMode =>
       widget.editWorkOrderId != null &&
@@ -63,6 +66,11 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
   @override
   void initState() {
     super.initState();
+    _customerFocusNode.addListener(() {
+      if (!_customerFocusNode.hasFocus) {
+        _runCustomerControlChecks();
+      }
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final draft = ref.read(workOrderDraftProvider);
       setState(() {
@@ -110,6 +118,7 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
     _stopPointsController.dispose();
     _routeNotesController.dispose();
     _specialDocumentsController.dispose();
+    _customerFocusNode.dispose();
     super.dispose();
   }
 
@@ -163,9 +172,20 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
                           controller: _enquiryNumberController,
                           label: 'Enquiry Number',
                         ),
-                        _requiredField(
+                        TextFormField(
                           controller: _customerController,
-                          label: 'Customer',
+                          focusNode: _customerFocusNode,
+                          decoration:
+                              const InputDecoration(labelText: 'Customer'),
+                          onChanged: (_) {
+                            _acknowledgedCustomerWarnings.clear();
+                          },
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Required';
+                            }
+                            return null;
+                          },
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -692,6 +712,11 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
       return;
     }
 
+    final canProceed = await _runCustomerControlChecks();
+    if (!canProceed) {
+      return;
+    }
+
     if (_plannedDispatchDate != null &&
         _plannedDeliveryDate != null &&
         _plannedDeliveryDate!.isBefore(_plannedDispatchDate!)) {
@@ -700,34 +725,157 @@ class _CreateWorkOrderScreenState extends ConsumerState<CreateWorkOrderScreen> {
     }
 
     final selectedPlan = _findPlan(plans, _journeyPlanId);
-    if (selectedPlan != null) {
-      ref.read(workOrdersViewModelProvider.notifier).createOrderFromJourneyPlan(
-            plan: selectedPlan,
-            vehicleId: 'TBD',
-            title:
-                '${_workOrderNumberController.text.trim()} • ${_customerController.text.trim()}',
-            priority: _priority,
-          );
-    }
+    final origin = _pickupController.text.trim().isEmpty && selectedPlan != null
+        ? selectedPlan.origin
+        : _pickupController.text.trim();
+    final destination =
+        _deliveryController.text.trim().isEmpty && selectedPlan != null
+            ? selectedPlan.destination
+            : _deliveryController.text.trim();
 
-    await ref.read(workOrderDraftProvider.notifier).clearDraft();
+    final message =
+        ref.read(logisticsViewModelProvider.notifier).upsertWorkOrderFromMaster(
+              workOrderNumber: _workOrderNumberController.text.trim(),
+              enquiryReference: _enquiryNumberController.text.trim(),
+              customer: _customerController.text.trim(),
+              cargo: _cargoTypeController.text.trim(),
+              origin: origin,
+              destination: destination,
+              plannedDispatchDate: _plannedDispatchDate,
+              plannedDeliveryDate: _plannedDeliveryDate,
+              internalNotes: _remarksController.text.trim(),
+              isEdit: _isEditMode,
+            );
+
+    final isSuccess = message.toLowerCase().contains('successfully');
+    if (isSuccess) {
+      await ref.read(workOrderDraftProvider.notifier).clearDraft();
+    }
 
     if (!mounted) {
       return;
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          _isEditMode
-              ? 'Work order updated successfully.'
-              : selectedPlan == null
-                  ? 'Work order submitted. Route template can be mapped later.'
-                  : 'Work order submitted from template ${selectedPlan.planName}.',
-        ),
+      SnackBar(content: Text(message)),
+    );
+    if (isSuccess) {
+      context.go(RoutePaths.workOrders);
+    }
+  }
+
+  Future<bool> _runCustomerControlChecks() async {
+    final customerInput = _customerController.text.trim().toLowerCase();
+    if (customerInput.isEmpty) {
+      return true;
+    }
+
+    final customerState = ref.read(customerViewModelProvider);
+    Customer? matchedCustomer;
+    for (final customer in customerState.customers) {
+      final name = customer.name.toLowerCase();
+      final shortCode = customer.shortCode.toLowerCase();
+      final customerId = customer.id.toLowerCase();
+      if (customerInput == name ||
+          customerInput == shortCode ||
+          customerInput == customerId) {
+        matchedCustomer = customer;
+        break;
+      }
+    }
+
+    if (matchedCustomer == null) {
+      return true;
+    }
+
+    if (!matchedCustomer.isActive) {
+      await _showCustomerRuleDialog(
+        title: 'Customer Inactive',
+        message:
+            '${matchedCustomer.name} is inactive. New work orders are not allowed for inactive customers.',
+        allowProceed: false,
+      );
+      return false;
+    }
+
+    if (matchedCustomer.isBlocked) {
+      final reason = matchedCustomer.blockReason.trim().isEmpty
+          ? 'No reason provided.'
+          : matchedCustomer.blockReason.trim();
+      await _showCustomerRuleDialog(
+        title: 'Customer Blocked',
+        message:
+            '${matchedCustomer.name} (${matchedCustomer.shortCode}) is blocked.\nReason: $reason',
+        allowProceed: false,
+      );
+      return false;
+    }
+
+    if (matchedCustomer.isCreditExceeded) {
+      final signature = _warningSignature(matchedCustomer, 'credit-exceeded');
+      if (_acknowledgedCustomerWarnings.contains(signature)) {
+        return true;
+      }
+      final approved = await _showCustomerRuleDialog(
+        title: 'Credit Limit Exceeded',
+        message:
+            '${matchedCustomer.name} exceeded credit limit.\nOutstanding: ${matchedCustomer.outstandingAmount.toStringAsFixed(0)} ${matchedCustomer.currency}\nLimit: ${matchedCustomer.creditLimit.toStringAsFixed(0)} ${matchedCustomer.currency}',
+        allowProceed: true,
+      );
+      if (approved) {
+        _acknowledgedCustomerWarnings.add(signature);
+      }
+      return approved;
+    }
+
+    if (matchedCustomer.isNearCreditLimit) {
+      final signature = _warningSignature(matchedCustomer, 'near-credit-limit');
+      if (_acknowledgedCustomerWarnings.contains(signature)) {
+        return true;
+      }
+      final approved = await _showCustomerRuleDialog(
+        title: 'Near Credit Limit',
+        message:
+            '${matchedCustomer.name} is near credit limit (${matchedCustomer.creditUsagePercent.toStringAsFixed(0)}% used).',
+        allowProceed: true,
+      );
+      if (approved) {
+        _acknowledgedCustomerWarnings.add(signature);
+      }
+      return approved;
+    }
+
+    return true;
+  }
+
+  Future<bool> _showCustomerRuleDialog({
+    required String title,
+    required String message,
+    required bool allowProceed,
+  }) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(allowProceed ? 'Back' : 'OK'),
+          ),
+          if (allowProceed)
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Proceed Anyway'),
+            ),
+        ],
       ),
     );
-    context.go(RoutePaths.workOrders);
+    return result ?? false;
+  }
+
+  String _warningSignature(Customer customer, String rule) {
+    return '${customer.id}|$rule|${customer.outstandingAmount}|${customer.creditLimit}|${customer.riskScore}';
   }
 
   void _placeholder(String message) {
