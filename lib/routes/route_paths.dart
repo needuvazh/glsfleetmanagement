@@ -17,6 +17,7 @@ class RoutePaths {
   static const feasibilityReviewDetail = '/feasibility-review/:enquiryNumber';
   static const workOrderFlow = '/work-order-flow';
   static const fleetManagement = '/fleet-management';
+  static const fleetForm = '/fleet-management/form';
   static const fleetDetail = '/fleet-management/:fleetId';
   static const driverManagement = '/driver-management';
   static const driverForm = '/driver-management/form';
@@ -66,6 +67,7 @@ class RoutePaths {
   static const transportManagement = '/transport-management';
   static const vehicleTypes = '/vehicle-types';
   static const vehicleTypeForm = '/vehicle-types/form';
+  static const vehicleTypeView = '/vehicle-types/view/:vehicleTypeId';
   static const vendorMaster = '/vendor-master';
   static const vendorForm = '/vendor-master/form';
   static const vendorView = '/vendor-master/view/:vendorId';
@@ -142,6 +144,10 @@ class RoutePaths {
       '/cargo-master/view/$cargoCode';
 
   static String fleetDetailById(String fleetId) => '/fleet-management/$fleetId';
+  static String editFleetById(String fleetId) =>
+      '/fleet-management/form?id=$fleetId';
+  static String vehicleTypeViewById(String vehicleTypeId) =>
+      '/vehicle-types/view/$vehicleTypeId';
 
   static String driverDetailById(String driverId) =>
       '/driver-management/$driverId';

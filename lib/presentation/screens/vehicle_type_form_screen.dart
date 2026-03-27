@@ -2,12 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/constants/oman_fleet_master.dart';
-import '../../core/utils/responsive.dart';
-import '../../domain/entities/vehicle_type.dart';
+import '../../domain/vehicle_type_master_model.dart';
 import '../../routes/route_paths.dart';
-import '../viewmodels/vehicle_type_viewmodel.dart';
-import '../widgets/module_document_upload_section.dart';
+import '../viewmodels/vehicle_type_master_viewmodel.dart';
 import '../widgets/ops_shell.dart';
 import '../widgets/ops_ui.dart';
 
@@ -23,25 +20,29 @@ class VehicleTypeFormScreen extends ConsumerStatefulWidget {
 
 class _VehicleTypeFormScreenState extends ConsumerState<VehicleTypeFormScreen> {
   final _formKey = GlobalKey<FormState>();
-  int _currentStep = 0;
 
   @override
   Widget build(BuildContext context) {
-    final listState = ref.watch(vehicleTypeViewModelProvider);
-    final formState = ref.watch(vehicleTypeFormProvider);
+    final listState = ref.watch(vehicleTypeMasterViewModelProvider);
+    final formState = ref.watch(vehicleTypeMasterFormProvider);
 
     return OpsShell(
-      title: formState.isEditMode ? 'Edit Vehicle Type' : 'Add Vehicle Type',
+      title: formState.isEditMode ? 'Edit Vehicle Type' : 'Create Vehicle Type',
       currentRoute: RoutePaths.vehicleTypes,
-      actions: const [],
+      actions: [
+        TextButton(
+          onPressed: () => context.go(RoutePaths.vehicleTypes),
+          child: const Text('Back to List'),
+        ),
+      ],
       child: listState.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(child: Text(error.toString())),
         data: (data) {
-          VehicleType? editItem;
+          VehicleTypeMasterModel? editItem;
           if (widget.editCode != null) {
             for (final item in data.items) {
-              if (item.code.toLowerCase() == widget.editCode!.toLowerCase()) {
+              if (item.vehicleTypeId == widget.editCode) {
                 editItem = item;
                 break;
               }
@@ -51,499 +52,348 @@ class _VehicleTypeFormScreenState extends ConsumerState<VehicleTypeFormScreen> {
           if (!formState.initialized) {
             Future.microtask(
               () => ref
-                  .read(vehicleTypeFormProvider.notifier)
+                  .read(vehicleTypeMasterFormProvider.notifier)
                   .initialize(editItem),
             );
             return const Center(child: CircularProgressIndicator());
           }
 
-          final form = ref.watch(vehicleTypeFormProvider);
-          final notifier = ref.read(vehicleTypeFormProvider.notifier);
-
-          if (!OmanFleetMaster.fleetTypes.contains(form.name)) {
-            Future.microtask(() {
-              final first = OmanFleetMaster.fleetTypes.first;
-              notifier.setName(first);
-              notifier.setCode(OmanFleetMaster.codeForType(first));
-              notifier.setCategory(OmanFleetMaster.categoryForType(first));
-              notifier.setVehicleClass('Dry Movers');
-            });
-          }
+          final form = ref.watch(vehicleTypeMasterFormProvider);
+          final notifier = ref.read(vehicleTypeMasterFormProvider.notifier);
 
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Responsive.isMobile(context)
-                      ? SizedBox(
-                          width: double.infinity,
-                          child: TextButton(
-                            onPressed: () =>
-                                context.go(RoutePaths.vehicleTypes),
-                            child: const Text('Back to List'),
-                          ),
-                        )
-                      : Row(
-                          children: [
-                            Text(
-                              form.isEditMode
-                                  ? 'Edit Vehicle Type'
-                                  : 'Add Vehicle Type',
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                            const Spacer(),
-                            TextButton(
-                              onPressed: () =>
-                                  context.go(RoutePaths.vehicleTypes),
-                              child: const Text('Back to List'),
-                            ),
-                          ],
-                        ),
-                ),
-              ),
-              const SizedBox(height: 12),
               OpsSectionCard(
                 title: form.isEditMode
-                    ? 'Edit Vehicle Type'
-                    : 'Add Vehicle Type (Oman/JMP)',
+                    ? 'Update Vehicle Type Template'
+                    : 'Create Vehicle Type Template',
                 subtitle:
-                    'Step 1: Basic Details, Step 2: Operation + Ownership, Step 3: Compliance + Documents',
+                    'Reusable master template for customer request, quotation, feasibility, and pricing.',
                 icon: Icons.route_outlined,
                 accent: const Color(0xFF2563EB),
                 child: Form(
                   key: _formKey,
-                  child: Stepper(
-                    currentStep: _currentStep,
-                    type: StepperType.vertical,
-                    onStepTapped: (value) =>
-                        setState(() => _currentStep = value),
-                    onStepContinue: () {
-                      if (_currentStep < 2) {
-                        setState(() => _currentStep += 1);
-                        return;
-                      }
-                      _submit(context, ref);
-                    },
-                    onStepCancel: () {
-                      if (_currentStep > 0) {
-                        setState(() => _currentStep -= 1);
-                      }
-                    },
-                    controlsBuilder: (context, details) {
-                      final isLast = _currentStep == 2;
-                      return Padding(
-                        padding: const EdgeInsets.only(top: 12),
-                        child: Row(
-                          children: [
-                            FilledButton.icon(
-                              onPressed: details.onStepContinue,
-                              icon: Icon(isLast
-                                  ? Icons.save_outlined
-                                  : Icons.navigate_next),
-                              label: Text(
-                                isLast
-                                    ? (form.isEditMode ? 'Update' : 'Create')
-                                    : 'Continue',
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            if (_currentStep > 0)
-                              OutlinedButton(
-                                onPressed: details.onStepCancel,
-                                child: const Text('Back'),
-                              ),
-                          ],
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (form.isEditMode) ...[
+                        OpsPill(
+                          label: 'Vehicle Type ID: ${form.vehicleTypeId}',
+                          color: const Color(0xFF2563EB),
                         ),
-                      );
-                    },
-                    steps: [
-                      Step(
-                        title: const Text('Step 1 - Basic Details'),
-                        isActive: _currentStep >= 0,
-                        content: Column(
-                          children: [
-                            DropdownButtonFormField<String>(
-                              value:
-                                  OmanFleetMaster.fleetTypes.contains(form.name)
-                                      ? form.name
-                                      : OmanFleetMaster.fleetTypes.first,
-                              decoration: const InputDecoration(
-                                labelText: 'Vehicle Type Name',
-                              ),
-                              items: [
-                                for (final item in OmanFleetMaster.fleetTypes)
-                                  DropdownMenuItem(
-                                      value: item, child: Text(item)),
-                              ],
-                              onChanged: (value) {
-                                if (value == null) {
-                                  return;
-                                }
-                                notifier.setName(value);
-                                notifier.setCode(
-                                    OmanFleetMaster.codeForType(value));
-                                notifier.setCategory(
-                                    OmanFleetMaster.categoryForType(value));
-                                notifier.setVehicleClass(
-                                  OmanFleetMaster.vehicleClassForType(value) ==
-                                          'Light'
-                                      ? 'Dry Movers'
-                                      : 'XXXL',
-                                );
-                              },
-                            ),
-                            const SizedBox(height: 10),
-                            TextFormField(
-                              initialValue: form.code.trim().isEmpty
-                                  ? OmanFleetMaster.codeForType(form.name)
-                                  : form.code,
-                              decoration: const InputDecoration(
-                                labelText: 'Short Code',
-                              ),
-                              readOnly: true,
+                        const SizedBox(height: 16),
+                      ],
+                      _sectionTitle(context, 'Basic Info'),
+                      _grid(
+                        children: [
+                          _field(
+                            child: _TextFieldItem(
+                              label: 'Vehicle Type Name',
+                              initialValue: form.vehicleTypeName,
+                              onChanged: notifier.setVehicleTypeName,
                               validator: _required,
                             ),
-                            const SizedBox(height: 10),
-                            DropdownButtonFormField<String>(
-                              value: _safeDropdownValue(
-                                form.category,
-                                VehicleTypeFormNotifier.categories,
-                              ),
-                              decoration:
-                                  const InputDecoration(labelText: 'Category'),
-                              items: [
-                                for (final item
-                                    in VehicleTypeFormNotifier.categories)
-                                  DropdownMenuItem(
-                                      value: item, child: Text(item)),
-                              ],
-                              onChanged: (value) {
-                                if (value != null) {
-                                  notifier.setCategory(value);
-                                }
-                              },
-                            ),
-                            const SizedBox(height: 10),
-                            DropdownButtonFormField<String>(
-                              value: _safeDropdownValue(
-                                form.vehicleClass,
-                                VehicleTypeFormNotifier.vehicleClasses,
-                              ),
+                          ),
+                          _field(
+                            child: DropdownButtonFormField<VehicleCategoryType>(
+                              initialValue: form.vehicleCategory,
                               decoration: const InputDecoration(
-                                  labelText: 'Vehicle Class'),
-                              items: [
-                                for (final item
-                                    in VehicleTypeFormNotifier.vehicleClasses)
-                                  DropdownMenuItem(
-                                      value: item, child: Text(item)),
-                              ],
-                              onChanged: (value) {
-                                if (value != null) {
-                                  notifier.setVehicleClass(value);
-                                }
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                      Step(
-                        title: const Text('Step 2 - Operation + Ownership'),
-                        isActive: _currentStep >= 1,
-                        content: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _sectionTitle(context, 'Ownership Configuration'),
-                            _ownershipSelector(context, form),
-                            const SizedBox(height: 6),
-                            SwitchListTile(
-                              contentPadding: EdgeInsets.zero,
-                              title: const Text('Vendor Required'),
-                              subtitle: const Text(
-                                  'Enable when Vendor Owned is selected'),
-                              value: form.vendorRequired,
-                              onChanged:
-                                  form.ownershipTypes.contains('Vendor Owned')
-                                      ? notifier.setVendorRequired
-                                      : null,
-                            ),
-                            const SizedBox(height: 8),
-                            _sectionTitle(context, 'Operation Details'),
-                            DropdownButtonFormField<String>(
-                              value: _safeDropdownValue(
-                                form.loadType,
-                                VehicleTypeFormNotifier.loadTypes,
-                              ),
-                              decoration:
-                                  const InputDecoration(labelText: 'Load Type'),
-                              items: [
-                                for (final item
-                                    in VehicleTypeFormNotifier.loadTypes)
-                                  DropdownMenuItem(
-                                      value: item, child: Text(item)),
-                              ],
-                              onChanged: (value) {
-                                if (value != null) {
-                                  notifier.setLoadType(value);
-                                }
-                              },
-                            ),
-                            const SizedBox(height: 10),
-                            DropdownButtonFormField<String>(
-                              value: _safeDropdownValue(
-                                form.transportType,
-                                VehicleTypeFormNotifier.transportTypes,
-                              ),
-                              decoration: const InputDecoration(
-                                labelText: 'Transport Type',
+                                labelText: 'Vehicle Category',
                               ),
                               items: [
-                                for (final item
-                                    in VehicleTypeFormNotifier.transportTypes)
+                                for (final item in VehicleCategoryType.values)
                                   DropdownMenuItem(
-                                      value: item, child: Text(item)),
-                              ],
-                              onChanged: (value) {
-                                if (value != null) {
-                                  notifier.setTransportType(value);
-                                }
-                              },
-                            ),
-                            const SizedBox(height: 10),
-                            TextFormField(
-                              initialValue: form.maxTripsPerDay,
-                              decoration: const InputDecoration(
-                                labelText: 'Max Trips Per Day',
-                              ),
-                              keyboardType: TextInputType.number,
-                              onChanged: notifier.setMaxTripsPerDay,
-                              validator: _positiveIntValidator,
-                            ),
-                            SwitchListTile(
-                              contentPadding: EdgeInsets.zero,
-                              title: const Text('Allow Multi-Day Journey'),
-                              value: form.allowMultiDayJourney,
-                              onChanged: notifier.setAllowMultiDayJourney,
-                            ),
-                            const SizedBox(height: 8),
-                            _sectionTitle(context, 'Route Configuration'),
-                            SwitchListTile(
-                              contentPadding: EdgeInsets.zero,
-                              title: const Text('Allow Multiple Stops'),
-                              value: form.allowMultipleStops,
-                              onChanged: notifier.setAllowMultipleStops,
-                            ),
-                            TextFormField(
-                              initialValue: form.maxStopsAllowed,
-                              decoration: const InputDecoration(
-                                labelText: 'Max Stops Allowed',
-                              ),
-                              keyboardType: TextInputType.number,
-                              onChanged: notifier.setMaxStopsAllowed,
-                              validator: _positiveIntValidator,
-                            ),
-                            SwitchListTile(
-                              contentPadding: EdgeInsets.zero,
-                              title: const Text('Require Route Plan Approval'),
-                              value: form.requireRoutePlanApproval,
-                              onChanged: notifier.setRequireRoutePlanApproval,
-                            ),
-                            const SizedBox(height: 8),
-                            _sectionTitle(context, 'Special Handling'),
-                            SwitchListTile(
-                              contentPadding: EdgeInsets.zero,
-                              title: const Text('Is Hazardous'),
-                              value: form.isHazardous,
-                              onChanged: notifier.setIsHazardous,
-                            ),
-                            SwitchListTile(
-                              contentPadding: EdgeInsets.zero,
-                              title: const Text('Requires Safety Compliance'),
-                              value: form.requiresSafetyCompliance,
-                              onChanged: notifier.setRequiresSafetyCompliance,
-                            ),
-                            SwitchListTile(
-                              contentPadding: EdgeInsets.zero,
-                              title: const Text('Temperature Controlled'),
-                              value: form.temperatureControlled,
-                              onChanged: notifier.setTemperatureControlled,
-                            ),
-                            SwitchListTile(
-                              contentPadding: EdgeInsets.zero,
-                              title: const Text('Requires Escort Vehicle'),
-                              value: form.requiresEscortVehicle,
-                              onChanged: notifier.setRequiresEscortVehicle,
-                            ),
-                            const SizedBox(height: 8),
-                            _sectionTitle(context, 'Capacity'),
-                            TextFormField(
-                              initialValue: form.defaultCapacity,
-                              decoration: const InputDecoration(
-                                labelText: 'Default Capacity',
-                              ),
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                      decimal: true),
-                              onChanged: notifier.setDefaultCapacity,
-                              validator: _capacityValidator,
-                            ),
-                            const SizedBox(height: 10),
-                            DropdownButtonFormField<String>(
-                              value: _safeDropdownValue(
-                                form.capacityUnit,
-                                VehicleTypeFormNotifier.capacityUnits,
-                              ),
-                              decoration: const InputDecoration(
-                                labelText: 'Capacity Unit',
-                              ),
-                              items: [
-                                for (final item
-                                    in VehicleTypeFormNotifier.capacityUnits)
-                                  DropdownMenuItem(
-                                      value: item, child: Text(item)),
-                              ],
-                              onChanged: (value) {
-                                if (value != null) {
-                                  notifier.setCapacityUnit(value);
-                                }
-                              },
-                            ),
-                            const SizedBox(height: 10),
-                            _sectionTitle(context, 'Features'),
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: [
-                                for (final feature
-                                    in VehicleTypeFormNotifier.featureOptions)
-                                  FilterChip(
-                                    label: Text(feature),
-                                    selected: form.features.contains(feature),
-                                    onSelected: (_) =>
-                                        notifier.toggleFeature(feature),
+                                    value: item,
+                                    child: Text(item.label),
                                   ),
                               ],
-                            ),
-                            const SizedBox(height: 12),
-                            _sectionTitle(context, 'Status'),
-                            DropdownButtonFormField<String>(
-                              value: _safeDropdownValue(
-                                form.status,
-                                VehicleTypeFormNotifier.statuses,
-                              ),
-                              decoration:
-                                  const InputDecoration(labelText: 'Status'),
-                              items: [
-                                for (final item
-                                    in VehicleTypeFormNotifier.statuses)
-                                  DropdownMenuItem(
-                                      value: item, child: Text(item)),
-                              ],
                               onChanged: (value) {
                                 if (value != null) {
-                                  notifier.setStatus(value);
+                                  notifier.setVehicleCategory(value);
                                 }
                               },
                             ),
-                            SwitchListTile(
-                              contentPadding: EdgeInsets.zero,
-                              title: const Text('Default Vehicle Type'),
-                              value: form.isDefaultType,
-                              onChanged: notifier.setIsDefaultType,
+                          ),
+                          _field(
+                            span: 2,
+                            child: _TextFieldItem(
+                              label: 'Description',
+                              initialValue: form.description,
+                              onChanged: notifier.setDescription,
+                              maxLines: 2,
                             ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      _sectionTitle(context, 'Capacity & Suitability'),
+                      _grid(
+                        children: [
+                          _field(
+                            child: _TextFieldItem(
+                              label: 'Seating Capacity',
+                              initialValue: form.seatingCapacity,
+                              onChanged: notifier.setSeatingCapacity,
+                              keyboardType: TextInputType.number,
+                              validator: (value) => _conditionalNumber(
+                                value,
+                                required:
+                                    form.vehicleCategory == VehicleCategoryType.passenger,
+                              ),
+                            ),
+                          ),
+                          _field(
+                            child: _TextFieldItem(
+                              label: 'Load Capacity (Ton)',
+                              initialValue: form.loadCapacity,
+                              onChanged: notifier.setLoadCapacity,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(decimal: true),
+                              validator: (value) => _conditionalNumber(
+                                value,
+                                required:
+                                    form.vehicleCategory == VehicleCategoryType.goods,
+                              ),
+                            ),
+                          ),
+                          _field(
+                            child: _enumDropdown<AxleType>(
+                              label: 'Axle Type',
+                              value: form.axleType,
+                              values: AxleType.values,
+                              itemLabel: (item) => item.label,
+                              onChanged: notifier.setAxleType,
+                            ),
+                          ),
+                          _field(
+                            child: _enumDropdown<BodyType>(
+                              label: 'Body Type',
+                              value: form.bodyType,
+                              values: BodyType.values,
+                              itemLabel: (item) => item.label,
+                              onChanged: notifier.setBodyType,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      _sectionTitle(context, 'Configuration'),
+                      _grid(
+                        children: [
+                          _field(
+                            child: _enumDropdown<FuelType>(
+                              label: 'Fuel Type',
+                              value: form.fuelType,
+                              values: FuelType.values,
+                              itemLabel: (item) => item.label,
+                              onChanged: notifier.setFuelType,
+                            ),
+                          ),
+                          _field(
+                            child: _enumDropdown<TransmissionType>(
+                              label: 'Transmission Type',
+                              value: form.transmissionType,
+                              values: TransmissionType.values,
+                              itemLabel: (item) => item.label,
+                              onChanged: notifier.setTransmissionType,
+                            ),
+                          ),
+                          _field(
+                            child: _enumDropdown<AcType>(
+                              label: 'AC Type',
+                              value: form.acType,
+                              values: AcType.values,
+                              itemLabel: (item) => item.label,
+                              onChanged: notifier.setAcType,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      _sectionTitle(context, 'Business Rules'),
+                      _grid(
+                        children: [
+                          _field(
+                            child: _TextFieldItem(
+                              label: 'Base Fare Per Km',
+                              initialValue: form.baseFarePerKm,
+                              onChanged: notifier.setBaseFarePerKm,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(decimal: true),
+                              validator: _positiveDecimal,
+                            ),
+                          ),
+                          _field(
+                            child: _TextFieldItem(
+                              label: 'Base Fare Per Hour',
+                              initialValue: form.baseFarePerHour,
+                              onChanged: notifier.setBaseFarePerHour,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(decimal: true),
+                              validator: _positiveDecimal,
+                            ),
+                          ),
+                          _field(
+                            child: _TextFieldItem(
+                              label: 'Mileage',
+                              initialValue: form.mileage,
+                              onChanged: notifier.setMileage,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(decimal: true),
+                              validator: _positiveDecimal,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      _sectionTitle(context, 'Operational Rules'),
+                      _grid(
+                        children: [
+                          _field(
+                            child: _TextFieldItem(
+                              label: 'Max Trip Distance',
+                              initialValue: form.maxTripDistance,
+                              onChanged: notifier.setMaxTripDistance,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(decimal: true),
+                              validator: _optionalDecimal,
+                            ),
+                          ),
+                          _field(
+                            child: _TextFieldItem(
+                              label: 'Max Driving Hours / Day',
+                              initialValue: form.maxDrivingHoursPerDay,
+                              onChanged: notifier.setMaxDrivingHoursPerDay,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(decimal: true),
+                              validator: _optionalDecimal,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _sectionTitle(context, 'Document Upload'),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: notifier.addDocument,
+                            icon: const Icon(Icons.add),
+                            label: const Text('Add Document'),
+                          ),
+                        ],
+                      ),
+                      if (form.documents.isEmpty)
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: const Color(0xFFDCE6F7)),
+                          ),
+                          child: const Text(
+                            'No template/reference documents added yet.',
+                          ),
+                        )
+                      else
+                        Column(
+                          children: [
+                            for (var i = 0; i < form.documents.length; i++) ...[
+                              _VehicleTypeDocumentCard(
+                                index: i,
+                                document: form.documents[i],
+                                onTypeChanged: (value) => notifier.updateDocument(
+                                  i,
+                                  (current) => current.copyWith(documentType: value),
+                                ),
+                                onNameChanged: (value) => notifier.updateDocument(
+                                  i,
+                                  (current) => current.copyWith(documentName: value),
+                                ),
+                                onPathChanged: (value) => notifier.updateDocument(
+                                  i,
+                                  (current) => current.copyWith(filePath: value),
+                                ),
+                                onUploadedByChanged: (value) =>
+                                    notifier.updateDocument(
+                                  i,
+                                  (current) => current.copyWith(uploadedBy: value),
+                                ),
+                                onMandatoryChanged: (value) =>
+                                    notifier.updateDocument(
+                                  i,
+                                  (current) => current.copyWith(isMandatory: value),
+                                ),
+                                onMockUpload: () {
+                                  final now = DateTime.now();
+                                  notifier.updateDocument(
+                                    i,
+                                    (current) => current.copyWith(
+                                      documentId: current.documentId.isEmpty
+                                          ? 'DOC-${now.millisecondsSinceEpoch}'
+                                          : current.documentId,
+                                      uploadedAt: now,
+                                      filePath: current.filePath.trim().isEmpty
+                                          ? '/mock/vehicle-types/upload-${i + 1}.pdf'
+                                          : current.filePath,
+                                      uploadedBy: current.uploadedBy.trim().isEmpty
+                                          ? 'fleet.admin'
+                                          : current.uploadedBy,
+                                    ),
+                                  );
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Mock uploaded ${form.documents[i].documentName.isEmpty ? 'document ${i + 1}' : form.documents[i].documentName}',
+                                      ),
+                                    ),
+                                  );
+                                },
+                                onPreview: () => _showDocumentAction(
+                                  title: 'Preview',
+                                  message:
+                                      'Preview ready for ${form.documents[i].filePath.isEmpty ? 'selected file' : form.documents[i].filePath}',
+                                ),
+                                onDownload: () => _showDocumentAction(
+                                  title: 'Download',
+                                  message:
+                                      'Download ready for ${form.documents[i].filePath.isEmpty ? 'selected file' : form.documents[i].filePath}',
+                                ),
+                                onDelete: () => notifier.removeDocument(i),
+                              ),
+                              const SizedBox(height: 12),
+                            ],
                           ],
+                        ),
+                      const SizedBox(height: 20),
+                      _sectionTitle(context, 'Status'),
+                      SizedBox(
+                        width: 240,
+                        child: _enumDropdown<RecordStatusType>(
+                          label: 'Status',
+                          value: form.status,
+                          values: RecordStatusType.values,
+                          itemLabel: (item) => item.label,
+                          onChanged: notifier.setStatus,
                         ),
                       ),
-                      Step(
-                        title: const Text('Step 3 - Compliance + Documents'),
-                        isActive: _currentStep >= 2,
-                        content: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _sectionTitle(context, 'Compliance Requirements'),
-                            SwitchListTile(
-                              contentPadding: EdgeInsets.zero,
-                              title: const Text('Requires Insurance'),
-                              value: form.requiresInsurance,
-                              onChanged: notifier.setRequiresInsurance,
-                            ),
-                            SwitchListTile(
-                              contentPadding: EdgeInsets.zero,
-                              title: const Text('Requires Permit'),
-                              value: form.requiresPermit,
-                              onChanged: notifier.setRequiresPermit,
-                            ),
-                            SwitchListTile(
-                              contentPadding: EdgeInsets.zero,
-                              title: const Text('Requires Fitness'),
-                              value: form.requiresFitness,
-                              onChanged: notifier.setRequiresFitness,
-                            ),
-                            SwitchListTile(
-                              contentPadding: EdgeInsets.zero,
-                              title: const Text('Requires Pollution'),
-                              value: form.requiresPollution,
-                              onChanged: notifier.setRequiresPollution,
-                            ),
-                            const SizedBox(height: 10),
-                            DropdownButtonFormField<String>(
-                              value: _safeDropdownValue(
-                                form.complianceMode,
-                                VehicleTypeFormNotifier.complianceModes,
-                              ),
-                              decoration: const InputDecoration(
-                                  labelText: 'Compliance Mode'),
-                              items: [
-                                for (final item
-                                    in VehicleTypeFormNotifier.complianceModes)
-                                  DropdownMenuItem(
-                                      value: item, child: Text(item)),
-                              ],
-                              onChanged: (value) {
-                                if (value != null) {
-                                  notifier.setComplianceMode(value);
-                                }
-                              },
-                            ),
-                            const SizedBox(height: 12),
-                            const ModuleDocumentUploadSection(
-                              moduleName: 'Vehicle Types',
-                              title: 'Vehicle Type Compliance Uploads',
-                            ),
-                            const SizedBox(height: 12),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _sectionTitle(
-                                      context, 'Document Requirements'),
-                                ),
-                                OutlinedButton.icon(
-                                  onPressed: notifier.addDocumentRequirement,
-                                  icon: const Icon(Icons.add),
-                                  label: const Text('Add Document'),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 6),
-                            if (form.documentRequirements.isEmpty)
-                              const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 8),
-                                child: Text(
-                                  'No document requirements yet. PDO/Trailer rules auto-add defaults.',
-                                ),
-                              ),
-                            for (int i = 0;
-                                i < form.documentRequirements.length;
-                                i++)
-                              _documentRequirementCard(
-                                context: context,
-                                index: i,
-                                requirement: form.documentRequirements[i],
-                                notifier: notifier,
-                              ),
-                          ],
-                        ),
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          OutlinedButton(
+                            onPressed: () => context.go(RoutePaths.vehicleTypes),
+                            child: const Text('Cancel'),
+                          ),
+                          const SizedBox(width: 12),
+                          FilledButton(
+                            onPressed: _submit,
+                            child: Text(form.isEditMode ? 'Update' : 'Save'),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -556,167 +406,70 @@ class _VehicleTypeFormScreenState extends ConsumerState<VehicleTypeFormScreen> {
     );
   }
 
-  Widget _ownershipSelector(BuildContext context, VehicleTypeFormState form) {
-    final notifier = ref.read(vehicleTypeFormProvider.notifier);
-    return InputDecorator(
-      decoration: const InputDecoration(
-        labelText: 'Ownership Type',
-        border: OutlineInputBorder(),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final option in VehicleTypeFormNotifier.ownershipOptions)
-                FilterChip(
-                  label: Text(option),
-                  selected: form.ownershipTypes.contains(option),
-                  onSelected: (_) => notifier.toggleOwnershipType(option),
-                ),
-            ],
-          ),
-          if (form.ownershipTypes.isEmpty)
-            const Padding(
-              padding: EdgeInsets.only(top: 8),
-              child: Text(
-                'At least one ownership type is required.',
-                style: TextStyle(color: Colors.red),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _documentRequirementCard({
-    required BuildContext context,
-    required int index,
-    required VehicleTypeDocumentRequirement requirement,
-    required VehicleTypeFormNotifier notifier,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFDCE6F7)),
-        color: const Color(0xFFF8FAFC),
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Document ${index + 1}',
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleSmall
-                      ?.copyWith(fontWeight: FontWeight.w700),
-                ),
-              ),
-              IconButton(
-                onPressed: () => notifier.removeDocumentRequirement(index),
-                icon: const Icon(Icons.delete_outline),
-              ),
-            ],
-          ),
-          DropdownButtonFormField<String>(
-            value: _safeDropdownValue(
-              requirement.documentName,
-              VehicleTypeFormNotifier.documentNameOptions,
-            ),
-            decoration: const InputDecoration(labelText: 'Document Name'),
-            items: [
-              for (final option in VehicleTypeFormNotifier.documentNameOptions)
-                DropdownMenuItem(value: option, child: Text(option)),
-            ],
-            onChanged: (value) {
-              if (value != null) {
-                notifier.updateDocumentRequirementName(index, value);
-              }
-            },
-          ),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Mandatory'),
-            value: requirement.mandatory,
-            onChanged: (value) =>
-                notifier.updateDocumentRequirementMandatory(index, value),
-          ),
-          Row(
-            children: [
-              Expanded(
-                flex: 2,
-                child: TextFormField(
-                  initialValue: '${requirement.validityValue}',
-                  decoration: const InputDecoration(labelText: 'Validity'),
-                  keyboardType: TextInputType.number,
-                  onChanged: (value) =>
-                      notifier.updateDocumentRequirementValidityValue(
-                    index,
-                    value,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                flex: 3,
-                child: DropdownButtonFormField<String>(
-                  value: _safeDropdownValue(
-                    requirement.validityUnit,
-                    VehicleTypeFormNotifier.validityUnits,
-                  ),
-                  decoration: const InputDecoration(labelText: 'Unit'),
-                  items: [
-                    for (final unit in VehicleTypeFormNotifier.validityUnits)
-                      DropdownMenuItem(value: unit, child: Text(unit)),
-                  ],
-                  onChanged: (value) {
-                    if (value != null) {
-                      notifier.updateDocumentRequirementValidityUnit(
-                          index, value);
-                    }
-                  },
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          DropdownButtonFormField<String>(
-            value: _safeDropdownValue(
-              requirement.applicableFor,
-              VehicleTypeFormNotifier.applicableFor,
-            ),
-            decoration: const InputDecoration(labelText: 'Applicable For'),
-            items: [
-              for (final option in VehicleTypeFormNotifier.applicableFor)
-                DropdownMenuItem(value: option, child: Text(option)),
-            ],
-            onChanged: (value) {
-              if (value != null) {
-                notifier.updateDocumentRequirementApplicableFor(index, value);
-              }
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _sectionTitle(BuildContext context, String title) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: 12),
       child: Text(
         title,
-        style: Theme.of(context)
-            .textTheme
-            .titleSmall
-            ?.copyWith(fontWeight: FontWeight.w800),
+        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
       ),
+    );
+  }
+
+  Widget _grid({required List<_GridField> children}) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const spacing = 16.0;
+        final columns = constraints.maxWidth >= 1120
+            ? 3
+            : (constraints.maxWidth >= 720 ? 2 : 1);
+        final baseWidth = columns == 1
+            ? constraints.maxWidth
+            : (constraints.maxWidth - (spacing * (columns - 1))) / columns;
+
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: [
+            for (final child in children)
+              SizedBox(
+                width: (baseWidth * child.span.clamp(1, columns)) +
+                    (spacing * (child.span.clamp(1, columns) - 1)),
+                child: child.child,
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  _GridField _field({required Widget child, int span = 1}) =>
+      _GridField(child: child, span: span);
+
+  Widget _enumDropdown<T extends Enum>({
+    required String label,
+    required T value,
+    required List<T> values,
+    required String Function(T) itemLabel,
+    required ValueChanged<T> onChanged,
+  }) {
+    return DropdownButtonFormField<T>(
+      initialValue: value,
+      decoration: InputDecoration(labelText: label),
+      items: [
+        for (final item in values)
+          DropdownMenuItem<T>(
+            value: item,
+            child: Text(itemLabel(item)),
+          ),
+      ],
+      onChanged: (next) {
+        if (next != null) {
+          onChanged(next);
+        }
+      },
     );
   }
 
@@ -727,51 +480,52 @@ class _VehicleTypeFormScreenState extends ConsumerState<VehicleTypeFormScreen> {
     return null;
   }
 
-  String _safeDropdownValue(String? current, List<String> options) {
-    if (current == null || current.trim().isEmpty) {
-      return options.first;
-    }
-    final uniqueOptions = options.toSet().toList();
-    for (final option in uniqueOptions) {
-      if (option.toLowerCase() == current.toLowerCase()) {
-        return option;
-      }
-    }
-    return uniqueOptions.first;
-  }
-
-  String? _positiveIntValidator(String? value) {
-    final parsed = int.tryParse((value ?? '').trim());
+  String? _positiveDecimal(String? value) {
+    final raw = value?.trim() ?? '';
+    final parsed = double.tryParse(raw);
     if (parsed == null || parsed <= 0) {
-      return 'Enter a valid positive number';
+      return 'Enter a valid number';
     }
     return null;
   }
 
-  String? _capacityValidator(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'Required';
+  String? _optionalDecimal(String? value) {
+    final raw = value?.trim() ?? '';
+    if (raw.isEmpty) {
+      return null;
     }
-    if (double.tryParse(value.trim()) == null) {
-      return 'Capacity must be numeric';
+    final parsed = double.tryParse(raw);
+    if (parsed == null || parsed <= 0) {
+      return 'Enter a valid number';
     }
     return null;
   }
 
-  Future<void> _submit(BuildContext context, WidgetRef ref) async {
+  String? _conditionalNumber(String? value, {required bool required}) {
+    final raw = value?.trim() ?? '';
+    if (!required && raw.isEmpty) {
+      return null;
+    }
+    final parsed = double.tryParse(raw);
+    if (parsed == null || parsed <= 0) {
+      return 'Enter a valid number';
+    }
+    return null;
+  }
+
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
-    final form = ref.read(vehicleTypeFormProvider);
-    final entity = form.toEntity();
-    final notifier = ref.read(vehicleTypeViewModelProvider.notifier);
-
+    final form = ref.read(vehicleTypeMasterFormProvider);
+    final model = form.toModel();
+    final notifier = ref.read(vehicleTypeMasterViewModelProvider.notifier);
     final message = form.isEditMode
-        ? await notifier.updateVehicleType(form.originalCode!, entity)
-        : await notifier.addVehicleType(entity);
+        ? await notifier.updateVehicleType(model)
+        : await notifier.addVehicleType(model);
 
-    if (!context.mounted) {
+    if (!mounted) {
       return;
     }
 
@@ -781,4 +535,203 @@ class _VehicleTypeFormScreenState extends ConsumerState<VehicleTypeFormScreen> {
       context.go(RoutePaths.vehicleTypes);
     }
   }
+
+  void _showDocumentAction({
+    required String title,
+    required String message,
+  }) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text('$title: $message')));
+  }
+}
+
+class _GridField {
+  const _GridField({required this.child, this.span = 1});
+
+  final Widget child;
+  final int span;
+}
+
+class _TextFieldItem extends StatelessWidget {
+  const _TextFieldItem({
+    required this.label,
+    required this.initialValue,
+    required this.onChanged,
+    this.validator,
+    this.keyboardType,
+    this.maxLines = 1,
+  });
+
+  final String label;
+  final String initialValue;
+  final ValueChanged<String> onChanged;
+  final String? Function(String?)? validator;
+  final TextInputType? keyboardType;
+  final int maxLines;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      initialValue: initialValue,
+      decoration: InputDecoration(labelText: label),
+      onChanged: onChanged,
+      validator: validator,
+      keyboardType: keyboardType,
+      maxLines: maxLines,
+    );
+  }
+}
+
+class _VehicleTypeDocumentCard extends StatelessWidget {
+  const _VehicleTypeDocumentCard({
+    required this.index,
+    required this.document,
+    required this.onTypeChanged,
+    required this.onNameChanged,
+    required this.onPathChanged,
+    required this.onUploadedByChanged,
+    required this.onMandatoryChanged,
+    required this.onMockUpload,
+    required this.onPreview,
+    required this.onDownload,
+    required this.onDelete,
+  });
+
+  final int index;
+  final VehicleTypeTemplateDocument document;
+  final ValueChanged<VehicleTypeDocumentType> onTypeChanged;
+  final ValueChanged<String> onNameChanged;
+  final ValueChanged<String> onPathChanged;
+  final ValueChanged<String> onUploadedByChanged;
+  final ValueChanged<bool> onMandatoryChanged;
+  final VoidCallback onMockUpload;
+  final VoidCallback onPreview;
+  final VoidCallback onDownload;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        color: const Color(0xFFF8FAFC),
+        border: Border.all(color: const Color(0xFFDCE6F7)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Document ${index + 1}',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+              ),
+              const Spacer(),
+              IconButton(
+                onPressed: onDelete,
+                icon: const Icon(Icons.delete_outline),
+                tooltip: 'Delete document',
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              SizedBox(
+                width: 220,
+                child: DropdownButtonFormField<VehicleTypeDocumentType>(
+                  initialValue: document.documentType,
+                  decoration: const InputDecoration(labelText: 'Document Type'),
+                  items: [
+                    for (final item in VehicleTypeDocumentType.values)
+                      DropdownMenuItem(
+                        value: item,
+                        child: Text(item.label),
+                      ),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      onTypeChanged(value);
+                    }
+                  },
+                ),
+              ),
+              SizedBox(
+                width: 260,
+                child: TextFormField(
+                  initialValue: document.documentName,
+                  decoration: const InputDecoration(labelText: 'Document Name'),
+                  onChanged: onNameChanged,
+                ),
+              ),
+              SizedBox(
+                width: 280,
+                child: TextFormField(
+                  initialValue: document.filePath,
+                  decoration: const InputDecoration(
+                    labelText: 'File Path / URL',
+                    helperText: 'PDF or image reference',
+                  ),
+                  onChanged: onPathChanged,
+                ),
+              ),
+              SizedBox(
+                width: 220,
+                child: TextFormField(
+                  initialValue: document.uploadedBy,
+                  decoration: const InputDecoration(labelText: 'Uploaded By'),
+                  onChanged: onUploadedByChanged,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              FilterChip(
+                label: const Text('Mandatory'),
+                selected: document.isMandatory,
+                onSelected: onMandatoryChanged,
+              ),
+              Text(
+                'Uploaded: ${_formatDateTime(document.uploadedAt)}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              OutlinedButton.icon(
+                onPressed: onMockUpload,
+                icon: const Icon(Icons.upload_file_outlined),
+                label: const Text('Upload'),
+              ),
+              TextButton.icon(
+                onPressed: onPreview,
+                icon: const Icon(Icons.visibility_outlined),
+                label: const Text('Preview'),
+              ),
+              TextButton.icon(
+                onPressed: onDownload,
+                icon: const Icon(Icons.download_outlined),
+                label: const Text('Download'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _formatDateTime(DateTime value) {
+  final month = value.month.toString().padLeft(2, '0');
+  final day = value.day.toString().padLeft(2, '0');
+  final hour = value.hour.toString().padLeft(2, '0');
+  final minute = value.minute.toString().padLeft(2, '0');
+  return '${value.year}-$month-$day $hour:$minute';
 }

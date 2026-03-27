@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/fleet_master_model.dart';
 import '../../routes/route_paths.dart';
-import '../viewmodels/access_control_viewmodel.dart';
+import '../viewmodels/fleet_master_viewmodel.dart';
 import '../widgets/ops_shell.dart';
+import '../widgets/ops_ui.dart';
 
 class FleetDetailScreen extends ConsumerWidget {
   const FleetDetailScreen({
@@ -17,139 +19,233 @@ class FleetDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(accessControlProvider);
-    TransportItem? fleet;
-    for (final item in state.transports) {
-      if (item.vehicleNumber == fleetId) {
-        fleet = item;
-        break;
-      }
-    }
+    final state = ref.watch(fleetMasterViewModelProvider);
 
     return OpsShell(
       title: 'Fleet Detail',
       currentRoute: RoutePaths.fleetManagement,
-      child: fleet == null
-          ? const Center(child: Text('Fleet not found.'))
-          : ListView(
-              padding: const EdgeInsets.all(12),
-              children: [
-                _section('Summary', [
-                  _pair('Fleet Number', fleet.vehicleNumber),
-                  _pair('Type', fleet.vehicleType),
-                  _pair('Registration', fleet.registrationNumber),
-                  _pair('Status', fleet.status),
-                  _pair('Availability', fleet.availabilityStatus),
-                ]),
-                _section('Capability', [
-                  _pair('Capacity',
-                      '${fleet.capacity.toStringAsFixed(0)} ${fleet.capacityUnit}'),
-                  _pair('Class', fleet.vehicleClass),
-                  _pair(
-                      'Preferred Cargo Types',
-                      fleet.preferredCargoTypes.join(', ').isEmpty
-                          ? '-'
-                          : fleet.preferredCargoTypes.join(', ')),
-                  _pair(
-                      'Special Restrictions',
-                      fleet.specialRestrictions.isEmpty
-                          ? '-'
-                          : fleet.specialRestrictions),
-                ]),
-                _section('Operational Status', [
-                  _pair(
-                      'Current Location',
-                      fleet.currentLocation.isEmpty
-                          ? '-'
-                          : fleet.currentLocation),
-                  _pair(
-                      'Current Work Order',
-                      fleet.currentWorkOrder.isEmpty
-                          ? '-'
-                          : fleet.currentWorkOrder),
-                  _pair(
-                      'Dispatch Blocked', fleet.dispatchBlocked ? 'Yes' : 'No'),
-                  _pair('Block Reason',
-                      fleet.blockReason.isEmpty ? '-' : fleet.blockReason),
-                  _pair('Assignment Allowed',
-                      fleet.assignmentAllowed ? 'Yes' : 'No'),
-                  _pair(
-                      'Assignment Eligibility',
-                      fleet.assignmentEligible
-                          ? 'Assignable'
-                          : 'Not Assignable'),
-                ]),
-                _section('Compliance', [
-                  _pair('Registration Validity', fleet.registrationExpiry),
-                  _pair('Insurance Validity', fleet.insuranceExpiry),
-                  _pair('Permit Validity', fleet.permitExpiry),
-                  _pair('Inspection Validity', fleet.inspectionExpiry),
-                  _pair('IVMS Installed', fleet.ivmsInstalled ? 'Yes' : 'No'),
-                  _pair('DFMS Installed', fleet.dfmsInstalled ? 'Yes' : 'No'),
-                  _pair('Escort Required', fleet.escortRequired ? 'Yes' : 'No'),
-                  _pair(
-                      'Compliance Ready', fleet.complianceReady ? 'Yes' : 'No'),
-                ]),
-                _section('Maintenance', [
-                  _pair('Last Service Date', fleet.lastServiceDate),
-                  _pair('Next Service Due', fleet.nextServiceDue),
-                  _pair('Maintenance Status', fleet.maintenanceStatus),
-                  _pair(
-                      'Notes',
-                      fleet.maintenanceNotes.isEmpty
-                          ? '-'
-                          : fleet.maintenanceNotes),
-                ]),
-                _section('Usage', [
-                  _pair(
-                      'Preferred Routes',
-                      fleet.preferredRoutes.join(', ').isEmpty
-                          ? '-'
-                          : fleet.preferredRoutes.join(', ')),
-                  _pair('Region', fleet.region.isEmpty ? '-' : fleet.region),
-                  _pair('Night Driving Allowed',
-                      fleet.nightDrivingAllowed ? 'Yes' : 'No'),
-                  _pair('Documents Attached', '${fleet.documents.length}'),
-                ]),
-              ],
-            ),
-    );
-  }
+      child: state.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, _) => Center(child: Text(error.toString())),
+        data: (data) {
+          FleetMasterModel? fleet;
+          for (final item in data.fleets) {
+            if (item.fleetId == fleetId) {
+              fleet = item;
+              break;
+            }
+          }
+          if (fleet == null) {
+            return const Center(child: Text('Fleet not found.'));
+          }
 
-  Widget _section(String title, List<Widget> children) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
-            ),
-            const SizedBox(height: 10),
-            ...children,
-          ],
-        ),
+          final vehicleType = data.vehicleTypeFor(fleet.vehicleTypeId);
+          final vendor = data.vendorFor(fleet.vendorId);
+          final compliance = fleet.complianceBadges(DateTime.now());
+
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              OpsSectionCard(
+                title: fleet.fleetNumber,
+                subtitle: vehicleType?.vehicleTypeName ?? fleet.vehicleTypeId,
+                icon: Icons.local_shipping_outlined,
+                accent: const Color(0xFF2563EB),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _sectionTitle(context, 'Basic Info'),
+                    _detailGrid([
+                      _detail('Fleet ID', fleet.fleetId),
+                      _detail('Fleet Number', fleet.fleetNumber),
+                      _detail('Vehicle Type', vehicleType?.vehicleTypeName ?? '-'),
+                      _detail('Ownership', fleet.ownershipType.label),
+                      _detail('Status', fleet.status.label),
+                    ]),
+                    const SizedBox(height: 20),
+                    _sectionTitle(context, 'Registration'),
+                    _detailGrid([
+                      _detail('Registration Number', fleet.registrationNumber),
+                      _detail(
+                        'Registration Expiry',
+                        _formatDate(fleet.registrationExpiryDate),
+                      ),
+                    ]),
+                    const SizedBox(height: 20),
+                    _sectionTitle(context, 'Compliance'),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: [
+                        for (final item in compliance)
+                          _ComplianceTile(
+                            label: item.label,
+                            value: _formatDate(item.expiryDate),
+                            state: item.state,
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    _sectionTitle(context, 'Technical'),
+                    _detailGrid([
+                      _detail(
+                        'Capacity',
+                        fleet.capacityOverride?.toString() ??
+                            (vehicleType?.capacityLabel ?? '-'),
+                      ),
+                      _detail('Axle Type', fleet.axleType.label),
+                      _detail('Fuel Type', fleet.fuelType.label),
+                      _detail('Body Type', fleet.bodyType.label),
+                    ]),
+                    const SizedBox(height: 20),
+                    _sectionTitle(context, 'Operational'),
+                    _detailGrid([
+                      _detail('Availability', fleet.availabilityStatus.label),
+                      _detail('Maintenance', fleet.maintenanceStatus.label),
+                      _detail(
+                        'Current Trip Ref',
+                        fleet.currentTripId.isEmpty ? '-' : fleet.currentTripId,
+                      ),
+                      _detail(
+                        'Assignable',
+                        fleet.isAssignable(DateTime.now()) ? 'Yes' : 'No',
+                      ),
+                    ]),
+                    const SizedBox(height: 20),
+                    _sectionTitle(context, 'Vendor & Audit'),
+                    _detailGrid([
+                      _detail(
+                        'Vendor',
+                        vendor?.vendorName ?? (fleet.vendorId.isEmpty ? '-' : fleet.vendorId),
+                      ),
+                      _detail('Created By', fleet.createdBy),
+                      _detail('Created At', _formatDateTime(fleet.createdAt)),
+                      _detail('Updated By', fleet.updatedBy),
+                      _detail('Updated At', _formatDateTime(fleet.updatedAt)),
+                    ]),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 
-  Widget _pair(String label, String value) {
+  Widget _sectionTitle(BuildContext context, String title) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Text(
+        title,
+        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
+      ),
+    );
+  }
+
+  Widget _detailGrid(List<_DetailItem> items) {
+    return Wrap(
+      spacing: 16,
+      runSpacing: 16,
+      children: [
+        for (final item in items)
+          Container(
+            width: 250,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              color: const Color(0xFFF8FAFC),
+              border: Border.all(color: const Color(0xFFDCE6F7)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.label,
+                  style: const TextStyle(
+                    color: Color(0xFF64748B),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  item.value,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  _DetailItem _detail(String label, String value) =>
+      _DetailItem(label: label, value: value);
+}
+
+class _DetailItem {
+  const _DetailItem({required this.label, required this.value});
+
+  final String label;
+  final String value;
+}
+
+class _ComplianceTile extends StatelessWidget {
+  const _ComplianceTile({
+    required this.label,
+    required this.value,
+    required this.state,
+  });
+
+  final String label;
+  final String value;
+  final ComplianceIndicatorType state;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = switch (state) {
+      ComplianceIndicatorType.valid => const Color(0xFF15803D),
+      ComplianceIndicatorType.expiringSoon => const Color(0xFFF59E0B),
+      ComplianceIndicatorType.expired => const Color(0xFFB91C1C),
+    };
+
+    return Container(
+      width: 220,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        color: color.withValues(alpha: 0.10),
+        border: Border.all(color: color.withValues(alpha: 0.30)),
+      ),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 190,
-            child: Text(label,
-                style: const TextStyle(fontWeight: FontWeight.w600)),
+          Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 6),
+          Text(value),
+          const SizedBox(height: 8),
+          Text(
+            state.label,
+            style: TextStyle(color: color, fontWeight: FontWeight.w700),
           ),
-          const SizedBox(width: 8),
-          Expanded(child: Text(value)),
         ],
       ),
     );
   }
+}
+
+String _formatDate(DateTime value) {
+  final month = value.month.toString().padLeft(2, '0');
+  final day = value.day.toString().padLeft(2, '0');
+  return '${value.year}-$month-$day';
+}
+
+String _formatDateTime(DateTime value) {
+  final month = value.month.toString().padLeft(2, '0');
+  final day = value.day.toString().padLeft(2, '0');
+  final hour = value.hour.toString().padLeft(2, '0');
+  final minute = value.minute.toString().padLeft(2, '0');
+  return '${value.year}-$month-$day $hour:$minute';
 }

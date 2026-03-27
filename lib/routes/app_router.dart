@@ -20,7 +20,6 @@ import '../presentation/screens/enquiry_details_screen.dart';
 import '../presentation/screens/create_work_order_screen.dart';
 import '../presentation/screens/assign_supervisor_screen.dart';
 import '../presentation/screens/compliance_dashboard_screen.dart';
-import '../presentation/screens/compliance_readiness_screen.dart'; // Added import
 import '../presentation/screens/dispatch_readiness_screen.dart';
 import '../presentation/screens/delivery_pod_screen.dart';
 import '../presentation/screens/document_management_screen.dart';
@@ -34,6 +33,7 @@ import '../presentation/screens/quotation_list_screen.dart';
 import '../presentation/screens/quotation_form_screen.dart';
 import '../presentation/screens/quotation_decision_screen.dart';
 import '../presentation/screens/fleet_detail_screen.dart';
+import '../presentation/screens/fleet_form_screen.dart';
 import '../presentation/screens/fleet_management_screen.dart';
 import '../presentation/screens/forgot_password_screen.dart';
 import '../presentation/screens/invoice_screen.dart';
@@ -77,6 +77,7 @@ import '../presentation/screens/vendor_list_screen.dart';
 import '../presentation/screens/vendor_view_screen.dart';
 import '../presentation/screens/vehicle_type_form_screen.dart';
 import '../presentation/screens/vehicle_type_list_screen.dart';
+import '../presentation/screens/vehicle_type_view_screen.dart';
 import '../presentation/screens/work_order_flow_screen.dart';
 import '../presentation/screens/work_order_detail_screen.dart';
 import '../presentation/screens/work_orders_screen.dart';
@@ -205,6 +206,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: RoutePaths.fleetManagement,
         builder: (context, state) => const FleetManagementScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.fleetForm,
+        builder: (context, state) => FleetFormScreen(
+          editFleetId: state.uri.queryParameters['id'],
+        ),
       ),
       GoRoute(
         path: RoutePaths.fleetDetail,
@@ -389,7 +396,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: RoutePaths.vehicleTypeForm,
         builder: (context, state) => VehicleTypeFormScreen(
-          editCode: state.uri.queryParameters['code'],
+          editCode: state.uri.queryParameters['id'],
+        ),
+      ),
+      GoRoute(
+        path: RoutePaths.vehicleTypeView,
+        builder: (context, state) => VehicleTypeViewScreen(
+          vehicleTypeId: state.pathParameters['vehicleTypeId'] ?? '',
         ),
       ),
       GoRoute(

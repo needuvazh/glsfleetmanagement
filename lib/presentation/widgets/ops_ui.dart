@@ -116,3 +116,113 @@ class OpsPill extends StatelessWidget {
     );
   }
 }
+
+class OpsTableActionMenuItem {
+  const OpsTableActionMenuItem({
+    required this.value,
+    required this.label,
+    required this.icon,
+    this.destructive = false,
+  });
+
+  final String value;
+  final String label;
+  final IconData icon;
+  final bool destructive;
+}
+
+class OpsTableActions extends StatelessWidget {
+  const OpsTableActions({
+    super.key,
+    this.onView,
+    this.onEdit,
+    this.onMoreSelected,
+    this.moreItems = const [],
+    this.viewTooltip = 'View',
+    this.editTooltip = 'Edit',
+    this.moreTooltip = 'More',
+  });
+
+  final VoidCallback? onView;
+  final VoidCallback? onEdit;
+  final ValueChanged<String>? onMoreSelected;
+  final List<OpsTableActionMenuItem> moreItems;
+  final String viewTooltip;
+  final String editTooltip;
+  final String moreTooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Align(
+      alignment: Alignment.centerRight,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          if (onView != null) ...[
+            Tooltip(
+              message: viewTooltip,
+              child: IconButton(
+                constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+                padding: EdgeInsets.zero,
+                visualDensity: VisualDensity.compact,
+                onPressed: onView,
+                icon: const Icon(Icons.visibility_outlined, size: 20),
+              ),
+            ),
+            const SizedBox(width: 4),
+          ],
+          if (onEdit != null) ...[
+            Tooltip(
+              message: editTooltip,
+              child: IconButton(
+                constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+                padding: EdgeInsets.zero,
+                visualDensity: VisualDensity.compact,
+                onPressed: onEdit,
+                icon: const Icon(Icons.edit_outlined, size: 20),
+              ),
+            ),
+            const SizedBox(width: 4),
+          ],
+          if (moreItems.isNotEmpty)
+            PopupMenuButton<String>(
+              tooltip: moreTooltip,
+              onSelected: onMoreSelected,
+              itemBuilder: (context) => [
+                for (final item in moreItems)
+                  PopupMenuItem<String>(
+                    value: item.value,
+                    child: Row(
+                      children: [
+                        Icon(
+                          item.icon,
+                          size: 18,
+                          color: item.destructive
+                              ? colorScheme.error
+                              : colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          item.label,
+                          style: item.destructive
+                              ? TextStyle(color: colorScheme.error)
+                              : null,
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+              child: const SizedBox(
+                width: 36,
+                height: 36,
+                child: Icon(Icons.more_vert, size: 20),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
