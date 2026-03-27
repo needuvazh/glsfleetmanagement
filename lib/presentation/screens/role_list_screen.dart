@@ -187,33 +187,31 @@ class _DesktopRoleTableState extends State<_DesktopRoleTable> {
                           ),
                         ),
                         DataCell(
-                          SizedBox(
-                            width: 168,
-                            child: Row(
-                              children: [
-                                FilledButton.tonal(
-                                  style: FilledButton.styleFrom(
-                                    minimumSize: const Size(64, 36),
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 10),
-                                  ),
-                                  onPressed: () => context
-                                      .go(RoutePaths.roleViewById(role.roleId)),
-                                  child: const Text('View'),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              FilledButton.tonal(
+                                style: FilledButton.styleFrom(
+                                  minimumSize: const Size(64, 36),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10),
                                 ),
-                                const SizedBox(width: 8),
-                                OutlinedButton(
-                                  style: OutlinedButton.styleFrom(
-                                    minimumSize: const Size(64, 36),
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 10),
-                                  ),
-                                  onPressed: () => context.go(
-                                      '${RoutePaths.roleForm}?id=${role.roleId}'),
-                                  child: const Text('Edit'),
+                                onPressed: () => context
+                                    .go(RoutePaths.roleViewById(role.roleId)),
+                                child: const Text('View'),
+                              ),
+                              const SizedBox(width: 8),
+                              OutlinedButton(
+                                style: OutlinedButton.styleFrom(
+                                  minimumSize: const Size(64, 36),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10),
                                 ),
-                              ],
-                            ),
+                                onPressed: () => context.go(
+                                    '${RoutePaths.roleForm}?id=${role.roleId}'),
+                                child: const Text('Edit'),
+                              ),
+                            ],
                           ),
                         ),
                       ],

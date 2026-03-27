@@ -175,36 +175,34 @@ class _DesktopLocationTableState extends State<_DesktopLocationTable> {
                         DataCell(Text(_formatCoordinate(location.latitude))),
                         DataCell(Text(_formatCoordinate(location.longitude))),
                         DataCell(
-                          SizedBox(
-                            width: 168,
-                            child: Row(
-                              children: [
-                                FilledButton.tonal(
-                                  style: FilledButton.styleFrom(
-                                    minimumSize: const Size(64, 36),
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 10),
-                                  ),
-                                  onPressed: () => context.go(
-                                    RoutePaths.locationViewByCode(
-                                        location.locationCode),
-                                  ),
-                                  child: const Text('View'),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              FilledButton.tonal(
+                                style: FilledButton.styleFrom(
+                                  minimumSize: const Size(64, 36),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10),
                                 ),
-                                const SizedBox(width: 8),
-                                OutlinedButton(
-                                  style: OutlinedButton.styleFrom(
-                                    minimumSize: const Size(64, 36),
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 10),
-                                  ),
-                                  onPressed: () => context.go(
-                                    '${RoutePaths.locationForm}?code=${location.locationCode}',
-                                  ),
-                                  child: const Text('Edit'),
+                                onPressed: () => context.go(
+                                  RoutePaths.locationViewByCode(
+                                      location.locationCode),
                                 ),
-                              ],
-                            ),
+                                child: const Text('View'),
+                              ),
+                              const SizedBox(width: 8),
+                              OutlinedButton(
+                                style: OutlinedButton.styleFrom(
+                                  minimumSize: const Size(64, 36),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10),
+                                ),
+                                onPressed: () => context.go(
+                                  '${RoutePaths.locationForm}?code=${location.locationCode}',
+                                ),
+                                child: const Text('Edit'),
+                              ),
+                            ],
                           ),
                         ),
                       ],

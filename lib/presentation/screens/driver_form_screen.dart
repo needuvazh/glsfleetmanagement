@@ -3,11 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/constants/oman_fleet_master.dart';
+import '../../domain/route_model.dart';
 import '../../domain/entities/logistics_flow.dart';
+import '../../domain/vehicle_type_master_model.dart';
 import '../../routes/route_paths.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import '../viewmodels/logistics_viewmodel.dart';
 import '../viewmodels/module_document_viewmodel.dart';
+import '../viewmodels/route_viewmodel.dart';
+import '../viewmodels/vehicle_type_master_viewmodel.dart';
 import '../widgets/ops_shell.dart';
 
 class DriverFormScreen extends ConsumerStatefulWidget {
@@ -31,11 +35,8 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
   late final TextEditingController _licenseIssueCtrl;
   late final TextEditingController _expiryCtrl;
   late final TextEditingController _nationalityCtrl;
-  late final TextEditingController _allowedVehicleCtrl;
   late final TextEditingController _certCtrl;
   late final TextEditingController _notesCtrl;
-  late final TextEditingController _preferredRouteTypeCtrl;
-  late final TextEditingController _preferredVehicleTypeCtrl;
   final ScrollController _docsHorizontalController = ScrollController();
   final List<_DriverUploadRow> _uploadRows = [];
 
@@ -46,6 +47,9 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
   String _baseLocation = OmanFleetMaster.omanLocations.first;
   bool _heavyAllowed = false;
   bool _active = true;
+  List<String> _selectedAllowedVehicleTypes = [];
+  List<String> _selectedPreferredRoutes = [];
+  List<String> _selectedPreferredVehicleTypes = [];
 
   DriverData? _existingDriver(AsyncValue<LogisticsUiState> state) {
     final editId = widget.editDriverId;
@@ -81,17 +85,13 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
     _expiryCtrl = TextEditingController(text: existing?.expiryDate ?? '');
     _nationalityCtrl =
         TextEditingController(text: existing?.nationality ?? 'Omani');
-    _allowedVehicleCtrl = TextEditingController(
-      text: existing?.allowedVehicleTypes.join(', ') ?? '',
-    );
     _certCtrl = TextEditingController(
       text: existing?.certifications.join(', ') ?? '',
     );
     _notesCtrl = TextEditingController(text: existing?.specialSkillsNotes ?? '');
-    _preferredRouteTypeCtrl =
-        TextEditingController(text: existing?.preferredRouteType ?? '');
-    _preferredVehicleTypeCtrl =
-        TextEditingController(text: existing?.preferredVehicleType ?? '');
+    _selectedAllowedVehicleTypes = [...(existing?.allowedVehicleTypes ?? const [])];
+    _selectedPreferredRoutes = _csv(existing?.preferredRouteType ?? '');
+    _selectedPreferredVehicleTypes = _csv(existing?.preferredVehicleType ?? '');
 
     _availability = existing?.status ?? 'Available';
     _baseLocation =
@@ -112,11 +112,8 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
     _licenseIssueCtrl.dispose();
     _expiryCtrl.dispose();
     _nationalityCtrl.dispose();
-    _allowedVehicleCtrl.dispose();
     _certCtrl.dispose();
     _notesCtrl.dispose();
-    _preferredRouteTypeCtrl.dispose();
-    _preferredVehicleTypeCtrl.dispose();
     _docsHorizontalController.dispose();
     for (final row in _uploadRows) {
       row.dispose();
@@ -127,6 +124,9 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(logisticsViewModelProvider);
+    final routeState = ref.watch(routeViewModelProvider).valueOrNull;
+    final vehicleTypeState =
+        ref.watch(vehicleTypeMasterViewModelProvider).valueOrNull;
     final complianceState = ref.watch(moduleDocumentViewModelProvider).valueOrNull;
     final authState = ref.watch(authViewModelProvider).valueOrNull;
     final isEdit = widget.editDriverId != null;
@@ -154,6 +154,14 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
     final mandatoryByType = <String, bool>{
       for (final item in driverRules) item.documentName.trim(): item.mandatory,
     };
+    final routeOptions = _withSelections(
+      _routeOptions(routeState?.routes ?? const []),
+      _selectedPreferredRoutes,
+    );
+    final vehicleTypeOptions = _withSelections(
+      _vehicleTypeOptions(vehicleTypeState?.items ?? const []),
+      [..._selectedAllowedVehicleTypes, ..._selectedPreferredVehicleTypes],
+    );
 
     _syncUploadRowsWithOptions(
       fileTypeOptions: fileTypeOptions,
@@ -295,19 +303,31 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
                     ),
                     const SizedBox(height: 16),
                     _sectionTitle('Preferences'),
-                    _field(
-                      _allowedVehicleCtrl,
-                      label: 'Allowed Vehicle Types (comma separated)',
+                    _multiSelectField(
+                      label: 'Allowed Vehicle Types',
+                      selectedValues: _selectedAllowedVehicleTypes,
+                      options: vehicleTypeOptions,
+                      onChanged: (values) {
+                        setState(() => _selectedAllowedVehicleTypes = values);
+                      },
                     ),
                     const SizedBox(height: 10),
-                    _field(
-                      _preferredRouteTypeCtrl,
-                      label: 'Preferred Route Type',
+                    _multiSelectField(
+                      label: 'Preferred Route',
+                      selectedValues: _selectedPreferredRoutes,
+                      options: routeOptions,
+                      onChanged: (values) {
+                        setState(() => _selectedPreferredRoutes = values);
+                      },
                     ),
                     const SizedBox(height: 10),
-                    _field(
-                      _preferredVehicleTypeCtrl,
+                    _multiSelectField(
                       label: 'Preferred Vehicle Type',
+                      selectedValues: _selectedPreferredVehicleTypes,
+                      options: vehicleTypeOptions,
+                      onChanged: (values) {
+                        setState(() => _selectedPreferredVehicleTypes = values);
+                      },
                     ),
                     const SizedBox(height: 10),
                     _field(
@@ -629,9 +649,9 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
             nationality: _nationalityCtrl.text.trim(),
             baseLocation: _baseLocation,
             heavyVehicleAllowed: _heavyAllowed,
-            allowedVehicleTypes: _csv(_allowedVehicleCtrl.text),
-            preferredRouteType: _preferredRouteTypeCtrl.text.trim(),
-            preferredVehicleType: _preferredVehicleTypeCtrl.text.trim(),
+            allowedVehicleTypes: _selectedAllowedVehicleTypes,
+            preferredRouteType: _selectedPreferredRoutes.join(', '),
+            preferredVehicleType: _selectedPreferredVehicleTypes.join(', '),
             specialSkillsNotes: _notesCtrl.text.trim(),
             certifications: _certCtrl.text.trim(),
             active: _active,
@@ -649,9 +669,9 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
             nationality: _nationalityCtrl.text.trim(),
             baseLocation: _baseLocation,
             heavyVehicleAllowed: _heavyAllowed,
-            allowedVehicleTypes: _csv(_allowedVehicleCtrl.text),
-            preferredRouteType: _preferredRouteTypeCtrl.text.trim(),
-            preferredVehicleType: _preferredVehicleTypeCtrl.text.trim(),
+            allowedVehicleTypes: _selectedAllowedVehicleTypes,
+            preferredRouteType: _selectedPreferredRoutes.join(', '),
+            preferredVehicleType: _selectedPreferredVehicleTypes.join(', '),
             specialSkillsNotes: _notesCtrl.text.trim(),
             certifications: _certCtrl.text.trim(),
             active: _active,
@@ -674,6 +694,131 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
         .map((item) => item.trim())
         .where((item) => item.isNotEmpty)
         .toList();
+  }
+
+  List<String> _withSelections(List<String> options, List<String> selected) {
+    final merged = <String>{...options, ...selected};
+    final items = merged.toList()..sort();
+    return items;
+  }
+
+  List<String> _routeOptions(List<RouteLocationModel> routes) {
+    final items = <String>{};
+    for (final route in routes) {
+      final code = route.routeCode.trim();
+      final name = route.routeName.trim();
+      final label = code.isEmpty ? name : '$code - $name';
+      if (label.trim().isNotEmpty) {
+        items.add(label);
+      }
+    }
+    final list = items.toList()..sort();
+    return list;
+  }
+
+  List<String> _vehicleTypeOptions(List<VehicleTypeMasterModel> items) {
+    final names = <String>{};
+    for (final item in items) {
+      final name = item.vehicleTypeName.trim();
+      if (name.isNotEmpty) {
+        names.add(name);
+      }
+    }
+    final list = names.toList()..sort();
+    return list;
+  }
+
+  Widget _multiSelectField({
+    required String label,
+    required List<String> selectedValues,
+    required List<String> options,
+    required ValueChanged<List<String>> onChanged,
+  }) {
+    final summary = selectedValues.isEmpty
+        ? 'No selection'
+        : selectedValues.join(', ');
+    return InkWell(
+      onTap: options.isEmpty
+          ? null
+          : () async {
+              final selected = await _showMultiSelectDialog(
+                title: label,
+                options: options,
+                initialSelected: selectedValues,
+              );
+              if (selected != null) {
+                onChanged(selected);
+              }
+            },
+      borderRadius: BorderRadius.circular(8),
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: label,
+          suffixIcon: const Icon(Icons.arrow_drop_down),
+        ),
+        child: Text(
+          options.isEmpty ? 'No master data available' : summary,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+    );
+  }
+
+  Future<List<String>?> _showMultiSelectDialog({
+    required String title,
+    required List<String> options,
+    required List<String> initialSelected,
+  }) async {
+    final selected = <String>{...initialSelected};
+    return showDialog<List<String>>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setInnerState) {
+            return AlertDialog(
+              title: Text(title),
+              content: SizedBox(
+                width: 420,
+                child: ListView(
+                  shrinkWrap: true,
+                  children: [
+                    for (final option in options)
+                      CheckboxListTile(
+                        value: selected.contains(option),
+                        title: Text(option),
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        controlAffinity: ListTileControlAffinity.leading,
+                        onChanged: (checked) {
+                          setInnerState(() {
+                            if (checked ?? false) {
+                              selected.add(option);
+                            } else {
+                              selected.remove(option);
+                            }
+                          });
+                        },
+                      ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () =>
+                      Navigator.of(dialogContext).pop(selected.toList()..sort()),
+                  child: const Text('Apply'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 }
 

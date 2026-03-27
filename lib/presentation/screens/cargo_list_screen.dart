@@ -361,52 +361,50 @@ class _DesktopCargoTableState extends ConsumerState<_DesktopCargoTable> {
                             item.inspectionTemplateType.isEmpty ? 'No' : 'Yes')),
                         DataCell(Text(item.isSelectable ? 'Active' : 'Restricted')),
                         DataCell(
-                          SizedBox(
-                            width: 270,
-                            child: Row(
-                              children: [
-                                FilledButton.tonal(
-                                  style: FilledButton.styleFrom(
-                                    minimumSize: const Size(66, 36),
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 10),
-                                  ),
-                                  onPressed: () => context.go(
-                                    RoutePaths.cargoMasterViewByCode(
-                                        item.cargoCode),
-                                  ),
-                                  child: const Text('View'),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              FilledButton.tonal(
+                                style: FilledButton.styleFrom(
+                                  minimumSize: const Size(66, 36),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10),
                                 ),
-                                const SizedBox(width: 6),
-                                OutlinedButton(
-                                  style: OutlinedButton.styleFrom(
-                                    minimumSize: const Size(66, 36),
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 10),
-                                  ),
-                                  onPressed: () => context.go(
-                                    '${RoutePaths.cargoMasterForm}?code=${item.cargoCode}',
-                                  ),
-                                  child: const Text('Edit'),
+                                onPressed: () => context.go(
+                                  RoutePaths.cargoMasterViewByCode(
+                                      item.cargoCode),
                                 ),
-                                const SizedBox(width: 6),
-                                OutlinedButton(
-                                  style: OutlinedButton.styleFrom(
-                                    minimumSize: const Size(84, 36),
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 10),
-                                  ),
-                                  onPressed: item.isSelectable
-                                      ? () => _confirmDeactivate(
-                                            context,
-                                            ref,
-                                            item,
-                                          )
-                                      : null,
-                                  child: const Text('Deactivate'),
+                                child: const Text('View'),
+                              ),
+                              const SizedBox(width: 6),
+                              OutlinedButton(
+                                style: OutlinedButton.styleFrom(
+                                  minimumSize: const Size(66, 36),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10),
                                 ),
-                              ],
-                            ),
+                                onPressed: () => context.go(
+                                  '${RoutePaths.cargoMasterForm}?code=${item.cargoCode}',
+                                ),
+                                child: const Text('Edit'),
+                              ),
+                              const SizedBox(width: 6),
+                              OutlinedButton(
+                                style: OutlinedButton.styleFrom(
+                                  minimumSize: const Size(84, 36),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10),
+                                ),
+                                onPressed: item.isSelectable
+                                    ? () => _confirmDeactivate(
+                                          context,
+                                          ref,
+                                          item,
+                                        )
+                                    : null,
+                                child: const Text('Deactivate'),
+                              ),
+                            ],
                           ),
                         ),
                       ],

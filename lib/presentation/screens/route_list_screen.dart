@@ -284,82 +284,80 @@ class _DesktopRouteTableState extends ConsumerState<_DesktopRouteTable> {
                         DataCell(
                             Text('${_delayedTrips(route, widget.logistics)}')),
                         DataCell(
-                          SizedBox(
-                            width: 250,
-                            child: Row(
-                              children: [
-                                FilledButton.tonal(
-                                  style: FilledButton.styleFrom(
-                                    minimumSize: const Size(64, 36),
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 10),
-                                  ),
-                                  onPressed: () => context.go(
-                                    RoutePaths.routeLocationViewById(
-                                        route.routeId),
-                                  ),
-                                  child: const Text('View'),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              FilledButton.tonal(
+                                style: FilledButton.styleFrom(
+                                  minimumSize: const Size(64, 36),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10),
                                 ),
-                                const SizedBox(width: 6),
-                                OutlinedButton(
-                                  style: OutlinedButton.styleFrom(
-                                    minimumSize: const Size(60, 36),
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 10),
-                                  ),
-                                  onPressed: () => context.go(
-                                    '${RoutePaths.routeLocationForm}?id=${route.routeId}',
-                                  ),
-                                  child: const Text('Edit'),
+                                onPressed: () => context.go(
+                                  RoutePaths.routeLocationViewById(
+                                      route.routeId),
                                 ),
-                                const SizedBox(width: 6),
-                                PopupMenuButton<String>(
-                                  constraints: const BoxConstraints(minWidth: 140),
-                                  itemBuilder: (_) => const [
-                                    PopupMenuItem(
-                                        value: 'deactivate',
-                                        child: Text('Deactivate')),
-                                    PopupMenuItem(
-                                        value: 'restrict',
-                                        child: Text('Mark Restricted')),
-                                    PopupMenuItem(
-                                        value: 'activate',
-                                        child: Text('Mark Active')),
-                                  ],
-                                  onSelected: (value) async {
-                                    final notifier =
-                                        ref.read(routeViewModelProvider.notifier);
-                                    String message;
-                                    if (value == 'deactivate') {
-                                      message = await notifier.setRouteStatus(
-                                        route.routeId,
-                                        RouteOperationalStatus.inactive,
-                                      );
-                                    } else if (value == 'restrict') {
-                                      message = await notifier.setRouteStatus(
-                                        route.routeId,
-                                        RouteOperationalStatus.restricted,
-                                        temporarilyRestricted: true,
-                                        restrictionReason:
-                                            'Temporarily blocked by operations',
-                                      );
-                                    } else {
-                                      message = await notifier.setRouteStatus(
-                                        route.routeId,
-                                        RouteOperationalStatus.active,
-                                        temporarilyRestricted: false,
-                                        restrictionReason: '',
-                                      );
-                                    }
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content: Text(message)),
-                                      );
-                                    }
-                                  },
+                                child: const Text('View'),
+                              ),
+                              const SizedBox(width: 6),
+                              OutlinedButton(
+                                style: OutlinedButton.styleFrom(
+                                  minimumSize: const Size(60, 36),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10),
                                 ),
-                              ],
-                            ),
+                                onPressed: () => context.go(
+                                  '${RoutePaths.routeLocationForm}?id=${route.routeId}',
+                                ),
+                                child: const Text('Edit'),
+                              ),
+                              const SizedBox(width: 6),
+                              PopupMenuButton<String>(
+                                constraints: const BoxConstraints(minWidth: 140),
+                                itemBuilder: (_) => const [
+                                  PopupMenuItem(
+                                      value: 'deactivate',
+                                      child: Text('Deactivate')),
+                                  PopupMenuItem(
+                                      value: 'restrict',
+                                      child: Text('Mark Restricted')),
+                                  PopupMenuItem(
+                                      value: 'activate',
+                                      child: Text('Mark Active')),
+                                ],
+                                onSelected: (value) async {
+                                  final notifier =
+                                      ref.read(routeViewModelProvider.notifier);
+                                  String message;
+                                  if (value == 'deactivate') {
+                                    message = await notifier.setRouteStatus(
+                                      route.routeId,
+                                      RouteOperationalStatus.inactive,
+                                    );
+                                  } else if (value == 'restrict') {
+                                    message = await notifier.setRouteStatus(
+                                      route.routeId,
+                                      RouteOperationalStatus.restricted,
+                                      temporarilyRestricted: true,
+                                      restrictionReason:
+                                          'Temporarily blocked by operations',
+                                    );
+                                  } else {
+                                    message = await notifier.setRouteStatus(
+                                      route.routeId,
+                                      RouteOperationalStatus.active,
+                                      temporarilyRestricted: false,
+                                      restrictionReason: '',
+                                    );
+                                  }
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text(message)),
+                                    );
+                                  }
+                                },
+                              ),
+                            ],
                           ),
                         ),
                       ],

@@ -5,8 +5,10 @@ import 'package:go_router/go_router.dart';
 import '../../core/utils/responsive.dart';
 import '../../domain/location_model.dart';
 import '../../domain/route_model.dart';
+import '../../domain/vehicle_type_master_model.dart';
 import '../../routes/route_paths.dart';
 import '../viewmodels/route_viewmodel.dart';
+import '../viewmodels/vehicle_type_master_viewmodel.dart';
 import '../widgets/module_document_upload_section.dart';
 import '../widgets/ops_shell.dart';
 import '../widgets/ops_ui.dart';
@@ -27,6 +29,8 @@ class _RouteFormScreenState extends ConsumerState<RouteFormScreen> {
   Widget build(BuildContext context) {
     final routeState = ref.watch(routeViewModelProvider);
     final formState = ref.watch(routeFormProvider);
+    final vehicleTypeState =
+        ref.watch(vehicleTypeMasterViewModelProvider).valueOrNull;
 
     return OpsShell(
       title: formState.isEditMode ? 'Edit Route' : 'Create Route',
@@ -61,6 +65,10 @@ class _RouteFormScreenState extends ConsumerState<RouteFormScreen> {
           final form = ref.watch(routeFormProvider);
           final notifier = ref.read(routeFormProvider.notifier);
           final locations = data.locations;
+          final preferredVehicleOptions = _preferredVehicleOptions(
+            vehicleTypeState?.items ?? const <VehicleTypeMasterModel>[],
+            form.preferredVehicleType,
+          );
 
           return ListView(
             padding: const EdgeInsets.all(16),
@@ -279,11 +287,26 @@ class _RouteFormScreenState extends ConsumerState<RouteFormScreen> {
                       _SectionLabel(title: '4. Operational Preferences'),
                       const SizedBox(height: 12),
                       _ResponsiveFormGrid(children: [
-                        TextFormField(
-                          initialValue: form.preferredVehicleType,
+                        DropdownButtonFormField<String>(
+                          value: _dropdownValue(
+                            value: form.preferredVehicleType,
+                            options: preferredVehicleOptions,
+                          ),
                           decoration: const InputDecoration(
                               labelText: 'Preferred Vehicle Type'),
-                          onChanged: notifier.setPreferredVehicleType,
+                          items: [
+                            const DropdownMenuItem(
+                              value: '',
+                              child: Text('Select Preferred Vehicle Type'),
+                            ),
+                            for (final vehicleType in preferredVehicleOptions)
+                              DropdownMenuItem(
+                                value: vehicleType,
+                                child: Text(vehicleType),
+                              ),
+                          ],
+                          onChanged: (value) =>
+                              notifier.setPreferredVehicleType(value ?? ''),
                         ),
                         TextFormField(
                           initialValue: form.trailerTypePreference,
@@ -463,6 +486,35 @@ class _RouteFormScreenState extends ConsumerState<RouteFormScreen> {
       return 'Must be greater than 0';
     }
     return null;
+  }
+
+  String? _dropdownValue({
+    required String value,
+    required List<String> options,
+  }) {
+    if (value.isEmpty) {
+      return '';
+    }
+    return options.contains(value) ? value : null;
+  }
+
+  List<String> _preferredVehicleOptions(
+    List<VehicleTypeMasterModel> masterItems,
+    String selectedValue,
+  ) {
+    final set = <String>{};
+    for (final item in masterItems) {
+      final name = item.vehicleTypeName.trim();
+      if (name.isNotEmpty) {
+        set.add(name);
+      }
+    }
+    final selected = selectedValue.trim();
+    if (selected.isNotEmpty) {
+      set.add(selected);
+    }
+    final options = set.toList()..sort();
+    return options;
   }
 
   Future<void> _submit(

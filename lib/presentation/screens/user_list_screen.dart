@@ -200,34 +200,32 @@ class _DesktopUserTableState extends State<_DesktopUserTable> {
                           ),
                         ),
                         DataCell(
-                          SizedBox(
-                            width: 168,
-                            child: Row(
-                              children: [
-                                FilledButton.tonal(
-                                  style: FilledButton.styleFrom(
-                                    minimumSize: const Size(64, 36),
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 10),
-                                  ),
-                                  onPressed: () => context
-                                      .go(RoutePaths.userViewById(user.userId)),
-                                  child: const Text('View'),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              FilledButton.tonal(
+                                style: FilledButton.styleFrom(
+                                  minimumSize: const Size(64, 36),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10),
                                 ),
-                                const SizedBox(width: 8),
-                                OutlinedButton(
-                                  style: OutlinedButton.styleFrom(
-                                    minimumSize: const Size(64, 36),
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 10),
-                                  ),
-                                  onPressed: () => context.go(
-                                    '${RoutePaths.userForm}?id=${user.userId}',
-                                  ),
-                                  child: const Text('Edit'),
+                                onPressed: () => context
+                                    .go(RoutePaths.userViewById(user.userId)),
+                                child: const Text('View'),
+                              ),
+                              const SizedBox(width: 8),
+                              OutlinedButton(
+                                style: OutlinedButton.styleFrom(
+                                  minimumSize: const Size(64, 36),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10),
                                 ),
-                              ],
-                            ),
+                                onPressed: () => context.go(
+                                  '${RoutePaths.userForm}?id=${user.userId}',
+                                ),
+                                child: const Text('Edit'),
+                              ),
+                            ],
                           ),
                         ),
                       ],
