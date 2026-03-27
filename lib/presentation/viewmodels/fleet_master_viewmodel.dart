@@ -219,7 +219,8 @@ class FleetMasterViewModel extends AsyncNotifier<FleetMasterUiState> {
     if (validation != null) {
       return validation;
     }
-    final fleets = await ref.read(_fleetMasterRepositoryProvider).addFleet(item);
+    final fleets =
+        await ref.read(_fleetMasterRepositoryProvider).addFleet(item);
     state = AsyncData(
       current.copyWith(fleets: fleets, lastUpdated: DateTime.now()),
     );
@@ -247,6 +248,24 @@ class FleetMasterViewModel extends AsyncNotifier<FleetMasterUiState> {
       current.copyWith(fleets: fleets, lastUpdated: DateTime.now()),
     );
     return 'Fleet updated successfully.';
+  }
+
+  Future<String> deleteFleet(String fleetId) async {
+    final current = state.valueOrNull;
+    if (current == null) {
+      return 'Fleet state is not ready.';
+    }
+    final exists = current.fleets.any((entry) => entry.fleetId == fleetId);
+    if (!exists) {
+      return 'Fleet not found.';
+    }
+
+    final fleets =
+        await ref.read(_fleetMasterRepositoryProvider).deleteFleet(fleetId);
+    state = AsyncData(
+      current.copyWith(fleets: fleets, lastUpdated: DateTime.now()),
+    );
+    return 'Fleet deleted successfully.';
   }
 
   String? _validate(
@@ -458,7 +477,8 @@ final fleetMasterFormProvider =
   FleetMasterFormNotifier.new,
 );
 
-class FleetMasterFormNotifier extends AutoDisposeNotifier<FleetMasterFormState> {
+class FleetMasterFormNotifier
+    extends AutoDisposeNotifier<FleetMasterFormState> {
   @override
   FleetMasterFormState build() {
     return const FleetMasterFormState(
@@ -537,10 +557,12 @@ class FleetMasterFormNotifier extends AutoDisposeNotifier<FleetMasterFormState> 
     );
   }
 
-  void setFleetNumber(String value) => state = state.copyWith(fleetNumber: value);
+  void setFleetNumber(String value) =>
+      state = state.copyWith(fleetNumber: value);
   void setOwnershipType(OwnershipType value) =>
       state = state.copyWith(ownershipType: value);
-  void setStatus(RecordStatusType value) => state = state.copyWith(status: value);
+  void setStatus(RecordStatusType value) =>
+      state = state.copyWith(status: value);
   void setRegistrationNumber(String value) =>
       state = state.copyWith(registrationNumber: value);
   void setRegistrationExpiryDate(DateTime value) =>
@@ -553,8 +575,10 @@ class FleetMasterFormNotifier extends AutoDisposeNotifier<FleetMasterFormState> 
       state = state.copyWith(rasExpiryDate: value);
   void setInspectionDueDate(DateTime value) =>
       state = state.copyWith(inspectionDueDate: value);
-  void setIvmsInstalled(bool value) => state = state.copyWith(ivmsInstalled: value);
-  void setDfmsInstalled(bool value) => state = state.copyWith(dfmsInstalled: value);
+  void setIvmsInstalled(bool value) =>
+      state = state.copyWith(ivmsInstalled: value);
+  void setDfmsInstalled(bool value) =>
+      state = state.copyWith(dfmsInstalled: value);
   void setCapacityOverride(String value) =>
       state = state.copyWith(capacityOverride: value);
   void setAvailabilityStatus(AvailabilityStatusType value) =>
@@ -591,10 +615,9 @@ class FleetMasterFormNotifier extends AutoDisposeNotifier<FleetMasterFormState> 
       axleType: item.axleType,
       fuelType: item.fuelType,
       bodyType: item.bodyType,
-      capacityOverride:
-          replaceCapacity || state.capacityOverride.trim().isEmpty
-              ? autoCapacity
-              : state.capacityOverride,
+      capacityOverride: replaceCapacity || state.capacityOverride.trim().isEmpty
+          ? autoCapacity
+          : state.capacityOverride,
     );
   }
 }

@@ -5,6 +5,7 @@ abstract class FleetMasterRepository {
   Future<List<FleetMasterModel>> getFleets();
   Future<List<FleetMasterModel>> addFleet(FleetMasterModel item);
   Future<List<FleetMasterModel>> updateFleet(FleetMasterModel item);
+  Future<List<FleetMasterModel>> deleteFleet(String fleetId);
 }
 
 class FleetMasterRepositoryImpl implements FleetMasterRepository {
@@ -23,4 +24,8 @@ class FleetMasterRepositoryImpl implements FleetMasterRepository {
   @override
   Future<List<FleetMasterModel>> updateFleet(FleetMasterModel item) =>
       _dataSource.updateFleet(item);
+
+  @override
+  Future<List<FleetMasterModel>> deleteFleet(String fleetId) =>
+      _dataSource.deleteFleet(fleetId);
 }

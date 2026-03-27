@@ -31,12 +31,63 @@ class FleetManagementScreen extends ConsumerWidget {
         error: (error, _) => Center(child: Text(error.toString())),
         data: (data) {
           final fleets = data.filteredFleets;
+          final now = DateTime.now();
+          final total = data.fleets.length;
+          final available = data.fleets
+              .where(
+                (item) =>
+                    item.availabilityStatus == AvailabilityStatusType.available,
+              )
+              .length;
+          final assigned = data.fleets
+              .where(
+                (item) =>
+                    item.availabilityStatus == AvailabilityStatusType.assigned,
+              )
+              .length;
+          final maintenance = data.fleets
+              .where(
+                (item) =>
+                    item.availabilityStatus ==
+                    AvailabilityStatusType.maintenance,
+              )
+              .length;
+          final expired = data.fleets
+              .where(
+                (item) =>
+                    item.overallCompliance(now) ==
+                    ComplianceIndicatorType.expired,
+              )
+              .length;
+
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
               OpsSectionCard(
+                title: 'Fleet Readiness Overview',
+                subtitle:
+                    'Live operational snapshot for assignment and compliance readiness.',
+                icon: Icons.insights_outlined,
+                accent: const Color(0xFF7C3AED),
+                child: Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    _metric('Total Fleet', '$total', const Color(0xFF1D4ED8)),
+                    _metric('Available', '$available', const Color(0xFF15803D)),
+                    _metric('Assigned', '$assigned', const Color(0xFF0369A1)),
+                    _metric(
+                        'Maintenance', '$maintenance', const Color(0xFFF59E0B)),
+                    _metric('Compliance Expired', '$expired',
+                        const Color(0xFFB91C1C)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              OpsSectionCard(
                 title: 'Search & Filter',
-                subtitle: 'Readiness-oriented fleet control with compliance visibility.',
+                subtitle:
+                    'Readiness-oriented fleet control with compliance visibility.',
                 icon: Icons.tune_outlined,
                 accent: const Color(0xFF2563EB),
                 child: Wrap(
@@ -124,13 +175,26 @@ class FleetManagementScreen extends ConsumerWidget {
                             .setStatusFilter,
                       ),
                     ),
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        final vm =
+                            ref.read(fleetMasterViewModelProvider.notifier);
+                        vm.setSearchQuery('');
+                        vm.setAvailabilityFilter(null);
+                        vm.setComplianceFilter(null);
+                        vm.setStatusFilter(null);
+                      },
+                      icon: const Icon(Icons.filter_alt_off_outlined),
+                      label: const Text('Clear Filters'),
+                    ),
                   ],
                 ),
               ),
               const SizedBox(height: 16),
               OpsSectionCard(
                 title: 'Fleet Master',
-                subtitle: '${fleets.length} live records with assignment readiness and compliance state.',
+                subtitle:
+                    '${fleets.length} live records with assignment readiness and compliance state.',
                 icon: Icons.local_shipping_outlined,
                 accent: const Color(0xFF16A34A),
                 child: fleets.isEmpty
@@ -161,7 +225,8 @@ class FleetManagementScreen extends ConsumerWidget {
                                   DataCell(
                                     Text(
                                       data
-                                              .vehicleTypeFor(fleet.vehicleTypeId)
+                                              .vehicleTypeFor(
+                                                  fleet.vehicleTypeId)
                                               ?.vehicleTypeName ??
                                           fleet.vehicleTypeId,
                                     ),
@@ -170,12 +235,15 @@ class FleetManagementScreen extends ConsumerWidget {
                                   DataCell(
                                     _chip(
                                       fleet.availabilityStatus.label,
-                                      _availabilityColor(fleet.availabilityStatus),
+                                      _availabilityColor(
+                                          fleet.availabilityStatus),
                                     ),
                                   ),
                                   DataCell(
                                     _chip(
-                                      fleet.overallCompliance(DateTime.now()).label,
+                                      fleet
+                                          .overallCompliance(DateTime.now())
+                                          .label,
                                       _complianceColor(
                                         fleet.overallCompliance(DateTime.now()),
                                       ),
@@ -185,7 +253,8 @@ class FleetManagementScreen extends ConsumerWidget {
                                     Text(
                                       fleet.vendorId.isEmpty
                                           ? '-'
-                                          : (data.vendorFor(fleet.vendorId)
+                                          : (data
+                                                  .vendorFor(fleet.vendorId)
                                                   ?.vendorName ??
                                               fleet.vendorId),
                                     ),
@@ -195,7 +264,8 @@ class FleetManagementScreen extends ConsumerWidget {
                                       viewTooltip: 'View Fleet',
                                       editTooltip: 'Edit Fleet',
                                       onView: () => context.go(
-                                        RoutePaths.fleetDetailById(fleet.fleetId),
+                                        RoutePaths.fleetDetailById(
+                                            fleet.fleetId),
                                       ),
                                       onEdit: () => context.go(
                                         RoutePaths.editFleetById(fleet.fleetId),
@@ -203,13 +273,18 @@ class FleetManagementScreen extends ConsumerWidget {
                                       moreItems: const [
                                         OpsTableActionMenuItem(
                                           value: 'documents',
-                                          label: 'View Documents',
+                                          label: 'Compliance Readiness',
                                           icon: Icons.folder_open_outlined,
                                         ),
                                         OpsTableActionMenuItem(
                                           value: 'history',
-                                          label: 'View History',
+                                          label: 'Inspection History',
                                           icon: Icons.history_outlined,
+                                        ),
+                                        OpsTableActionMenuItem(
+                                          value: 'createInspection',
+                                          label: 'Create Inspection',
+                                          icon: Icons.fact_check_outlined,
                                         ),
                                         OpsTableActionMenuItem(
                                           value: 'delete',
@@ -221,6 +296,7 @@ class FleetManagementScreen extends ConsumerWidget {
                                       onMoreSelected: (value) =>
                                           _handleMoreAction(
                                         context: context,
+                                        ref: ref,
                                         fleet: fleet,
                                         action: value,
                                       ),
@@ -279,17 +355,82 @@ class FleetManagementScreen extends ConsumerWidget {
 
   void _handleMoreAction({
     required BuildContext context,
+    required WidgetRef ref,
     required FleetMasterModel fleet,
     required String action,
-  }) {
-    final message = switch (action) {
-      'documents' => 'Documents view will be connected for ${fleet.fleetNumber}.',
-      'history' => 'History view will be connected for ${fleet.fleetNumber}.',
-      'delete' => 'Delete is reserved for archive-enabled fleet records.',
-      _ => 'Action not available.',
-    };
+  }) async {
+    switch (action) {
+      case 'documents':
+        context.go(RoutePaths.complianceReadiness);
+        return;
+      case 'history':
+        context.go(RoutePaths.inspections);
+        return;
+      case 'createInspection':
+        context.go(
+          '${RoutePaths.inspectionCreate}?fleetId=${Uri.encodeComponent(fleet.fleetNumber)}',
+        );
+        return;
+      case 'delete':
+        final confirmed = await showDialog<bool>(
+              context: context,
+              builder: (_) => AlertDialog(
+                title: const Text('Delete Fleet'),
+                content: Text(
+                    'Are you sure you want to delete ${fleet.fleetNumber}?'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    child: const Text('Cancel'),
+                  ),
+                  FilledButton(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    child: const Text('Delete'),
+                  ),
+                ],
+              ),
+            ) ??
+            false;
+        if (!confirmed) {
+          return;
+        }
+        final message =
+            await ref.read(fleetMasterViewModelProvider.notifier).deleteFleet(
+                  fleet.fleetId,
+                );
+        if (context.mounted) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(message)));
+        }
+        return;
+      default:
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Action not available.')));
+    }
+  }
 
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+  Widget _metric(String label, String value, Color color) {
+    return Container(
+      width: 170,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(value,
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.w800,
+                fontSize: 20,
+              )),
+          const SizedBox(height: 4),
+          Text(label),
+        ],
+      ),
+    );
   }
 }

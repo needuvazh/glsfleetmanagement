@@ -10,6 +10,7 @@ abstract class FleetMasterMockDataSource {
   Future<FleetMasterModel?> getFleetById(String fleetId);
   Future<List<FleetMasterModel>> addFleet(FleetMasterModel item);
   Future<List<FleetMasterModel>> updateFleet(FleetMasterModel item);
+  Future<List<FleetMasterModel>> deleteFleet(String fleetId);
 }
 
 class FleetMasterMockDataSourceImpl implements FleetMasterMockDataSource {
@@ -101,6 +102,14 @@ class FleetMasterMockDataSourceImpl implements FleetMasterMockDataSource {
     return getFleets();
   }
 
+  @override
+  Future<List<FleetMasterModel>> deleteFleet(String fleetId) async {
+    await _ensureInitialized();
+    _items!.removeWhere((entry) => entry.fleetId == fleetId);
+    await _persist();
+    return getFleets();
+  }
+
   String _nextFleetId() {
     final id = 'FLT-${_sequence.toString().padLeft(3, '0')}';
     _sequence += 1;
@@ -143,9 +152,8 @@ class FleetMasterMockDataSourceImpl implements FleetMasterMockDataSource {
       permitExpiryDate:
           DateTime.tryParse(map['permitExpiryDate'] as String? ?? '') ??
               DateTime.now(),
-      rasExpiryDate:
-          DateTime.tryParse(map['rasExpiryDate'] as String? ?? '') ??
-              DateTime.now(),
+      rasExpiryDate: DateTime.tryParse(map['rasExpiryDate'] as String? ?? '') ??
+          DateTime.now(),
       inspectionDueDate:
           DateTime.tryParse(map['inspectionDueDate'] as String? ?? '') ??
               DateTime.now(),
