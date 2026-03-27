@@ -20,6 +20,7 @@ import '../presentation/screens/enquiry_details_screen.dart';
 import '../presentation/screens/create_work_order_screen.dart';
 import '../presentation/screens/assign_supervisor_screen.dart';
 import '../presentation/screens/compliance_dashboard_screen.dart';
+import '../presentation/screens/compliance_readiness_screen.dart';
 import '../presentation/screens/dispatch_readiness_screen.dart';
 import '../presentation/screens/delivery_pod_screen.dart';
 import '../presentation/screens/document_management_screen.dart';
@@ -47,6 +48,18 @@ import '../presentation/screens/inspection_list_screen.dart';
 import '../presentation/screens/inspection_template_management_screen.dart';
 import '../presentation/screens/inspection_template_form_screen.dart';
 import '../presentation/screens/inspection_template_view_screen.dart';
+import '../presentation/screens/inspection_master_catalog_screen.dart';
+import '../presentation/screens/inspection_bundle_master_screen.dart';
+import '../presentation/screens/inspection_type_master_screen.dart';
+import '../presentation/screens/inspection_bundle_type_mapping_master_screen.dart';
+import '../presentation/screens/inspection_template_master_screen.dart';
+import '../presentation/screens/inspection_template_section_master_screen.dart';
+import '../presentation/screens/inspection_template_item_master_screen.dart';
+import '../presentation/screens/inspection_applicability_rule_master_screen.dart';
+import '../presentation/screens/inspection_validation_rule_master_screen.dart';
+import '../presentation/screens/inspection_result_logic_rule_master_screen.dart';
+import '../presentation/screens/inspection_media_rule_master_screen.dart';
+import '../presentation/screens/inspection_approval_matrix_master_screen.dart';
 import '../presentation/screens/journey_management_list_screen.dart';
 import '../presentation/screens/journey_management_detail_screen.dart';
 import '../presentation/screens/login_screen.dart';
@@ -246,6 +259,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const DispatchReadinessScreen(),
       ),
       GoRoute(
+        path: RoutePaths.complianceReadiness,
+        builder: (context, state) => ComplianceReadinessScreen(
+          workOrderId: state.uri.queryParameters['workOrderId'],
+        ),
+      ),
+      GoRoute(
         path: RoutePaths.alerts,
         builder: (context, state) => const AlertsScreen(),
       ),
@@ -269,11 +288,74 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: RoutePaths.inspectionCreate,
-        builder: (context, state) => const InspectionCreateScreen(),
+        builder: (context, state) => InspectionCreateScreen(
+          workOrderId: state.uri.queryParameters['woId'],
+          fleetId: state.uri.queryParameters['fleetId'],
+          trailerId: state.uri.queryParameters['trailerId'],
+          driverId: state.uri.queryParameters['driverId'],
+          tripId: state.uri.queryParameters['tripId'],
+          journeyPlanId: state.uri.queryParameters['jmpId'],
+          clientCode: state.uri.queryParameters['clientCode'],
+          siteCode: state.uri.queryParameters['siteCode'],
+        ),
       ),
       GoRoute(
         path: RoutePaths.inspectionTemplates,
         builder: (context, state) => const InspectionTemplateManagementScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.inspectionMasterCatalog,
+        builder: (context, state) => const InspectionMasterCatalogScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.inspectionBundleMaster,
+        builder: (context, state) => const InspectionBundleMasterScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.inspectionTypeMaster,
+        builder: (context, state) => const InspectionTypeMasterScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.inspectionBundleTypeMappingMaster,
+        builder: (context, state) =>
+            const InspectionBundleTypeMappingMasterScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.inspectionTemplateMaster,
+        builder: (context, state) => const InspectionTemplateMasterScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.inspectionTemplateSectionMaster,
+        builder: (context, state) =>
+            const InspectionTemplateSectionMasterScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.inspectionTemplateItemMaster,
+        builder: (context, state) => const InspectionTemplateItemMasterScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.inspectionApplicabilityRuleMaster,
+        builder: (context, state) =>
+            const InspectionApplicabilityRuleMasterScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.inspectionValidationRuleMaster,
+        builder: (context, state) =>
+            const InspectionValidationRuleMasterScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.inspectionResultLogicRuleMaster,
+        builder: (context, state) =>
+            const InspectionResultLogicRuleMasterScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.inspectionMediaRuleMaster,
+        builder: (context, state) => const InspectionMediaRuleMasterScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.inspectionApprovalMatrixMaster,
+        builder: (context, state) =>
+            const InspectionApprovalMatrixMasterScreen(),
       ),
       GoRoute(
         path: RoutePaths.inspectionTemplateForm,
@@ -513,11 +595,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: RoutePaths.dispatch,
-        builder: (context, state) => const ModulePlaceholderScreen(
-          title: 'Dispatch',
-          step: 'Operations',
-          icon: Icons.play_circle_outline,
-        ),
+        redirect: (context, state) => RoutePaths.dispatchReadiness,
       ),
       GoRoute(
         path: RoutePaths.tripDocumentVerification,

@@ -4,18 +4,39 @@ import 'package:go_router/go_router.dart';
 
 import '../../domain/cargo_model.dart';
 import '../../domain/entities/inspection.dart';
+import '../../domain/entities/inspection_master_v2.dart';
 import '../../routes/route_paths.dart';
 import '../viewmodels/cargo_viewmodel.dart';
 import '../viewmodels/inspection_master_viewmodel.dart';
+import '../viewmodels/inspection_master_v2_viewmodel.dart';
 import '../viewmodels/inspection_viewmodel.dart';
 import '../viewmodels/vendor_viewmodel.dart';
 import '../widgets/ops_shell.dart';
 import 'inspection_template_store.dart';
 
 class InspectionCreateScreen extends ConsumerStatefulWidget {
-  const InspectionCreateScreen({super.key, this.inspectionId});
+  const InspectionCreateScreen({
+    super.key,
+    this.inspectionId,
+    this.workOrderId,
+    this.fleetId,
+    this.trailerId,
+    this.driverId,
+    this.tripId,
+    this.journeyPlanId,
+    this.clientCode,
+    this.siteCode,
+  });
 
   final String? inspectionId;
+  final String? workOrderId;
+  final String? fleetId;
+  final String? trailerId;
+  final String? driverId;
+  final String? tripId;
+  final String? journeyPlanId;
+  final String? clientCode;
+  final String? siteCode;
 
   @override
   ConsumerState<InspectionCreateScreen> createState() =>
@@ -60,6 +81,8 @@ class _InspectionCreateScreenState
 
   List<_ChecklistDraft> _items = [];
   final List<_DocumentDraftRow> _docRows = [_DocumentDraftRow()];
+  String _resolvedBundleCode = '';
+  final List<String> _resolvedTemplateCodes = [];
 
   bool get _isEditing => widget.inspectionId != null;
   bool _isReadOnly = false;
@@ -72,6 +95,25 @@ class _InspectionCreateScreenState
     } else {
       _inspectionIdController.text =
           'INS-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}';
+      _prefillFromFlowContext();
+    }
+  }
+
+  void _prefillFromFlowContext() {
+    if ((widget.workOrderId ?? '').trim().isNotEmpty) {
+      _workOrderController.text = widget.workOrderId!.trim();
+    }
+    if ((widget.fleetId ?? '').trim().isNotEmpty) {
+      _fleetController.text = widget.fleetId!.trim();
+    }
+    if ((widget.trailerId ?? '').trim().isNotEmpty) {
+      _trailerController.text = widget.trailerId!.trim();
+    }
+    if ((widget.driverId ?? '').trim().isNotEmpty) {
+      _driverController.text = widget.driverId!.trim();
+    }
+    if (_inspectorController.text.trim().isEmpty) {
+      _inspectorController.text = 'Current Inspector';
     }
   }
 
@@ -130,12 +172,109 @@ class _InspectionCreateScreenState
   }
 
   void _rebuildChecklists() {
+    final bundle = ref.read(dispatchReadinessBundleProvider);
+    final catalog = ref.read(inspectionMasterCatalogProvider);
+    final runtime = _runtimeContext();
+
+    if (bundle != null) {
+      final mappings = catalog.bundleTypeMappings
+          .where((m) => m.bundleId == bundle.bundleId && m.activeFlag)
+          .toList()
+        ..sort((a, b) => a.displayOrder.compareTo(b.displayOrder));
+
+      final generated = <_ChecklistDraft>[];
+      final templateCodes = <String>[];
+      var sno = 1;
+
+      for (final map in mappings) {
+        final templates = catalog.templates
+            .where(
+              (t) =>
+                  t.activeFlag &&
+                  t.status == TemplateStatus.published &&
+                  t.inspectionTypeId == map.inspectionTypeId &&
+                  _matchTemplateContext(t, runtime),
+            )
+            .toList();
+        if (templates.isEmpty) {
+          continue;
+        }
+        templates.sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
+        final template = templates.first;
+
+        if (!_isVisibleByApplicability(
+          targetLevel: RuleTargetLevel.template,
+          targetId: template.templateId,
+          catalog: catalog,
+          context: runtime,
+        )) {
+          continue;
+        }
+        templateCodes.add(template.templateCode);
+
+        final sections = catalog.sections
+            .where((s) => s.templateId == template.templateId && s.activeFlag)
+            .toList()
+          ..sort((a, b) => a.displayOrder.compareTo(b.displayOrder));
+        for (final section in sections) {
+          if (!_isVisibleByApplicability(
+            targetLevel: RuleTargetLevel.section,
+            targetId: section.sectionId,
+            catalog: catalog,
+            context: runtime,
+          )) {
+            continue;
+          }
+
+          final items = catalog.items
+              .where((i) => i.sectionId == section.sectionId && i.activeFlag)
+              .toList()
+            ..sort((a, b) => a.displayOrder.compareTo(b.displayOrder));
+          for (final item in items) {
+            if (!_isVisibleByApplicability(
+              targetLevel: RuleTargetLevel.item,
+              targetId: item.itemId,
+              catalog: catalog,
+              context: runtime,
+            )) {
+              continue;
+            }
+            generated.add(
+              _ChecklistDraft(
+                sno: sno,
+                itemName: item.itemName,
+                category: section.sectionName,
+                mandatory: item.mandatoryFlag,
+                severity: item.severity,
+                requiresPhoto: item.requiresPhotoOnFail,
+                requiresVideo: item.requiresVideoOnFail,
+              ),
+            );
+            sno += 1;
+          }
+        }
+      }
+
+      if (generated.isNotEmpty) {
+        setState(() {
+          _resolvedBundleCode = bundle.bundleCode;
+          _resolvedTemplateCodes
+            ..clear()
+            ..addAll(templateCodes);
+          _items = generated;
+        });
+        return;
+      }
+    }
+
     final template = InspectionTemplateStore.resolveActiveTemplate(
       type: _type,
       vehicleType: 'Truck',
     );
     if (template != null && template.items.isNotEmpty) {
       setState(() {
+        _resolvedBundleCode = '';
+        _resolvedTemplateCodes.clear();
         _items = [
           for (var i = 0; i < template.items.length; i++)
             _ChecklistDraft(
@@ -161,6 +300,8 @@ class _InspectionCreateScreenState
 
     if (masterTypeId == null) {
       setState(() {
+        _resolvedBundleCode = '';
+        _resolvedTemplateCodes.clear();
         _items = [
           _ChecklistDraft(sno: 1, itemName: 'Tyres', category: 'General'),
           _ChecklistDraft(sno: 2, itemName: 'Brake', category: 'General'),
@@ -183,6 +324,8 @@ class _InspectionCreateScreenState
         checklists.where((c) => categoryIds.contains(c.categoryId)).toList();
 
     setState(() {
+      _resolvedBundleCode = '';
+      _resolvedTemplateCodes.clear();
       _items = matchingItems.map((c) {
         final categoryName = masterType.categories
             .firstWhere((cat) => cat.id == c.categoryId)
@@ -191,6 +334,91 @@ class _InspectionCreateScreenState
             sno: c.sno, itemName: c.description, category: categoryName);
       }).toList();
     });
+  }
+
+  Map<String, String> _runtimeContext() {
+    final selectedCargo = ref
+        .read(cargoViewModelProvider.notifier)
+        .findByCode(_selectedCargoCode);
+    return {
+      'client_code': (widget.clientCode ?? 'GLS').trim(),
+      'vehicle_type': _fleetController.text.trim().isEmpty
+          ? 'Any'
+          : _fleetController.text.trim(),
+      'trailer_type': _trailerController.text.trim().isEmpty
+          ? 'Any'
+          : _trailerController.text.trim(),
+      'trailer_present': (_trailerController.text.trim().isNotEmpty).toString(),
+      'cargo_type': selectedCargo?.cargoName ?? 'Any',
+      'route_type': widget.siteCode ?? 'Any',
+      'site_requires_h2s':
+          (_h2sPermitExpiryController.text.trim().isNotEmpty).toString(),
+    };
+  }
+
+  bool _matchTemplateContext(
+      InspectionTemplateMasterV2 template, Map<String, String> context) {
+    bool matchField(String templateValue, String ctxValue) {
+      final t = templateValue.trim().toLowerCase();
+      final c = ctxValue.trim().toLowerCase();
+      return t == 'any' || t == 'all' || t == c;
+    }
+
+    return matchField(template.clientId, context['client_code'] ?? 'all') &&
+        matchField(template.vehicleType, context['vehicle_type'] ?? 'any') &&
+        matchField(template.trailerType, context['trailer_type'] ?? 'any') &&
+        matchField(template.cargoType, context['cargo_type'] ?? 'any') &&
+        matchField(template.routeType, context['route_type'] ?? 'any');
+  }
+
+  bool _isVisibleByApplicability({
+    required RuleTargetLevel targetLevel,
+    required String targetId,
+    required InspectionMasterCatalog catalog,
+    required Map<String, String> context,
+  }) {
+    final rules = catalog.applicabilityRules
+        .where((r) => r.activeFlag)
+        .where((r) => r.targetLevel == targetLevel && r.targetId == targetId)
+        .toList()
+      ..sort((a, b) => a.priority.compareTo(b.priority));
+
+    if (rules.isEmpty) {
+      return true;
+    }
+    var visible = true;
+    for (final rule in rules) {
+      if (!_ruleConditionPass(rule, context)) {
+        continue;
+      }
+      if (rule.action == RuleAction.hide || rule.action == RuleAction.exclude) {
+        visible = false;
+      }
+      if (rule.action == RuleAction.show || rule.action == RuleAction.include) {
+        visible = true;
+      }
+    }
+    return visible;
+  }
+
+  bool _ruleConditionPass(
+      ApplicabilityRuleMaster rule, Map<String, String> context) {
+    final left = (context[rule.conditionField] ?? '').toLowerCase();
+    final right = rule.conditionValue.toLowerCase();
+    switch (rule.operator) {
+      case RuleOperator.equals:
+        return left == right;
+      case RuleOperator.notEquals:
+        return left != right;
+      case RuleOperator.contains:
+        return left.contains(right);
+      case RuleOperator.greaterThan:
+        return (double.tryParse(left) ?? -1) > (double.tryParse(right) ?? -1);
+      case RuleOperator.lessThan:
+        return (double.tryParse(left) ?? -1) < (double.tryParse(right) ?? -1);
+      case RuleOperator.inList:
+        return right.split(',').map((e) => e.trim()).contains(left);
+    }
   }
 
   @override
@@ -409,6 +637,32 @@ class _InspectionCreateScreenState
                   ),
                 ),
               ),
+            if (_resolvedBundleCode.isNotEmpty)
+              _Section(
+                title: 'Master Resolution',
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFECFDF5),
+                    border: Border.all(color: const Color(0xFF34D399)),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Bundle: $_resolvedBundleCode',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Templates: ${_resolvedTemplateCodes.isEmpty ? '-' : _resolvedTemplateCodes.join(', ')}',
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             _Section(
               title: 'Checklist Items',
               child: Column(
@@ -594,6 +848,37 @@ class _InspectionCreateScreenState
                 ),
               ),
             ),
+            _Section(
+              title: 'Live Summary',
+              child: Wrap(
+                spacing: 12,
+                runSpacing: 10,
+                children: [
+                  _metricCard('Total Items', '${_items.length}'),
+                  _metricCard(
+                    'Completed',
+                    '${_items.where((i) => i.answered).length}',
+                  ),
+                  _metricCard(
+                    'Failed',
+                    '${_items.where((i) => i.answered && !i.passed).length}',
+                  ),
+                  _metricCard(
+                    'Critical Failed',
+                    '${_items.where((i) => i.answered && !i.passed && i.severity == InspectionFailureSeverity.critical).length}',
+                  ),
+                  _metricCard(
+                    'Dispatch',
+                    _items.any((i) =>
+                            i.answered &&
+                            !i.passed &&
+                            i.severity == InspectionFailureSeverity.critical)
+                        ? 'Blocked'
+                        : 'Eligible',
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 8),
             if (_isReadOnly)
               Center(
@@ -666,78 +951,139 @@ class _InspectionCreateScreenState
         ),
       );
 
-      children.add(
-        Table(
-          border: TableBorder.all(color: Colors.grey),
-          columnWidths: const {
-            0: FixedColumnWidth(30),
-            1: FlexColumnWidth(1),
-            2: FixedColumnWidth(40),
-            3: FixedColumnWidth(30),
-            4: FlexColumnWidth(1),
-            5: FixedColumnWidth(40),
-            6: FixedColumnWidth(30),
-            7: FlexColumnWidth(1),
-            8: FixedColumnWidth(40),
-          },
-          defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-          children: [
-            for (int i = 0; i < items.length; i += 3)
-              TableRow(
-                children: [
-                  _buildCellSno(items, i),
-                  _buildCellDesc(items, i),
-                  _buildCellCheck(items, i),
-                  _buildCellSno(items, i + 1),
-                  _buildCellDesc(items, i + 1),
-                  _buildCellCheck(items, i + 1),
-                  _buildCellSno(items, i + 2),
-                  _buildCellDesc(items, i + 2),
-                  _buildCellCheck(items, i + 2),
-                ],
+      for (final item in items) {
+        final fail = item.answered && !item.passed;
+        children.add(
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: fail ? const Color(0xFFFEF2F2) : Colors.white,
+              border: Border.all(
+                color: fail ? const Color(0xFFFCA5A5) : const Color(0xFFE5E7EB),
               ),
-          ],
-        ),
-      );
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '${item.sno}. ${item.itemName}${item.mandatory ? ' *' : ''}',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    SegmentedButton<bool>(
+                      showSelectedIcon: false,
+                      emptySelectionAllowed: true,
+                      segments: const [
+                        ButtonSegment(value: true, label: Text('Pass')),
+                        ButtonSegment(value: false, label: Text('Fail')),
+                      ],
+                      selected: item.answered ? {item.passed} : <bool>{},
+                      onSelectionChanged: _isReadOnly
+                          ? null
+                          : (selection) {
+                              if (selection.isEmpty) {
+                                return;
+                              }
+                              setState(() {
+                                item.answered = true;
+                                item.passed = selection.first;
+                                if (item.passed) {
+                                  item.remarksController.clear();
+                                }
+                              });
+                            },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<InspectionFailureSeverity>(
+                        value: item.severity,
+                        decoration:
+                            const InputDecoration(labelText: 'Severity'),
+                        items: [
+                          for (final level in InspectionFailureSeverity.values)
+                            DropdownMenuItem(
+                              value: level,
+                              child: Text(level.label),
+                            ),
+                        ],
+                        onChanged: _isReadOnly
+                            ? null
+                            : (value) {
+                                if (value != null) {
+                                  setState(() => item.severity = value);
+                                }
+                              },
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: TextFormField(
+                        controller: item.remarksController,
+                        readOnly: _isReadOnly,
+                        decoration: const InputDecoration(labelText: 'Remark'),
+                        maxLines: 2,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    SizedBox(
+                      width: 170,
+                      child: Row(
+                        children: [
+                          IconButton(
+                            tooltip: 'Remove media',
+                            onPressed: _isReadOnly
+                                ? null
+                                : () {
+                                    setState(() {
+                                      if (item.mediaCount > 0) {
+                                        item.mediaCount -= 1;
+                                      }
+                                    });
+                                  },
+                            icon: const Icon(Icons.remove_circle_outline),
+                          ),
+                          Text('Media ${item.mediaCount}'),
+                          IconButton(
+                            tooltip: 'Add media',
+                            onPressed: _isReadOnly
+                                ? null
+                                : () {
+                                    setState(() {
+                                      item.mediaCount += 1;
+                                    });
+                                  },
+                            icon: const Icon(Icons.add_circle_outline),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                if (!item.answered)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 6),
+                    child: Text(
+                      'Not answered yet',
+                      style: TextStyle(color: Color(0xFFB45309)),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      }
     }
     return children;
-  }
-
-  Widget _buildCellSno(List<_ChecklistDraft> items, int index) {
-    if (index >= items.length) return const SizedBox();
-    return Padding(
-      padding: const EdgeInsets.all(4.0),
-      child: Center(child: Text('${items[index].sno}')),
-    );
-  }
-
-  Widget _buildCellDesc(List<_ChecklistDraft> items, int index) {
-    if (index >= items.length) return const SizedBox();
-    return Padding(
-      padding: const EdgeInsets.all(4.0),
-      child: Text(items[index].itemName, style: const TextStyle(fontSize: 12)),
-    );
-  }
-
-  Widget _buildCellCheck(List<_ChecklistDraft> items, int index) {
-    if (index >= items.length) return const SizedBox();
-    final item = items[index];
-    return InkWell(
-      onTap: _isReadOnly
-          ? null
-          : () {
-              setState(() {
-                item.passed = !item.passed;
-              });
-            },
-      child: Container(
-        height: 32,
-        alignment: Alignment.center,
-        child: item.passed
-            ? const Icon(Icons.check, color: Colors.green, size: 20)
-            : const SizedBox(height: 20, width: 20),
-      ),
-    );
   }
 
   SizedBox _field(
@@ -778,8 +1124,54 @@ class _InspectionCreateScreenState
   }
 
   InspectionResult _computedResult() {
-    final hasFailed = _items.any((item) => !item.passed);
+    final hasFailed = _items.any((item) => item.answered && !item.passed);
     return hasFailed ? InspectionResult.failed : InspectionResult.passed;
+  }
+
+  String? _validateBeforeSubmit(InspectionStatus status) {
+    if (_inspectionIdController.text.trim().isEmpty) {
+      return 'Inspection ID is required.';
+    }
+    if (_workOrderController.text.trim().isEmpty) {
+      return 'Linked Work Order is required.';
+    }
+    if (_fleetController.text.trim().isEmpty) {
+      return 'Vehicle code is required.';
+    }
+    if (_driverController.text.trim().isEmpty) {
+      return 'Driver code is required.';
+    }
+    if (_inspectorController.text.trim().isEmpty) {
+      return 'Inspector is required.';
+    }
+    if (status == InspectionStatus.draft) {
+      return null;
+    }
+
+    for (final item in _items) {
+      if (item.mandatory && !item.answered) {
+        return 'Mandatory item "${item.itemName}" is not answered.';
+      }
+      if (item.answered && !item.passed) {
+        if (item.remarksController.text.trim().isEmpty) {
+          return 'Remark is required for failed item "${item.itemName}".';
+        }
+        if (item.requiresPhoto && item.mediaCount < 1) {
+          return 'Photo evidence is required for failed item "${item.itemName}".';
+        }
+        if (item.requiresVideo && item.mediaCount < 1) {
+          return 'Video evidence is required for failed item "${item.itemName}".';
+        }
+      }
+    }
+
+    if (status == InspectionStatus.passed) {
+      final hasFail = _items.any((item) => item.answered && !item.passed);
+      if (hasFail) {
+        return 'Cannot mark passed while failed items exist.';
+      }
+    }
+    return null;
   }
 
   List<String> _cargoInspectionWarnings(CargoModel cargo) {
@@ -844,20 +1236,37 @@ class _InspectionCreateScreenState
   }
 
   void _submit(InspectionStatus status, InspectionResult result) {
-    // Removed form validation and checklist completion checks as requested
+    final validationMessage = _validateBeforeSubmit(status);
+    if (validationMessage != null) {
+      _toast(validationMessage);
+      return;
+    }
+
+    final computedResult = _computedResult();
+    final finalResult = status == InspectionStatus.failed
+        ? InspectionResult.failed
+        : (status == InspectionStatus.passed
+            ? InspectionResult.passed
+            : computedResult);
 
     final checklist = _items
         .map(
           (item) => InspectionChecklistItemResult(
             itemName: item.itemName,
-            passed: item.passed,
+            passed: item.answered ? item.passed : false,
             remarks: item.remarksController.text.trim(),
             mediaCount: item.mediaCount,
-            severity:
-                item.passed ? InspectionFailureSeverity.none : item.severity,
+            severity: (item.answered && !item.passed)
+                ? item.severity
+                : InspectionFailureSeverity.none,
           ),
         )
         .toList();
+
+    final criticalFailures = checklist
+        .where((item) =>
+            !item.passed && item.severity == InspectionFailureSeverity.critical)
+        .length;
 
     final approvalStatus = _selectedApprovalStatus;
 
@@ -870,9 +1279,11 @@ class _InspectionCreateScreenState
       driver: _driverController.text.trim(),
       inspector: _inspectorController.text.trim(),
       inspectedAt: _inspectionDateTime,
-      overallResult: result,
+      overallResult: finalResult,
       status: status,
-      approvalStatus: approvalStatus,
+      approvalStatus: criticalFailures > 0
+          ? InspectionApprovalStatus.pending
+          : approvalStatus,
       mediaCount: checklist.fold<int>(0, (sum, item) => sum + item.mediaCount),
       lastUpdated: DateTime.now(),
       checklistItems: checklist,
@@ -884,6 +1295,7 @@ class _InspectionCreateScreenState
       recommendation: _recommendationController.text.trim(),
       reviewerName: _reviewerController.text.trim(),
       signaturePlaceholder: true,
+      linkedTrip: (widget.tripId ?? widget.journeyPlanId ?? '').trim(),
     );
 
     if (_isEditing) {
@@ -893,7 +1305,33 @@ class _InspectionCreateScreenState
       ref.read(inspectionViewModelProvider.notifier).createInspection(record);
       _toast('Inspection ${record.inspectionId} saved as ${status.label}.');
     }
+    if (record.dispatchBlocked) {
+      _toast(
+          'Critical failures detected. Dispatch is blocked until approval/override.');
+    }
     context.go(RoutePaths.inspections);
+  }
+
+  Widget _metricCard(String label, String value) {
+    return Container(
+      width: 170,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(value,
+              style:
+                  const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+          const SizedBox(height: 3),
+          Text(label),
+        ],
+      ),
+    );
   }
 
   String _fmtDateTime(DateTime dt) {
@@ -957,6 +1395,7 @@ class _ChecklistDraft {
   final bool requiresPhoto;
   final bool requiresVideo;
   final TextEditingController remarksController;
+  bool answered = false;
   bool passed = true;
   int mediaCount = 0;
   InspectionFailureSeverity severity;

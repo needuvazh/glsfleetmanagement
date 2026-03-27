@@ -3,11 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../domain/entities/customer.dart';
+import '../../domain/entities/inspection.dart';
 import '../../domain/entities/logistics_flow.dart';
-import '../../domain/entities/work_order.dart';
 import '../../domain/route_model.dart';
 import '../../routes/route_paths.dart';
 import '../viewmodels/customer_viewmodel.dart';
+import '../viewmodels/inspection_viewmodel.dart';
 import '../viewmodels/logistics_viewmodel.dart';
 import '../viewmodels/route_viewmodel.dart';
 import '../widgets/ops_shell.dart';
@@ -23,7 +24,8 @@ class WorkOrderDetailScreen extends ConsumerStatefulWidget {
   final String? initialTab;
 
   @override
-  ConsumerState<WorkOrderDetailScreen> createState() => _WorkOrderDetailScreenState();
+  ConsumerState<WorkOrderDetailScreen> createState() =>
+      _WorkOrderDetailScreenState();
 }
 
 class _WorkOrderDetailScreenState extends ConsumerState<WorkOrderDetailScreen>
@@ -59,7 +61,7 @@ class _WorkOrderDetailScreenState extends ConsumerState<WorkOrderDetailScreen>
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final logisticsState = ref.watch(logisticsViewModelProvider);
-    
+
     return OpsShell(
       title: 'Work Order Detail',
       currentRoute: RoutePaths.workOrders,
@@ -67,10 +69,20 @@ class _WorkOrderDetailScreenState extends ConsumerState<WorkOrderDetailScreen>
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(child: Text('Error: $err')),
         data: (state) {
-          final order = state.workOrders.where((wo) => wo.woId == widget.workOrderId).firstOrNull;
+          final order = state.workOrders
+              .where((wo) => wo.woId == widget.workOrderId)
+              .firstOrNull;
           if (order == null) {
             return const Center(child: Text('Work Order not found.'));
           }
+          final linkedInspections = ref
+              .watch(inspectionViewModelProvider)
+              .items
+              .where((item) => item.workOrder == order.woId)
+              .toList()
+            ..sort((a, b) => b.inspectedAt.compareTo(a.inspectedAt));
+          final latestInspection =
+              linkedInspections.isEmpty ? null : linkedInspections.first;
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -107,21 +119,24 @@ class _WorkOrderDetailScreenState extends ConsumerState<WorkOrderDetailScreen>
                           ),
                           OutlinedButton.icon(
                             onPressed: () => context.push(
-                              RoutePaths.assignSupervisorById(widget.workOrderId),
+                              RoutePaths.assignSupervisorById(
+                                  widget.workOrderId),
                             ),
                             icon: const Icon(Icons.person_add_alt_1_outlined),
                             label: const Text('Assign Supervisor'),
                           ),
                           OutlinedButton.icon(
                             onPressed: () => context.go(
-                              RoutePaths.resourceAssignmentById(widget.workOrderId),
+                              RoutePaths.resourceAssignmentById(
+                                  widget.workOrderId),
                             ),
                             icon: const Icon(Icons.assignment_ind_outlined),
                             label: const Text('Assign Resources'),
                           ),
                           OutlinedButton.icon(
-                            onPressed: () =>
-                                context.go(RoutePaths.inspectionCreate),
+                            onPressed: () => context.go(
+                              '${RoutePaths.inspectionCreate}?woId=${Uri.encodeComponent(order.woId)}&fleetId=${Uri.encodeComponent(order.assignedVehicleNo)}&driverId=${Uri.encodeComponent(order.assignedDriverId)}&trailerId=${Uri.encodeComponent(order.assignedTrailerId)}&clientCode=${Uri.encodeComponent(order.customer)}',
+                            ),
                             icon: const Icon(Icons.fact_check_outlined),
                             label: const Text('Create Inspection'),
                           ),
@@ -133,16 +148,27 @@ class _WorkOrderDetailScreenState extends ConsumerState<WorkOrderDetailScreen>
                           ),
                           FilledButton.icon(
                             onPressed: () {
-                              if (order.assignedVehicleNo.isEmpty || order.assignedDriverId.isEmpty) {
+                              if (order.assignedVehicleNo.isEmpty ||
+                                  order.assignedDriverId.isEmpty) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Cannot Dispatch: Please assign a vehicle and driver first.')),
+                                  const SnackBar(
+                                      content: Text(
+                                          'Cannot Dispatch: Please assign a vehicle and driver first.')),
                                 );
                                 return;
                               }
 
-                              final vehicle = state.vehicles.where((v) => v.vehicleNo == order.assignedVehicleNo).firstOrNull;
-                              final driver = state.drivers.where((d) => d.driverId == order.assignedDriverId).firstOrNull;
-                              final jmp = state.journeyPlans.where((p) => p.woId == widget.workOrderId).firstOrNull;
+                              final vehicle = state.vehicles
+                                  .where((v) =>
+                                      v.vehicleNo == order.assignedVehicleNo)
+                                  .firstOrNull;
+                              final driver = state.drivers
+                                  .where((d) =>
+                                      d.driverId == order.assignedDriverId)
+                                  .firstOrNull;
+                              final jmp = state.journeyPlans
+                                  .where((p) => p.woId == widget.workOrderId)
+                                  .firstOrNull;
 
                               if (jmp == null || jmp.status != 'Approved') {
                                 showDialog(
@@ -150,24 +176,106 @@ class _WorkOrderDetailScreenState extends ConsumerState<WorkOrderDetailScreen>
                                   builder: (context) => AlertDialog(
                                     title: const Row(
                                       children: [
-                                        Icon(Icons.warning_amber, color: Colors.orange),
+                                        Icon(Icons.warning_amber,
+                                            color: Colors.orange),
                                         SizedBox(width: 8),
                                         Text('Journey Plan Required'),
                                       ],
                                     ),
-                                    content: const Text('An Approved Journey Management Plan (JMP) is mandatory before dispatch.\n\nPlease create or approve the JMP for this Work Order.'),
+                                    content: const Text(
+                                        'An Approved Journey Management Plan (JMP) is mandatory before dispatch.\n\nPlease create or approve the JMP for this Work Order.'),
                                     actions: [
-                                      TextButton(onPressed: () => context.pop(), child: const Text('Cancel')),
+                                      TextButton(
+                                          onPressed: () => context.pop(),
+                                          child: const Text('Cancel')),
                                       FilledButton(
                                         onPressed: () {
                                           context.pop();
                                           if (jmp == null) {
-                                            context.go('${RoutePaths.journeyManagement}/new');
+                                            context.go(
+                                                '${RoutePaths.journeyManagement}/new');
                                           } else {
-                                            context.go('${RoutePaths.journeyManagement}/${jmp.jmpId}');
+                                            context.go(
+                                                '${RoutePaths.journeyManagement}/${jmp.jmpId}');
                                           }
                                         },
-                                        child: Text(jmp == null ? 'Create JMP' : 'View JMP'),
+                                        child: Text(jmp == null
+                                            ? 'Create JMP'
+                                            : 'View JMP'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                return;
+                              }
+
+                              if (latestInspection == null) {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: const Row(
+                                      children: [
+                                        Icon(Icons.fact_check_outlined,
+                                            color: Colors.orange),
+                                        SizedBox(width: 8),
+                                        Text('Inspection Required'),
+                                      ],
+                                    ),
+                                    content: const Text(
+                                      'A Pre-Trip inspection is mandatory before dispatch. Please complete inspection and submit for approval.',
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => context.pop(),
+                                        child: const Text('Cancel'),
+                                      ),
+                                      FilledButton(
+                                        onPressed: () {
+                                          context.pop();
+                                          context.go(
+                                            '${RoutePaths.inspectionCreate}?woId=${Uri.encodeComponent(order.woId)}&fleetId=${Uri.encodeComponent(order.assignedVehicleNo)}&driverId=${Uri.encodeComponent(order.assignedDriverId)}&trailerId=${Uri.encodeComponent(order.assignedTrailerId)}&clientCode=${Uri.encodeComponent(order.customer)}',
+                                          );
+                                        },
+                                        child: const Text('Create Inspection'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                return;
+                              }
+
+                              if (latestInspection.dispatchBlocked ||
+                                  latestInspection.approvalStatus !=
+                                      InspectionApprovalStatus.approved ||
+                                  latestInspection.overallResult !=
+                                      InspectionResult.passed) {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: const Row(
+                                      children: [
+                                        Icon(Icons.block, color: Colors.red),
+                                        SizedBox(width: 8),
+                                        Text('Dispatch Blocked by Inspection'),
+                                      ],
+                                    ),
+                                    content: Text(
+                                      'Latest inspection ${latestInspection.inspectionId} is not dispatch-ready.\n\nResult: ${latestInspection.overallResult.label}\nApproval: ${latestInspection.approvalStatus.label}\nCritical Failures: ${latestInspection.criticalFailureCount}',
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => context.pop(),
+                                        child: const Text('Cancel'),
+                                      ),
+                                      FilledButton(
+                                        onPressed: () {
+                                          context.pop();
+                                          context.go(
+                                              RoutePaths.inspectionDetailById(
+                                                  latestInspection
+                                                      .inspectionId));
+                                        },
+                                        child: const Text('Review Inspection'),
                                       ),
                                     ],
                                   ),
@@ -176,8 +284,19 @@ class _WorkOrderDetailScreenState extends ConsumerState<WorkOrderDetailScreen>
                               }
 
                               bool isBlocked = false;
-                              if (vehicle != null && vehicle.status.toLowerCase() == 'maintenance') isBlocked = true;
-                              if (driver != null && (!driver.licenseValid || driver.pdoPassportStatus.toLowerCase() == 'expired' || driver.h2sStatus.toLowerCase() == 'expired')) isBlocked = true;
+                              if (vehicle != null &&
+                                  vehicle.status.toLowerCase() ==
+                                      'maintenance') {
+                                isBlocked = true;
+                              }
+                              if (driver != null &&
+                                  (!driver.licenseValid ||
+                                      driver.pdoPassportStatus.toLowerCase() ==
+                                          'expired' ||
+                                      driver.h2sStatus.toLowerCase() ==
+                                          'expired')) {
+                                isBlocked = true;
+                              }
 
                               if (isBlocked) {
                                 showDialog(
@@ -190,13 +309,17 @@ class _WorkOrderDetailScreenState extends ConsumerState<WorkOrderDetailScreen>
                                         Text('Dispatch Blocked'),
                                       ],
                                     ),
-                                    content: const Text('Mandatory compliance documents are missing or expired (Hard-block).\n\nPlease review the readiness tracker and ensure all resources are compliant before dispatching.'),
+                                    content: const Text(
+                                        'Mandatory compliance documents are missing or expired (Hard-block).\n\nPlease review the readiness tracker and ensure all resources are compliant before dispatching.'),
                                     actions: [
-                                      TextButton(onPressed: () => context.pop(), child: const Text('Cancel')),
+                                      TextButton(
+                                          onPressed: () => context.pop(),
+                                          child: const Text('Cancel')),
                                       FilledButton(
                                         onPressed: () {
                                           context.pop();
-                                          context.go('${RoutePaths.complianceReadiness}?workOrderId=${widget.workOrderId}');
+                                          context.go(
+                                              '${RoutePaths.complianceReadiness}?workOrderId=${widget.workOrderId}');
                                         },
                                         child: const Text('View Readiness'),
                                       ),
@@ -237,10 +360,16 @@ class _WorkOrderDetailScreenState extends ConsumerState<WorkOrderDetailScreen>
                   children: [
                     _SummaryTab(order: order, state: state),
                     _AssignmentTab(order: order, state: state),
-                    _PlaceholderTab(title: 'Inspection Status', id: widget.workOrderId),
-                    _PlaceholderTab(title: 'Trip Tracking', id: widget.workOrderId),
-                    _PlaceholderTab(title: 'Documents and Media', id: widget.workOrderId),
-                    _PlaceholderTab(title: 'Full Audit Timeline', id: widget.workOrderId),
+                    _InspectionTab(
+                      workOrder: order,
+                      inspections: linkedInspections,
+                    ),
+                    _PlaceholderTab(
+                        title: 'Trip Tracking', id: widget.workOrderId),
+                    _PlaceholderTab(
+                        title: 'Documents and Media', id: widget.workOrderId),
+                    _PlaceholderTab(
+                        title: 'Full Audit Timeline', id: widget.workOrderId),
                   ],
                 ),
               ),
@@ -293,7 +422,9 @@ class _SummaryTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final customers = ref.watch(customerViewModelProvider).customers;
     final routes = ref.watch(routeViewModelProvider).valueOrNull?.routes ?? [];
-    final quote = state.quotations.where((q) => q.quoteRef == order.linkedQuotationRef).firstOrNull;
+    final quote = state.quotations
+        .where((q) => q.quoteRef == order.linkedQuotationRef)
+        .firstOrNull;
 
     return ListView(
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -304,10 +435,14 @@ class _SummaryTab extends ConsumerWidget {
           title: 'Planning Details',
           icon: Icons.calendar_today_outlined,
           children: [
-            Text('PLANNING DETAILS', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 1.2)),
+            Text('PLANNING DETAILS',
+                style: Theme.of(context)
+                    .textTheme
+                    .labelSmall
+                    ?.copyWith(letterSpacing: 1.2)),
             const SizedBox(height: 12),
             _GridRow(
-              label1: 'Requested Date', 
+              label1: 'Requested Date',
               value1: _formatDate(order.serviceStartDate),
               label2: 'Priority',
               value2: order.routeRiskLevel,
@@ -332,13 +467,19 @@ class _SummaryTab extends ConsumerWidget {
             title: 'Supervisor Assignment',
             icon: Icons.assignment_ind_outlined,
             children: [
-              Text('ASSIGNMENT DETAILS', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 1.2)),
+              Text('ASSIGNMENT DETAILS',
+                  style: Theme.of(context)
+                      .textTheme
+                      .labelSmall
+                      ?.copyWith(letterSpacing: 1.2)),
               const SizedBox(height: 12),
               _GridRow(
                 label1: 'Assigned Supervisor',
                 value1: order.assignedSupervisor,
                 label2: 'Region / Responsibility',
-                value2: order.supervisorRegion.isNotEmpty ? order.supervisorRegion : 'N/A',
+                value2: order.supervisorRegion.isNotEmpty
+                    ? order.supervisorRegion
+                    : 'N/A',
               ),
               const SizedBox(height: 16),
               _GridRow(
@@ -348,7 +489,9 @@ class _SummaryTab extends ConsumerWidget {
               const SizedBox(height: 16),
               _GridRow(
                 label1: 'Remarks',
-                value1: order.assignmentRemarks.isNotEmpty ? order.assignmentRemarks : 'N/A',
+                value1: order.assignmentRemarks.isNotEmpty
+                    ? order.assignmentRemarks
+                    : 'N/A',
               ),
             ],
           ),
@@ -389,14 +532,21 @@ class _SummaryTab extends ConsumerWidget {
       );
     }
 
-    final enquiry = state.customerRequests.where((e) => e.enquiryNumber == quote.enquiryRef).firstOrNull;
-    final customer = customers.where((c) => c.name.toLowerCase() == (enquiry?.customerName ?? quote.customer).toLowerCase()).firstOrNull;
-    
+    final enquiry = state.customerRequests
+        .where((e) => e.enquiryNumber == quote.enquiryRef)
+        .firstOrNull;
+    final customer = customers
+        .where((c) =>
+            c.name.toLowerCase() ==
+            (enquiry?.customerName ?? quote.customer).toLowerCase())
+        .firstOrNull;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.tertiaryContainer.withOpacity(0.15),
+        color:
+            Theme.of(context).colorScheme.tertiaryContainer.withOpacity(0.15),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
       ),
@@ -405,50 +555,70 @@ class _SummaryTab extends ConsumerWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.description_outlined, color: Theme.of(context).colorScheme.primary),
+              Icon(Icons.description_outlined,
+                  color: Theme.of(context).colorScheme.primary),
               const SizedBox(width: 8),
               Text(
                 'Quotation & Context Reference',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          
-          Text('QUOTATION DETAILS', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 1.2)),
+          Text('QUOTATION DETAILS',
+              style: Theme.of(context)
+                  .textTheme
+                  .labelSmall
+                  ?.copyWith(letterSpacing: 1.2)),
           const SizedBox(height: 12),
           _twoColumnRow(
             _contextItem(context, 'Quote Ref', quote.quoteRef),
             _contextItem(context, 'Enquiry Ref', quote.enquiryRef),
           ),
           _twoColumnRow(
-            _contextItem(context, 'Rate', '${quote.rate.toStringAsFixed(2)} OMR'),
-            _contextItem(context, 'Validity', quote.validityDate.isEmpty ? '-' : quote.validityDate),
+            _contextItem(
+                context, 'Rate', '${quote.rate.toStringAsFixed(2)} OMR'),
+            _contextItem(context, 'Validity',
+                quote.validityDate.isEmpty ? '-' : quote.validityDate),
           ),
-          
           const Divider(height: 32),
-          
-          Text('CUSTOMER DETAILS', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 1.2)),
+          Text('CUSTOMER DETAILS',
+              style: Theme.of(context)
+                  .textTheme
+                  .labelSmall
+                  ?.copyWith(letterSpacing: 1.2)),
           const SizedBox(height: 12),
           _twoColumnRow(
-            _contextItem(context, 'Customer Name', customer?.name ?? quote.customer),
-            _contextItem(context, 'Contact Number', customer?.phoneNumber.isNotEmpty == true ? customer!.phoneNumber : '-'),
+            _contextItem(
+                context, 'Customer Name', customer?.name ?? quote.customer),
+            _contextItem(
+                context,
+                'Contact Number',
+                customer?.phoneNumber.isNotEmpty == true
+                    ? customer!.phoneNumber
+                    : '-'),
           ),
-
           if (enquiry != null) ...[
             const Divider(height: 32),
-            Text('CARGO DETAILS', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 1.2)),
+            Text('CARGO DETAILS',
+                style: Theme.of(context)
+                    .textTheme
+                    .labelSmall
+                    ?.copyWith(letterSpacing: 1.2)),
             const SizedBox(height: 12),
             _twoColumnRow(
               _contextItem(context, 'Cargo Type', enquiry.cargoType),
               _contextItem(context, 'Weight/Volume', enquiry.weightVolume),
             ),
-            
             const Divider(height: 32),
-            Text('ROUTE DETAILS', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 1.2)),
+            Text('ROUTE DETAILS',
+                style: Theme.of(context)
+                    .textTheme
+                    .labelSmall
+                    ?.copyWith(letterSpacing: 1.2)),
             const SizedBox(height: 12),
             _twoColumnRow(
               _contextItem(context, 'Origin', enquiry.pickup),
@@ -481,10 +651,10 @@ class _SummaryTab extends ConsumerWidget {
         Text(
           label.toUpperCase(),
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-            fontSize: 10,
-            fontWeight: FontWeight.bold,
-          ),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+              ),
         ),
         const SizedBox(height: 4),
         Text(
@@ -508,18 +678,25 @@ class _AssignmentTab extends ConsumerWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.assignment_late_outlined, size: 64, color: Theme.of(context).colorScheme.outline),
+            Icon(Icons.assignment_late_outlined,
+                size: 64, color: Theme.of(context).colorScheme.outline),
             const SizedBox(height: 16),
-            const Text('No Resources Assigned', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text('No Resources Assigned',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            const Text('Assign resources from the quick actions bar to see details here.'),
+            const Text(
+                'Assign resources from the quick actions bar to see details here.'),
           ],
         ),
       );
     }
 
-    final vehicle = state.vehicles.where((v) => v.vehicleNo == order.assignedVehicleNo).firstOrNull;
-    final driver = state.drivers.where((d) => d.driverId == order.assignedDriverId).firstOrNull;
+    final vehicle = state.vehicles
+        .where((v) => v.vehicleNo == order.assignedVehicleNo)
+        .firstOrNull;
+    final driver = state.drivers
+        .where((d) => d.driverId == order.assignedDriverId)
+        .firstOrNull;
 
     return ListView(
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -529,7 +706,11 @@ class _AssignmentTab extends ConsumerWidget {
             title: 'Assigned Fleet (Truck)',
             icon: Icons.local_shipping_outlined,
             children: [
-              Text('FLEET SPECIFICATIONS', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 1.2)),
+              Text('FLEET SPECIFICATIONS',
+                  style: Theme.of(context)
+                      .textTheme
+                      .labelSmall
+                      ?.copyWith(letterSpacing: 1.2)),
               const SizedBox(height: 12),
               _GridRow(
                 label1: 'Vehicle No',
@@ -547,20 +728,25 @@ class _AssignmentTab extends ConsumerWidget {
               const SizedBox(height: 16),
               _GridRow(
                 label1: 'IVMS Device ID',
-                value1: vehicle.ivmsDeviceId.isNotEmpty ? vehicle.ivmsDeviceId : 'N/A',
+                value1: vehicle.ivmsDeviceId.isNotEmpty
+                    ? vehicle.ivmsDeviceId
+                    : 'N/A',
                 label2: 'Operational Status',
                 value2: vehicle.status,
               ),
             ],
           ),
-        
         if (order.assignedTrailerId.isNotEmpty) ...[
           const SizedBox(height: 16),
           _InfoCard(
             title: 'Assigned Trailer',
             icon: Icons.rv_hookup_outlined,
             children: [
-              Text('TRAILER DETAILS', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 1.2)),
+              Text('TRAILER DETAILS',
+                  style: Theme.of(context)
+                      .textTheme
+                      .labelSmall
+                      ?.copyWith(letterSpacing: 1.2)),
               const SizedBox(height: 12),
               _GridRow(
                 label1: 'Trailer ID',
@@ -571,14 +757,17 @@ class _AssignmentTab extends ConsumerWidget {
             ],
           ),
         ],
-
         if (driver != null) ...[
           const SizedBox(height: 16),
           _InfoCard(
             title: 'Assigned Driver',
             icon: Icons.person_outline,
             children: [
-              Text('DRIVER PROFILE', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 1.2)),
+              Text('DRIVER PROFILE',
+                  style: Theme.of(context)
+                      .textTheme
+                      .labelSmall
+                      ?.copyWith(letterSpacing: 1.2)),
               const SizedBox(height: 12),
               _GridRow(
                 label1: 'Full Name',
@@ -614,6 +803,76 @@ class _AssignmentTab extends ConsumerWidget {
   }
 }
 
+class _InspectionTab extends StatelessWidget {
+  const _InspectionTab({required this.workOrder, required this.inspections});
+
+  final WorkOrderFlowItem workOrder;
+  final List<InspectionRecord> inspections;
+
+  @override
+  Widget build(BuildContext context) {
+    if (inspections.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.fact_check_outlined, size: 56),
+            const SizedBox(height: 10),
+            const Text('No inspection linked to this Work Order.'),
+            const SizedBox(height: 10),
+            FilledButton.icon(
+              onPressed: () => context.go(
+                '${RoutePaths.inspectionCreate}?woId=${Uri.encodeComponent(workOrder.woId)}&fleetId=${Uri.encodeComponent(workOrder.assignedVehicleNo)}&driverId=${Uri.encodeComponent(workOrder.assignedDriverId)}&trailerId=${Uri.encodeComponent(workOrder.assignedTrailerId)}&clientCode=${Uri.encodeComponent(workOrder.customer)}',
+              ),
+              icon: const Icon(Icons.add_task_outlined),
+              label: const Text('Create Pre-Trip Inspection'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      children: [
+        for (final item in inspections)
+          Card(
+            margin: const EdgeInsets.only(bottom: 10),
+            child: ListTile(
+              leading: Icon(
+                item.dispatchBlocked ? Icons.block : Icons.verified_outlined,
+                color: item.dispatchBlocked ? Colors.red : Colors.green,
+              ),
+              title:
+                  Text('${item.inspectionId} • ${item.inspectionType.label}'),
+              subtitle: Text(
+                'Result: ${item.overallResult.label} | Approval: ${item.approvalStatus.label} | Critical failures: ${item.criticalFailureCount}',
+              ),
+              trailing: Wrap(
+                spacing: 8,
+                children: [
+                  OutlinedButton(
+                    onPressed: () => context.go(
+                      RoutePaths.inspectionDetailById(item.inspectionId),
+                    ),
+                    child: const Text('View'),
+                  ),
+                  if (item.approvalStatus == InspectionApprovalStatus.pending)
+                    FilledButton(
+                      onPressed: () => context.go(
+                        RoutePaths.inspectionApprovalById(item.inspectionId),
+                      ),
+                      child: const Text('Review'),
+                    ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
 class _PlaceholderTab extends StatelessWidget {
   const _PlaceholderTab({required this.title, required this.id});
   final String title;
@@ -625,7 +884,8 @@ class _PlaceholderTab extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.construction_outlined, size: 64, color: Theme.of(context).colorScheme.outline),
+          Icon(Icons.construction_outlined,
+              size: 64, color: Theme.of(context).colorScheme.outline),
           const SizedBox(height: 16),
           Text(title, style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(height: 8),
@@ -651,9 +911,9 @@ class _PairRow extends StatelessWidget {
           child: Text(
             label,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
           ),
         ),
         const SizedBox(width: 10),
@@ -703,9 +963,9 @@ class _InfoCard extends StatelessWidget {
               Text(
                 title,
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: colorScheme.primary,
-                ),
+                      fontWeight: FontWeight.bold,
+                      color: colorScheme.primary,
+                    ),
               ),
             ],
           ),

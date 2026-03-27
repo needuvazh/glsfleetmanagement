@@ -12,6 +12,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Dashboard'), findsOneWidget);
-    expect(find.text('End-to-End Flow'), findsOneWidget);
+    expect(find.text('Delivery (POD)'), findsOneWidget);
   });
 }

@@ -14,10 +14,12 @@ class ComplianceReadinessScreen extends ConsumerStatefulWidget {
   final String? workOrderId;
 
   @override
-  ConsumerState<ComplianceReadinessScreen> createState() => _ComplianceReadinessScreenState();
+  ConsumerState<ComplianceReadinessScreen> createState() =>
+      _ComplianceReadinessScreenState();
 }
 
-class _ComplianceReadinessScreenState extends ConsumerState<ComplianceReadinessScreen> {
+class _ComplianceReadinessScreenState
+    extends ConsumerState<ComplianceReadinessScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(logisticsViewModelProvider);
@@ -29,23 +31,46 @@ class _ComplianceReadinessScreenState extends ConsumerState<ComplianceReadinessS
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(child: Text('Error: $err')),
         data: (data) {
-          // If workOrderId is provided, focus on that specific order.
-          // Otherwise, show a general registry (for this demo, we'll use a placeholder or the last assigned order).
-          final orderId = widget.workOrderId ?? data.assignedOrderId;
-          final order = data.workOrders.firstWhere(
-            (o) => o.woId == orderId,
-            orElse: () => data.workOrders.first,
-          );
+          if (data.workOrders.isEmpty) {
+            return const Center(
+              child: Text('No work orders available for readiness check.'),
+            );
+          }
 
-          final vehicle = data.vehicles.where((v) => v.vehicleNo == order.assignedVehicleNo).firstOrNull;
-          final driver = data.drivers.where((d) => d.driverId == order.assignedDriverId).firstOrNull;
+          final requestedOrderId = (widget.workOrderId ?? '').trim();
+          final fallbackId = (data.assignedOrderId ?? '').trim();
+
+          final order = data.workOrders.where((o) {
+                if (requestedOrderId.isNotEmpty) {
+                  return o.woId == requestedOrderId;
+                }
+                if (fallbackId.isNotEmpty) {
+                  return o.woId == fallbackId;
+                }
+                return false;
+              }).firstOrNull ??
+              data.workOrders.first;
+
+          final vehicle = data.vehicles
+              .where((v) => v.vehicleNo == order.assignedVehicleNo)
+              .firstOrNull;
+          final driver = data.drivers
+              .where((d) => d.driverId == order.assignedDriverId)
+              .firstOrNull;
 
           List<_ReadinessItem> fleetDocs = [];
           if (vehicle != null) {
             fleetDocs = [
-              _ReadinessItem('Vehicle Registration', '15/05/2026', 'Valid', 'Hard-block'),
+              _ReadinessItem(
+                  'Vehicle Registration', '15/05/2026', 'Valid', 'Hard-block'),
               _ReadinessItem('Insurance Policy', '20/12/2026', 'Valid', 'None'),
-              _ReadinessItem('Road Worthiness', '01/04/2026', vehicle.status.toLowerCase() == 'maintenance' ? 'Expired' : 'Valid', 'Hard-block'),
+              _ReadinessItem(
+                  'Road Worthiness',
+                  '01/04/2026',
+                  vehicle.status.toLowerCase() == 'maintenance'
+                      ? 'Expired'
+                      : 'Valid',
+                  'Hard-block'),
             ];
           }
 
@@ -53,39 +78,69 @@ class _ComplianceReadinessScreenState extends ConsumerState<ComplianceReadinessS
           if (driver != null) {
             final licStatus = driver.licenseValid ? 'Valid' : 'Expired';
             driverDocs = [
-              _ReadinessItem('Driving License', driver.expiryDate, licStatus, 'Hard-block'),
-              _ReadinessItem('Medical Fitness', '15/08/2026', driver.medicalFitnessNote.contains('Fit') ? 'Valid' : 'Valid', 'None'),
-              _ReadinessItem('DDC Training', '-', driver.defensiveDrivingStatus, 'Soft-block'),
+              _ReadinessItem('Driving License', driver.expiryDate, licStatus,
+                  'Hard-block'),
+              _ReadinessItem(
+                  'Medical Fitness',
+                  '15/08/2026',
+                  driver.medicalFitnessNote.toLowerCase().contains('fit')
+                      ? 'Valid'
+                      : 'Expiring Soon',
+                  'None'),
+              _ReadinessItem('DDC Training', '-', driver.defensiveDrivingStatus,
+                  'Soft-block'),
             ];
           }
 
           List<_ReadinessItem> trackingDocs = [];
           if (vehicle != null) {
-             trackingDocs = [
-              _ReadinessItem('IVMS Connectivity', '-', vehicle.ivmsDeviceId.isNotEmpty ? 'Active' : 'Offline', 'None'),
-              if (driver != null) _ReadinessItem('DFMS Calibration', '-', driver.dfmsDeviceId.isNotEmpty ? 'Active' : 'Offline', 'None'),
+            trackingDocs = [
+              _ReadinessItem(
+                  'IVMS Connectivity',
+                  '-',
+                  vehicle.ivmsDeviceId.isNotEmpty ? 'Active' : 'Offline',
+                  'None'),
+              if (driver != null)
+                _ReadinessItem(
+                    'DFMS Calibration',
+                    '-',
+                    driver.dfmsDeviceId.isNotEmpty ? 'Active' : 'Offline',
+                    'None'),
             ];
           }
 
           List<_ReadinessItem> customerDocs = [];
           if (driver != null) {
             customerDocs = [
-              _ReadinessItem('PDO Safety Induction', '-', driver.pdoPassportStatus, 'Hard-block'),
-              _ReadinessItem('H2S Training', '-', driver.h2sStatus, 'Hard-block'),
+              _ReadinessItem('PDO Safety Induction', '-',
+                  driver.pdoPassportStatus, 'Hard-block'),
+              _ReadinessItem(
+                  'H2S Training', '-', driver.h2sStatus, 'Hard-block'),
             ];
           }
 
-          final allItems = [...fleetDocs, ...driverDocs, ...trackingDocs, ...customerDocs];
+          final allItems = [
+            ...fleetDocs,
+            ...driverDocs,
+            ...trackingDocs,
+            ...customerDocs
+          ];
           int readyCount = 0;
           int warningCount = 0;
           int blockedCount = 0;
 
           for (var item in allItems) {
-            if (item.status == 'Valid' || item.status == 'Active' || item.status == 'Not Required') readyCount++;
-            else if (item.status == 'Expiring Soon') warningCount++;
+            if (item.status == 'Valid' ||
+                item.status == 'Active' ||
+                item.status == 'Not Required')
+              readyCount++;
+            else if (item.status == 'Expiring Soon')
+              warningCount++;
             else if (item.status == 'Expired' || item.status == 'Offline') {
-               if (item.blocking == 'Hard-block') blockedCount++;
-               else warningCount++;
+              if (item.blocking == 'Hard-block')
+                blockedCount++;
+              else
+                warningCount++;
             }
           }
 
@@ -101,6 +156,7 @@ class _ComplianceReadinessScreenState extends ConsumerState<ComplianceReadinessS
                 _buildSection(
                   title: 'Fleet Documents',
                   icon: Icons.local_shipping_outlined,
+                  workOrderId: order.woId,
                   items: fleetDocs,
                 ),
                 if (order.assignedTrailerId.isNotEmpty) ...[
@@ -108,9 +164,12 @@ class _ComplianceReadinessScreenState extends ConsumerState<ComplianceReadinessS
                   _buildSection(
                     title: 'Trailer Documents',
                     icon: Icons.rv_hookup_outlined,
+                    workOrderId: order.woId,
                     items: [
-                      _ReadinessItem('Trailer Permit', '10/10/2026', 'Valid', 'Hard-block'),
-                      _ReadinessItem('Brake Test Cert', '15/09/2026', 'Valid', 'Hard-block'),
+                      _ReadinessItem('Trailer Permit', '10/10/2026', 'Valid',
+                          'Hard-block'),
+                      _ReadinessItem('Brake Test Cert', '15/09/2026', 'Valid',
+                          'Hard-block'),
                     ],
                   ),
                 ],
@@ -118,18 +177,21 @@ class _ComplianceReadinessScreenState extends ConsumerState<ComplianceReadinessS
                 _buildSection(
                   title: 'Driver Documents',
                   icon: Icons.person_outline,
+                  workOrderId: order.woId,
                   items: driverDocs,
                 ),
                 const SizedBox(height: 16),
                 _buildSection(
                   title: 'Tracking / IVMS / DFMS',
                   icon: Icons.gps_fixed_outlined,
+                  workOrderId: order.woId,
                   items: trackingDocs,
                 ),
                 const SizedBox(height: 16),
                 _buildSection(
                   title: 'Customer-specific Rules',
                   icon: Icons.gavel_outlined,
+                  workOrderId: order.woId,
                   items: customerDocs,
                 ),
                 const SizedBox(height: 32),
@@ -161,11 +223,14 @@ class _ComplianceReadinessScreenState extends ConsumerState<ComplianceReadinessS
   Widget _buildRagSummary(int ready, int warning, int blocked) {
     return Row(
       children: [
-        _RagCard('READY', ready.toString(), Colors.green, Icons.check_circle_outline),
+        _RagCard('READY', ready.toString(), Colors.green,
+            Icons.check_circle_outline),
         const SizedBox(width: 16),
-        _RagCard('WARNING', warning.toString(), Colors.orange, Icons.warning_amber_outlined),
+        _RagCard('WARNING', warning.toString(), Colors.orange,
+            Icons.warning_amber_outlined),
         const SizedBox(width: 16),
-        _RagCard('BLOCKED', blocked.toString(), Colors.red, Icons.block_outlined),
+        _RagCard(
+            'BLOCKED', blocked.toString(), Colors.red, Icons.block_outlined),
       ],
     );
   }
@@ -173,6 +238,7 @@ class _ComplianceReadinessScreenState extends ConsumerState<ComplianceReadinessS
   Widget _buildSection({
     required String title,
     required IconData icon,
+    required String workOrderId,
     required List<_ReadinessItem> items,
   }) {
     if (items.isEmpty) return const SizedBox.shrink();
@@ -180,14 +246,17 @@ class _ComplianceReadinessScreenState extends ConsumerState<ComplianceReadinessS
     String status = 'Green';
     for (var item in items) {
       if (item.status == 'Expired' || item.status == 'Offline') {
-         if (item.blocking == 'Hard-block') status = 'Red';
-         else if (status != 'Red') status = 'Amber';
+        if (item.blocking == 'Hard-block')
+          status = 'Red';
+        else if (status != 'Red') status = 'Amber';
       } else if (item.status == 'Expiring Soon' && status != 'Red') {
-         status = 'Amber';
+        status = 'Amber';
       }
     }
 
-    final statusColor = status == 'Green' ? Colors.green : (status == 'Amber' ? Colors.orange : Colors.red);
+    final statusColor = status == 'Green'
+        ? Colors.green
+        : (status == 'Amber' ? Colors.orange : Colors.red);
 
     return Card(
       elevation: 0,
@@ -199,16 +268,20 @@ class _ComplianceReadinessScreenState extends ConsumerState<ComplianceReadinessS
         children: [
           ListTile(
             leading: Icon(icon, color: statusColor),
-            title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+            title: Text(title,
+                style: const TextStyle(fontWeight: FontWeight.bold)),
             trailing: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.1),
+                color: statusColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
                 status.toUpperCase(),
-                style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 12),
+                style: TextStyle(
+                    color: statusColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12),
               ),
             ),
           ),
@@ -226,37 +299,77 @@ class _ComplianceReadinessScreenState extends ConsumerState<ComplianceReadinessS
               children: [
                 const TableRow(
                   children: [
-                    Padding(padding: EdgeInsets.all(8), child: Text('Document Name', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
-                    Padding(padding: EdgeInsets.all(8), child: Text('Expiry Date', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
-                    Padding(padding: EdgeInsets.all(8), child: Text('Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
-                    Padding(padding: EdgeInsets.all(8), child: Text('Blocking Type', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
-                    Padding(padding: EdgeInsets.all(8), child: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
+                    Padding(
+                        padding: EdgeInsets.all(8),
+                        child: Text('Document Name',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 13))),
+                    Padding(
+                        padding: EdgeInsets.all(8),
+                        child: Text('Expiry Date',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 13))),
+                    Padding(
+                        padding: EdgeInsets.all(8),
+                        child: Text('Status',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 13))),
+                    Padding(
+                        padding: EdgeInsets.all(8),
+                        child: Text('Blocking Type',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 13))),
+                    Padding(
+                        padding: EdgeInsets.all(8),
+                        child: Text('Actions',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 13))),
                   ],
                 ),
                 for (final item in items)
                   TableRow(
                     children: [
-                      Padding(padding: const EdgeInsets.all(8), child: Text(item.name, style: const TextStyle(fontSize: 13))),
-                      Padding(padding: const EdgeInsets.all(8), child: Text(item.expiry, style: const TextStyle(fontSize: 13))),
-                      Padding(padding: const EdgeInsets.all(8), child: _statusLabel(item.status)),
-                      Padding(padding: const EdgeInsets.all(8), child: _blockingLabel(item.blocking)),
+                      Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Text(item.name,
+                              style: const TextStyle(fontSize: 13))),
+                      Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Text(item.expiry,
+                              style: const TextStyle(fontSize: 13))),
+                      Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: _statusLabel(item.status)),
+                      Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: _blockingLabel(item.blocking)),
                       Padding(
                         padding: const EdgeInsets.all(4),
                         child: Row(
                           children: [
                             IconButton(
                               icon: const Icon(Icons.refresh, size: 18),
-                              onPressed: () {},
+                              onPressed: () {
+                                _toast('Recheck queued for ${item.name}.');
+                              },
                               tooltip: 'Recheck',
                             ),
                             IconButton(
                               icon: const Icon(Icons.open_in_new, size: 18),
-                              onPressed: () {},
+                              onPressed: () {
+                                context.go(RoutePaths.documentManagement);
+                              },
                               tooltip: 'Open Master',
                             ),
                             IconButton(
-                              icon: const Icon(Icons.check_box_outlined, size: 18),
-                              onPressed: () {},
+                              icon: const Icon(Icons.check_box_outlined,
+                                  size: 18),
+                              onPressed: () {
+                                _toast('Marked cleared for ${item.name}.');
+                                context.go(
+                                  '${RoutePaths.inspectionCreate}?woId=${Uri.encodeComponent(workOrderId)}',
+                                );
+                              },
                               tooltip: 'Mark Cleared',
                             ),
                           ],
@@ -274,7 +387,8 @@ class _ComplianceReadinessScreenState extends ConsumerState<ComplianceReadinessS
 
   Widget _statusLabel(String status) {
     Color color = Colors.grey;
-    if (status == 'Valid' || status == 'Active' || status == 'Not Required') color = Colors.green;
+    if (status == 'Valid' || status == 'Active' || status == 'Not Required')
+      color = Colors.green;
     if (status == 'Expiring Soon') color = Colors.orange;
     if (status == 'Expired' || status == 'Offline') color = Colors.red;
 
@@ -291,8 +405,17 @@ class _ComplianceReadinessScreenState extends ConsumerState<ComplianceReadinessS
 
     return Text(
       type,
-      style: TextStyle(color: color, fontWeight: FontWeight.normal, fontSize: 12),
+      style:
+          TextStyle(color: color, fontWeight: FontWeight.normal, fontSize: 12),
     );
+  }
+
+  void _toast(String message) {
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 }
 
@@ -310,8 +433,8 @@ class _RagCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.05),
-          border: Border.all(color: color.withOpacity(0.2)),
+          color: color.withValues(alpha: 0.05),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
@@ -319,7 +442,7 @@ class _RagCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, color: color, size: 24),
@@ -330,11 +453,16 @@ class _RagCard extends StatelessWidget {
               children: [
                 Text(
                   count,
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: color),
+                  style: TextStyle(
+                      fontSize: 28, fontWeight: FontWeight.bold, color: color),
                 ),
                 Text(
                   label,
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: color.withOpacity(0.7), letterSpacing: 1.2),
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: color.withValues(alpha: 0.7),
+                      letterSpacing: 1.2),
                 ),
               ],
             ),

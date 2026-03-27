@@ -31,8 +31,28 @@ class RoutePaths {
   static const inspectionDetail = '/inspections/:inspectionId';
   static const inspectionApproval = '/inspections/:inspectionId/approval';
   static const inspectionTemplates = '/inspections/templates';
+  static const inspectionMasterCatalog = '/inspections/master-catalog';
+  static const inspectionBundleMaster = '/inspections/master/bundles';
+  static const inspectionTypeMaster = '/inspections/master/types';
+  static const inspectionBundleTypeMappingMaster =
+      '/inspections/master/bundle-type-mappings';
+  static const inspectionTemplateMaster = '/inspections/master/templates';
+  static const inspectionTemplateSectionMaster =
+      '/inspections/master/template-sections';
+  static const inspectionTemplateItemMaster =
+      '/inspections/master/template-items';
+  static const inspectionApplicabilityRuleMaster =
+      '/inspections/master/applicability-rules';
+  static const inspectionValidationRuleMaster =
+      '/inspections/master/validation-rules';
+  static const inspectionResultLogicRuleMaster =
+      '/inspections/master/result-logic-rules';
+  static const inspectionMediaRuleMaster = '/inspections/master/media-rules';
+  static const inspectionApprovalMatrixMaster =
+      '/inspections/master/approval-matrix';
   static const inspectionTemplateForm = '/inspections/templates/form';
-  static const inspectionTemplateView = '/inspections/templates/view/:templateId';
+  static const inspectionTemplateView =
+      '/inspections/templates/view/:templateId';
   static const inspectionFailedQueue = '/inspections/failed-queue';
   static const inspectionCalendar = '/inspections/calendar';
   static const mediaGallery = '/media-gallery';
@@ -89,8 +109,10 @@ class RoutePaths {
   static const quotationForm = '/quotation/form';
   static const quotationEdit = '/quotation/:quoteRef/edit';
   static const quotationDecision = '/quotation/:quoteRef/decision';
-  static String quotationEditByRef(String ref) => '/quotation/${Uri.encodeComponent(ref)}/edit';
-  static String quotationDecisionByRef(String ref) => '/quotation/${Uri.encodeComponent(ref)}/decision';
+  static String quotationEditByRef(String ref) =>
+      '/quotation/${Uri.encodeComponent(ref)}/edit';
+  static String quotationDecisionByRef(String ref) =>
+      '/quotation/${Uri.encodeComponent(ref)}/decision';
   static const orderDecision = '/order-decision';
   static const woDelegation = '/wo-delegation';
   static const dispatch = '/dispatch';
@@ -107,7 +129,6 @@ class RoutePaths {
   static const trailerForm = '/trailer/form';
   static const trailerView = '/trailer/view/:trailerCode';
   static const trailerMasterLegacy = '/trailer-master';
-
 
   static String workOrderDetailById(String workOrderId) =>
       '/work-orders/$workOrderId';
