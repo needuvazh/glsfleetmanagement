@@ -29,12 +29,8 @@ class _RouteFormScreenState extends ConsumerState<RouteFormScreen> {
   Widget build(BuildContext context) {
     final routeState = ref.watch(routeViewModelProvider);
     final formState = ref.watch(routeFormProvider);
-<<<<<<< Updated upstream
     final vehicleTypeState =
         ref.watch(vehicleTypeMasterViewModelProvider).valueOrNull;
-=======
-    final vehicleTypeState = ref.watch(vehicleTypeMasterViewModelProvider);
->>>>>>> Stashed changes
 
     return OpsShell(
       title: formState.isEditMode ? 'Edit Route' : 'Create Route',
@@ -69,13 +65,8 @@ class _RouteFormScreenState extends ConsumerState<RouteFormScreen> {
           final form = ref.watch(routeFormProvider);
           final notifier = ref.read(routeFormProvider.notifier);
           final locations = data.locations;
-<<<<<<< Updated upstream
           final preferredVehicleOptions = _preferredVehicleOptions(
             vehicleTypeState?.items ?? const <VehicleTypeMasterModel>[],
-=======
-          final vehicleTypeOptions = _vehicleTypeOptions(
-            vehicleTypeState.valueOrNull?.items ?? const [],
->>>>>>> Stashed changes
             form.preferredVehicleType,
           );
 
@@ -309,7 +300,6 @@ class _RouteFormScreenState extends ConsumerState<RouteFormScreen> {
                       const SizedBox(height: 12),
                       _ResponsiveFormGrid(children: [
                         DropdownButtonFormField<String>(
-<<<<<<< Updated upstream
                           value: _dropdownValue(
                             value: form.preferredVehicleType,
                             options: preferredVehicleOptions,
@@ -325,20 +315,6 @@ class _RouteFormScreenState extends ConsumerState<RouteFormScreen> {
                               DropdownMenuItem(
                                 value: vehicleType,
                                 child: Text(vehicleType),
-=======
-                          initialValue: form.preferredVehicleType.trim().isEmpty
-                              ? null
-                              : form.preferredVehicleType,
-                          decoration: const InputDecoration(
-                            labelText: 'Preferred Vehicle Type',
-                          ),
-                          hint: const Text('Select Vehicle Type'),
-                          items: [
-                            for (final item in vehicleTypeOptions)
-                              DropdownMenuItem<String>(
-                                value: item,
-                                child: Text(item),
->>>>>>> Stashed changes
                               ),
                           ],
                           onChanged: (value) =>
@@ -525,7 +501,6 @@ class _RouteFormScreenState extends ConsumerState<RouteFormScreen> {
     return null;
   }
 
-<<<<<<< Updated upstream
   String? _dropdownValue({
     required String value,
     required List<String> options,
@@ -553,23 +528,6 @@ class _RouteFormScreenState extends ConsumerState<RouteFormScreen> {
     }
     final options = set.toList()..sort();
     return options;
-=======
-  List<String> _vehicleTypeOptions(
-    List<VehicleTypeMasterModel> items,
-    String currentValue,
-  ) {
-    final options = <String>{
-      for (final item in items)
-        if ((item.status == RecordStatusType.active) &&
-            item.vehicleTypeName.trim().isNotEmpty)
-          item.vehicleTypeName.trim(),
-    };
-    if (currentValue.trim().isNotEmpty) {
-      options.add(currentValue.trim());
-    }
-    final result = options.toList()..sort();
-    return result;
->>>>>>> Stashed changes
   }
 
   Future<void> _submit(

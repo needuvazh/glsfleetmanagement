@@ -7,11 +7,9 @@ import '../../domain/route_model.dart';
 import '../../domain/entities/logistics_flow.dart';
 import '../../domain/vehicle_type_master_model.dart';
 import '../../routes/route_paths.dart';
+import '../viewmodels/auth_viewmodel.dart';
 import '../viewmodels/logistics_viewmodel.dart';
-<<<<<<< Updated upstream
 import '../viewmodels/module_document_viewmodel.dart';
-=======
->>>>>>> Stashed changes
 import '../viewmodels/route_viewmodel.dart';
 import '../viewmodels/vehicle_type_master_viewmodel.dart';
 import '../widgets/ops_shell.dart';
@@ -36,12 +34,8 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
   late final TextEditingController _licenseCtrl;
   late final TextEditingController _licenseIssueCtrl;
   late final TextEditingController _expiryCtrl;
-<<<<<<< Updated upstream
-  late final TextEditingController _nationalityCtrl;
-=======
   late final TextEditingController _residentCardNumberCtrl;
-  late final TextEditingController _allowedVehicleCtrl;
->>>>>>> Stashed changes
+  late final TextEditingController _nationalityCtrl;
   late final TextEditingController _certCtrl;
   late final TextEditingController _notesCtrl;
   final ScrollController _docsHorizontalController = ScrollController();
@@ -57,13 +51,9 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
   List<String> _selectedAllowedVehicleTypes = <String>[];
   bool _heavyAllowed = false;
   bool _active = true;
-<<<<<<< Updated upstream
-  List<String> _selectedAllowedVehicleTypes = [];
+  DateTime? _residentCardExpiryDate;
   List<String> _selectedPreferredRoutes = [];
   List<String> _selectedPreferredVehicleTypes = [];
-=======
-  DateTime? _residentCardExpiryDate;
->>>>>>> Stashed changes
 
   DriverData? _existingDriver(AsyncValue<LogisticsUiState> state) {
     final editId = widget.editDriverId;
@@ -97,15 +87,9 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
     _licenseIssueCtrl =
         TextEditingController(text: existing?.licenseIssueDate ?? '');
     _expiryCtrl = TextEditingController(text: existing?.expiryDate ?? '');
-<<<<<<< Updated upstream
+    _residentCardNumberCtrl = TextEditingController();
     _nationalityCtrl =
         TextEditingController(text: existing?.nationality ?? 'Omani');
-=======
-    _residentCardNumberCtrl = TextEditingController();
-    _allowedVehicleCtrl = TextEditingController(
-      text: existing?.allowedVehicleTypes.join(', ') ?? '',
-    );
->>>>>>> Stashed changes
     _certCtrl = TextEditingController(
       text: existing?.certifications.join(', ') ?? '',
     );
@@ -138,12 +122,8 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
     _licenseCtrl.dispose();
     _licenseIssueCtrl.dispose();
     _expiryCtrl.dispose();
-<<<<<<< Updated upstream
-    _nationalityCtrl.dispose();
-=======
     _residentCardNumberCtrl.dispose();
-    _allowedVehicleCtrl.dispose();
->>>>>>> Stashed changes
+    _nationalityCtrl.dispose();
     _certCtrl.dispose();
     _notesCtrl.dispose();
     _docsHorizontalController.dispose();
@@ -159,11 +139,8 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
     final routeState = ref.watch(routeViewModelProvider).valueOrNull;
     final vehicleTypeState =
         ref.watch(vehicleTypeMasterViewModelProvider).valueOrNull;
-<<<<<<< Updated upstream
     final complianceState = ref.watch(moduleDocumentViewModelProvider).valueOrNull;
     final authState = ref.watch(authViewModelProvider).valueOrNull;
-=======
->>>>>>> Stashed changes
     final isEdit = widget.editDriverId != null;
     final existing = _existingDriver(state);
     final fileTypeOptions = List<String>.from(_driverDocumentTypes);
@@ -173,7 +150,6 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
       'License Copy': false,
       'Other Documents': false,
     };
-<<<<<<< Updated upstream
     final routeOptions = _withSelections(
       _routeOptions(routeState?.routes ?? const []),
       _selectedPreferredRoutes,
@@ -181,16 +157,6 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
     final vehicleTypeOptions = _withSelections(
       _vehicleTypeOptions(vehicleTypeState?.items ?? const []),
       [..._selectedAllowedVehicleTypes, ..._selectedPreferredVehicleTypes],
-=======
-    final vehicleTypeOptions = _vehicleTypeOptions(
-      vehicleTypeState?.items ?? const [],
-      currentSelections: _selectedAllowedVehicleTypes,
-      singleSelection: _preferredVehicleTypeCtrl.text.trim(),
-    );
-    final routeOptions = _routeOptions(
-      routeState?.routes ?? const [],
-      _preferredRouteTypeCtrl.text.trim(),
->>>>>>> Stashed changes
     );
 
     _syncUploadRowsWithOptions(
@@ -348,7 +314,6 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
                     ),
                     const SizedBox(height: 16),
                     _sectionTitle('Preferences'),
-<<<<<<< Updated upstream
                     _multiSelectField(
                       label: 'Allowed Vehicle Types',
                       selectedValues: _selectedAllowedVehicleTypes,
@@ -385,57 +350,6 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
                       _notesCtrl,
                       label: 'Notes',
                       maxLines: 2,
-=======
-                    _buildResponsiveGrid(
-                      children: [
-                        _VehicleTypeMultiSelectField(
-                          label: 'Allowed Vehicle Types (comma separated)',
-                          options: vehicleTypeOptions,
-                          selectedValues: _selectedAllowedVehicleTypes,
-                          onChanged: (values) {
-                            setState(() {
-                              _selectedAllowedVehicleTypes = values;
-                              _allowedVehicleCtrl.text = values.join(', ');
-                            });
-                          },
-                        ),
-                        _SearchableSelectionField<String>(
-                          label: 'Preferred Route Type',
-                          value: _preferredRouteTypeCtrl.text.trim().isEmpty
-                              ? null
-                              : _preferredRouteTypeCtrl.text.trim(),
-                          items: routeOptions,
-                          itemLabel: (item) => item,
-                          onSelected: (value) {
-                            setState(() {
-                              _preferredRouteTypeCtrl.text = value;
-                            });
-                          },
-                        ),
-                        _SearchableSelectionField<String>(
-                          label: 'Preferred Vehicle Type',
-                          value: _preferredVehicleTypeCtrl.text.trim().isEmpty
-                              ? null
-                              : _preferredVehicleTypeCtrl.text.trim(),
-                          items: vehicleTypeOptions,
-                          itemLabel: (item) => item,
-                          onSelected: (value) {
-                            setState(() {
-                              _preferredVehicleTypeCtrl.text = value;
-                            });
-                          },
-                        ),
-                        _field(
-                          _certCtrl,
-                          label: 'Certifications (comma separated)',
-                        ),
-                        _field(
-                          _notesCtrl,
-                          label: 'Notes',
-                          maxLines: 2,
-                        ),
-                      ],
->>>>>>> Stashed changes
                     ),
                     const SizedBox(height: 16),
                     _sectionTitle('Driver Documents Upload'),
@@ -873,7 +787,6 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
         .toList();
   }
 
-<<<<<<< Updated upstream
   List<String> _withSelections(List<String> options, List<String> selected) {
     final merged = <String>{...options, ...selected};
     final items = merged.toList()..sort();
@@ -997,31 +910,6 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
         );
       },
     );
-=======
-  List<String> _vehicleTypeOptions(
-    List<dynamic> items, {
-    required List<String> currentSelections,
-    required String singleSelection,
-  }) {
-    final names = <String>{
-      for (final item in items)
-        if (item.vehicleTypeName.trim().isNotEmpty) item.vehicleTypeName.trim(),
-      ...currentSelections.where((item) => item.trim().isNotEmpty),
-      if (singleSelection.trim().isNotEmpty) singleSelection.trim(),
-    };
-    final result = names.toList()..sort();
-    return result;
-  }
-
-  List<String> _routeOptions(List<dynamic> items, String currentSelection) {
-    final names = <String>{
-      for (final item in items)
-        if (item.routeName.trim().isNotEmpty) item.routeName.trim(),
-      if (currentSelection.trim().isNotEmpty) currentSelection.trim(),
-    };
-    final result = names.toList()..sort();
-    return result;
->>>>>>> Stashed changes
   }
 }
 
