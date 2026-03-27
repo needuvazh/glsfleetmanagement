@@ -221,17 +221,41 @@ class _ComplianceReadinessScreenState
   }
 
   Widget _buildRagSummary(int ready, int warning, int blocked) {
-    return Row(
-      children: [
-        _RagCard('READY', ready.toString(), Colors.green,
-            Icons.check_circle_outline),
-        const SizedBox(width: 16),
-        _RagCard('WARNING', warning.toString(), Colors.orange,
-            Icons.warning_amber_outlined),
-        const SizedBox(width: 16),
-        _RagCard(
-            'BLOCKED', blocked.toString(), Colors.red, Icons.block_outlined),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 980;
+
+        if (isNarrow) {
+          return Column(
+            children: [
+              _RagCard('READY', ready.toString(), Colors.green,
+                  Icons.check_circle_outline,
+                  expand: false),
+              const SizedBox(height: 12),
+              _RagCard('WARNING', warning.toString(), Colors.orange,
+                  Icons.warning_amber_outlined,
+                  expand: false),
+              const SizedBox(height: 12),
+              _RagCard('BLOCKED', blocked.toString(), Colors.red,
+                  Icons.block_outlined,
+                  expand: false),
+            ],
+          );
+        }
+
+        return Row(
+          children: [
+            _RagCard('READY', ready.toString(), Colors.green,
+                Icons.check_circle_outline),
+            const SizedBox(width: 16),
+            _RagCard('WARNING', warning.toString(), Colors.orange,
+                Icons.warning_amber_outlined),
+            const SizedBox(width: 16),
+            _RagCard('BLOCKED', blocked.toString(), Colors.red,
+                Icons.block_outlined),
+          ],
+        );
+      },
     );
   }
 
@@ -288,96 +312,119 @@ class _ComplianceReadinessScreenState
           const Divider(height: 1),
           Padding(
             padding: const EdgeInsets.all(8.0),
-            child: Table(
-              columnWidths: const {
-                0: FlexColumnWidth(2),
-                1: FlexColumnWidth(1.2),
-                2: FlexColumnWidth(1.2),
-                3: FlexColumnWidth(1.2),
-                4: FixedColumnWidth(120),
-              },
-              children: [
-                const TableRow(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minWidth: 860),
+                child: Table(
+                  columnWidths: const {
+                    0: FlexColumnWidth(2),
+                    1: FlexColumnWidth(1.2),
+                    2: FlexColumnWidth(1.2),
+                    3: FlexColumnWidth(1.2),
+                    4: FixedColumnWidth(140),
+                  },
                   children: [
-                    Padding(
-                        padding: EdgeInsets.all(8),
-                        child: Text('Document Name',
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 13))),
-                    Padding(
-                        padding: EdgeInsets.all(8),
-                        child: Text('Expiry Date',
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 13))),
-                    Padding(
-                        padding: EdgeInsets.all(8),
-                        child: Text('Status',
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 13))),
-                    Padding(
-                        padding: EdgeInsets.all(8),
-                        child: Text('Blocking Type',
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 13))),
-                    Padding(
-                        padding: EdgeInsets.all(8),
-                        child: Text('Actions',
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 13))),
+                    const TableRow(
+                      children: [
+                        Padding(
+                            padding: EdgeInsets.all(8),
+                            child: Text('Document Name',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13))),
+                        Padding(
+                            padding: EdgeInsets.all(8),
+                            child: Text('Expiry Date',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13))),
+                        Padding(
+                            padding: EdgeInsets.all(8),
+                            child: Text('Status',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13))),
+                        Padding(
+                            padding: EdgeInsets.all(8),
+                            child: Text('Blocking Type',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13))),
+                        Padding(
+                            padding: EdgeInsets.all(8),
+                            child: Text('Actions',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13))),
+                      ],
+                    ),
+                    for (final item in items)
+                      TableRow(
+                        children: [
+                          Padding(
+                              padding: const EdgeInsets.all(8),
+                              child: Text(item.name,
+                                  style: const TextStyle(fontSize: 13))),
+                          Padding(
+                              padding: const EdgeInsets.all(8),
+                              child: Text(item.expiry,
+                                  style: const TextStyle(fontSize: 13))),
+                          Padding(
+                              padding: const EdgeInsets.all(8),
+                              child: _statusLabel(item.status)),
+                          Padding(
+                              padding: const EdgeInsets.all(8),
+                              child: _blockingLabel(item.blocking)),
+                          Padding(
+                            padding: const EdgeInsets.all(4),
+                            child: Row(
+                              children: [
+                                IconButton(
+                                  constraints: const BoxConstraints.tightFor(
+                                      width: 40, height: 40),
+                                  padding: EdgeInsets.zero,
+                                  visualDensity: VisualDensity.compact,
+                                  icon: const Icon(Icons.refresh, size: 18),
+                                  onPressed: () {
+                                    _toast('Recheck queued for ${item.name}.');
+                                  },
+                                  tooltip: 'Recheck',
+                                ),
+                                IconButton(
+                                  constraints: const BoxConstraints.tightFor(
+                                      width: 40, height: 40),
+                                  padding: EdgeInsets.zero,
+                                  visualDensity: VisualDensity.compact,
+                                  icon: const Icon(Icons.open_in_new, size: 18),
+                                  onPressed: () {
+                                    context.go(RoutePaths.documentManagement);
+                                  },
+                                  tooltip: 'Open Master',
+                                ),
+                                IconButton(
+                                  constraints: const BoxConstraints.tightFor(
+                                      width: 40, height: 40),
+                                  padding: EdgeInsets.zero,
+                                  visualDensity: VisualDensity.compact,
+                                  icon: const Icon(Icons.check_box_outlined,
+                                      size: 18),
+                                  onPressed: () {
+                                    _toast('Marked cleared for ${item.name}.');
+                                    context.go(
+                                      '${RoutePaths.inspectionCreate}?woId=${Uri.encodeComponent(workOrderId)}',
+                                    );
+                                  },
+                                  tooltip: 'Mark Cleared',
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                   ],
                 ),
-                for (final item in items)
-                  TableRow(
-                    children: [
-                      Padding(
-                          padding: const EdgeInsets.all(8),
-                          child: Text(item.name,
-                              style: const TextStyle(fontSize: 13))),
-                      Padding(
-                          padding: const EdgeInsets.all(8),
-                          child: Text(item.expiry,
-                              style: const TextStyle(fontSize: 13))),
-                      Padding(
-                          padding: const EdgeInsets.all(8),
-                          child: _statusLabel(item.status)),
-                      Padding(
-                          padding: const EdgeInsets.all(8),
-                          child: _blockingLabel(item.blocking)),
-                      Padding(
-                        padding: const EdgeInsets.all(4),
-                        child: Row(
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.refresh, size: 18),
-                              onPressed: () {
-                                _toast('Recheck queued for ${item.name}.');
-                              },
-                              tooltip: 'Recheck',
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.open_in_new, size: 18),
-                              onPressed: () {
-                                context.go(RoutePaths.documentManagement);
-                              },
-                              tooltip: 'Open Master',
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.check_box_outlined,
-                                  size: 18),
-                              onPressed: () {
-                                _toast('Marked cleared for ${item.name}.');
-                                context.go(
-                                  '${RoutePaths.inspectionCreate}?woId=${Uri.encodeComponent(workOrderId)}',
-                                );
-                              },
-                              tooltip: 'Mark Cleared',
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-              ],
+              ),
             ),
           ),
         ],
@@ -424,31 +471,34 @@ class _RagCard extends StatelessWidget {
   final String count;
   final Color color;
   final IconData icon;
+  final bool expand;
 
-  const _RagCard(this.label, this.count, this.color, this.icon);
+  const _RagCard(this.label, this.count, this.color, this.icon,
+      {this.expand = true});
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.05),
-          border: Border.all(color: color.withValues(alpha: 0.2)),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: color, size: 24),
+    final content = Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.05),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
             ),
-            const SizedBox(width: 16),
-            Column(
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
@@ -463,12 +513,21 @@ class _RagCard extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                       color: color.withValues(alpha: 0.7),
                       letterSpacing: 1.2),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
+    );
+
+    if (!expand) {
+      return content;
+    }
+
+    return Expanded(
+      child: content,
     );
   }
 }

@@ -112,6 +112,7 @@ class _InspectionTemplateManagementScreenState
                     SizedBox(
                       width: isMobile ? double.infinity : 260,
                       child: DropdownButtonFormField<InspectionType?>(
+                        isExpanded: true,
                         value: _inspectionTypeFilter,
                         decoration:
                             const InputDecoration(labelText: 'Inspection Type'),
@@ -134,6 +135,7 @@ class _InspectionTemplateManagementScreenState
                     SizedBox(
                       width: isMobile ? double.infinity : 220,
                       child: DropdownButtonFormField<String>(
+                        isExpanded: true,
                         value: selectedFrequency,
                         decoration:
                             const InputDecoration(labelText: 'Frequency'),
@@ -154,6 +156,7 @@ class _InspectionTemplateManagementScreenState
                     SizedBox(
                       width: isMobile ? double.infinity : 220,
                       child: DropdownButtonFormField<String>(
+                        isExpanded: true,
                         value: selectedStatus,
                         decoration: const InputDecoration(labelText: 'Status'),
                         items: const [

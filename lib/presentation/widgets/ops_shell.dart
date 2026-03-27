@@ -343,22 +343,23 @@ class _TopBarLogo extends StatelessWidget {
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(8),
-      child: Image.asset(
-        'assets/images/gls_logo.jpg',
-        width: 48,
-        height: 48,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => Container(
-          width: 48,
-          height: 48,
-          color: colorScheme.primaryContainer,
-          alignment: Alignment.center,
-          child: Text(
-            'GLS',
-            style: TextStyle(
-              color: colorScheme.onPrimaryContainer,
-              fontWeight: FontWeight.w700,
-              fontSize: 11,
+      child: SizedBox(
+        width: 120,
+        height: 40,
+        child: Image.asset(
+          'assets/images/gls_logo.jpg',
+          fit: BoxFit.contain,
+          alignment: Alignment.centerLeft,
+          errorBuilder: (_, __, ___) => Container(
+            color: colorScheme.primaryContainer,
+            alignment: Alignment.center,
+            child: Text(
+              'GLS',
+              style: TextStyle(
+                color: colorScheme.onPrimaryContainer,
+                fontWeight: FontWeight.w700,
+                fontSize: 12,
+              ),
             ),
           ),
         ),
