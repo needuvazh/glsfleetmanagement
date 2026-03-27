@@ -132,7 +132,82 @@ class _WorkOrderDetailScreenState extends ConsumerState<WorkOrderDetailScreen>
                             label: const Text('Create Journey Plan'),
                           ),
                           FilledButton.icon(
-                            onPressed: () => context.go(RoutePaths.tripExecution),
+                            onPressed: () {
+                              if (order.assignedVehicleNo.isEmpty || order.assignedDriverId.isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Cannot Dispatch: Please assign a vehicle and driver first.')),
+                                );
+                                return;
+                              }
+
+                              final vehicle = state.vehicles.where((v) => v.vehicleNo == order.assignedVehicleNo).firstOrNull;
+                              final driver = state.drivers.where((d) => d.driverId == order.assignedDriverId).firstOrNull;
+                              final jmp = state.journeyPlans.where((p) => p.woId == widget.workOrderId).firstOrNull;
+
+                              if (jmp == null || jmp.status != 'Approved') {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: const Row(
+                                      children: [
+                                        Icon(Icons.warning_amber, color: Colors.orange),
+                                        SizedBox(width: 8),
+                                        Text('Journey Plan Required'),
+                                      ],
+                                    ),
+                                    content: const Text('An Approved Journey Management Plan (JMP) is mandatory before dispatch.\n\nPlease create or approve the JMP for this Work Order.'),
+                                    actions: [
+                                      TextButton(onPressed: () => context.pop(), child: const Text('Cancel')),
+                                      FilledButton(
+                                        onPressed: () {
+                                          context.pop();
+                                          if (jmp == null) {
+                                            context.go('${RoutePaths.journeyManagement}/new');
+                                          } else {
+                                            context.go('${RoutePaths.journeyManagement}/${jmp.jmpId}');
+                                          }
+                                        },
+                                        child: Text(jmp == null ? 'Create JMP' : 'View JMP'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                return;
+                              }
+
+                              bool isBlocked = false;
+                              if (vehicle != null && vehicle.status.toLowerCase() == 'maintenance') isBlocked = true;
+                              if (driver != null && (!driver.licenseValid || driver.pdoPassportStatus.toLowerCase() == 'expired' || driver.h2sStatus.toLowerCase() == 'expired')) isBlocked = true;
+
+                              if (isBlocked) {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: const Row(
+                                      children: [
+                                        Icon(Icons.block, color: Colors.red),
+                                        SizedBox(width: 8),
+                                        Text('Dispatch Blocked'),
+                                      ],
+                                    ),
+                                    content: const Text('Mandatory compliance documents are missing or expired (Hard-block).\n\nPlease review the readiness tracker and ensure all resources are compliant before dispatching.'),
+                                    actions: [
+                                      TextButton(onPressed: () => context.pop(), child: const Text('Cancel')),
+                                      FilledButton(
+                                        onPressed: () {
+                                          context.pop();
+                                          context.go('${RoutePaths.complianceReadiness}?workOrderId=${widget.workOrderId}');
+                                        },
+                                        child: const Text('View Readiness'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                return;
+                              }
+
+                              context.go(RoutePaths.tripExecution);
+                            },
                             icon: const Icon(Icons.play_circle_outline),
                             label: const Text('Dispatch'),
                           ),
@@ -161,7 +236,7 @@ class _WorkOrderDetailScreenState extends ConsumerState<WorkOrderDetailScreen>
                   controller: _tabController,
                   children: [
                     _SummaryTab(order: order, state: state),
-                    _PlaceholderTab(title: 'Assignment Details', id: widget.workOrderId),
+                    _AssignmentTab(order: order, state: state),
                     _PlaceholderTab(title: 'Inspection Status', id: widget.workOrderId),
                     _PlaceholderTab(title: 'Trip Tracking', id: widget.workOrderId),
                     _PlaceholderTab(title: 'Documents and Media', id: widget.workOrderId),
@@ -416,6 +491,124 @@ class _SummaryTab extends ConsumerWidget {
           value,
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
+      ],
+    );
+  }
+}
+
+class _AssignmentTab extends ConsumerWidget {
+  const _AssignmentTab({required this.order, required this.state});
+  final WorkOrderFlowItem order;
+  final LogisticsUiState state;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (order.assignedVehicleNo.isEmpty && order.assignedDriverId.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.assignment_late_outlined, size: 64, color: Theme.of(context).colorScheme.outline),
+            const SizedBox(height: 16),
+            const Text('No Resources Assigned', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            const Text('Assign resources from the quick actions bar to see details here.'),
+          ],
+        ),
+      );
+    }
+
+    final vehicle = state.vehicles.where((v) => v.vehicleNo == order.assignedVehicleNo).firstOrNull;
+    final driver = state.drivers.where((d) => d.driverId == order.assignedDriverId).firstOrNull;
+
+    return ListView(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      children: [
+        if (vehicle != null)
+          _InfoCard(
+            title: 'Assigned Fleet (Truck)',
+            icon: Icons.local_shipping_outlined,
+            children: [
+              Text('FLEET SPECIFICATIONS', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 1.2)),
+              const SizedBox(height: 12),
+              _GridRow(
+                label1: 'Vehicle No',
+                value1: vehicle.vehicleNo,
+                label2: 'Type / Model',
+                value2: vehicle.type,
+              ),
+              const SizedBox(height: 16),
+              _GridRow(
+                label1: 'Capacity',
+                value1: vehicle.capacity,
+                label2: 'Fuel Type',
+                value2: vehicle.fuelType,
+              ),
+              const SizedBox(height: 16),
+              _GridRow(
+                label1: 'IVMS Device ID',
+                value1: vehicle.ivmsDeviceId.isNotEmpty ? vehicle.ivmsDeviceId : 'N/A',
+                label2: 'Operational Status',
+                value2: vehicle.status,
+              ),
+            ],
+          ),
+        
+        if (order.assignedTrailerId.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          _InfoCard(
+            title: 'Assigned Trailer',
+            icon: Icons.rv_hookup_outlined,
+            children: [
+              Text('TRAILER DETAILS', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 1.2)),
+              const SizedBox(height: 12),
+              _GridRow(
+                label1: 'Trailer ID',
+                value1: order.assignedTrailerId,
+                label2: 'Connection Status',
+                value2: 'Linked',
+              ),
+            ],
+          ),
+        ],
+
+        if (driver != null) ...[
+          const SizedBox(height: 16),
+          _InfoCard(
+            title: 'Assigned Driver',
+            icon: Icons.person_outline,
+            children: [
+              Text('DRIVER PROFILE', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 1.2)),
+              const SizedBox(height: 12),
+              _GridRow(
+                label1: 'Full Name',
+                value1: driver.name,
+                label2: 'Driver ID',
+                value2: driver.driverId,
+              ),
+              const SizedBox(height: 16),
+              _GridRow(
+                label1: 'Phone Number',
+                value1: driver.phone,
+                label2: 'Nationality',
+                value2: driver.nationality,
+              ),
+              const SizedBox(height: 16),
+              _GridRow(
+                label1: 'License No',
+                value1: driver.licenseNo,
+                label2: 'Employee Ref',
+                value2: driver.employeeRef,
+              ),
+              const SizedBox(height: 16),
+              _GridRow(
+                label1: 'Status',
+                value1: driver.status,
+              ),
+            ],
+          ),
+        ],
+        const SizedBox(height: 24),
       ],
     );
   }

@@ -43,6 +43,9 @@ class InspectionTemplateViewScreen extends StatelessWidget {
                   const SizedBox(height: 10),
                   _row('Template ID', record.id),
                   _row('Inspection Type', record.inspectionType.label),
+                  _row('Description',
+                      record.description.isEmpty ? '-' : record.description),
+                  _row('Frequency', record.frequency),
                   _row('Applicable Vehicle', record.applicableVehicleType),
                   _row('Status', record.isActive ? 'Active' : 'Inactive'),
                   _row('Updated By', record.updatedBy),
@@ -66,16 +69,29 @@ class InspectionTemplateViewScreen extends StatelessWidget {
                         ?.copyWith(fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 10),
-                  for (final item in record.items)
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(item.name),
-                      subtitle: Text(
-                        'Mandatory: ${item.mandatory ? 'Yes' : 'No'} | '
-                        'Media: ${item.requiredMedia ? 'Required' : 'Optional'} | '
-                        'Severity: ${item.severity.label}',
-                      ),
+                  for (final category in _categories(record.items)) ...[
+                    Text(
+                      category,
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w700),
                     ),
+                    const SizedBox(height: 6),
+                    for (final item in record.items
+                        .where((entry) => entry.category == category))
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(item.name),
+                        subtitle: Text(
+                          'Mandatory: ${item.mandatory ? 'Yes' : 'No'} | '
+                          'Photo: ${item.requiresPhoto ? 'Required' : 'Optional'} | '
+                          'Video: ${item.requiresVideo ? 'Required' : 'Optional'} | '
+                          'Severity: ${item.severity.label}',
+                        ),
+                      ),
+                    const SizedBox(height: 8),
+                  ],
                 ],
               ),
             ),
@@ -89,8 +105,8 @@ class InspectionTemplateViewScreen extends StatelessWidget {
               ),
               const Spacer(),
               FilledButton.icon(
-                onPressed: () =>
-                    context.go(RoutePaths.editInspectionTemplateById(record.id)),
+                onPressed: () => context
+                    .go(RoutePaths.editInspectionTemplateById(record.id)),
                 icon: const Icon(Icons.edit_outlined),
                 label: const Text('Edit Template'),
               ),
@@ -125,5 +141,13 @@ class InspectionTemplateViewScreen extends StatelessWidget {
     final h = value.hour.toString().padLeft(2, '0');
     final min = value.minute.toString().padLeft(2, '0');
     return '$d/$m/${value.year} $h:$min';
+  }
+
+  List<String> _categories(List<InspectionTemplateItem> items) {
+    final set = <String>{};
+    for (final item in items) {
+      set.add(item.category);
+    }
+    return set.toList(growable: false);
   }
 }

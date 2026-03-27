@@ -164,6 +164,8 @@ class _AssignmentListScreenState extends ConsumerState<AssignmentListScreen> {
                   DataColumn(label: Text('CARGO')),
                   DataColumn(label: Text('ROUTE')),
                   DataColumn(label: Text('REQ. VEHICLE')),
+                  DataColumn(label: Text('FLEET')),
+                  DataColumn(label: Text('DRIVER')),
                   DataColumn(label: Text('STATUS')),
                   DataColumn(label: Text('ACTIONS')),
                 ],
@@ -174,6 +176,8 @@ class _AssignmentListScreenState extends ConsumerState<AssignmentListScreen> {
                     DataCell(Text(row.cargo)),
                     DataCell(Text(row.route)),
                     DataCell(Text(row.requiredVehicle)),
+                    DataCell(Text(row.assignedFleet)),
+                    DataCell(Text(row.assignedDriver)),
                     DataCell(_buildStatusBadge(row.status)),
                     DataCell(
                       IconButton(
@@ -205,6 +209,9 @@ class _AssignmentListScreenState extends ConsumerState<AssignmentListScreen> {
             children: [
               Text('${row.customer} • ${row.cargo}'),
               Text(row.route),
+              if (row.assignedFleet != '-' || row.assignedDriver != '-')
+                Text('Assigned: ${row.assignedFleet} | ${row.assignedDriver}', 
+                  style: TextStyle(color: Colors.blue[700], fontSize: 12, fontWeight: FontWeight.w500)),
             ],
           ),
           trailing: Column(
@@ -269,6 +276,8 @@ class _AssignmentListScreenState extends ConsumerState<AssignmentListScreen> {
         route: wo.route,
         requiredVehicle: req?.requiredVehicleType ?? '-',
         status: status,
+        assignedFleet: wo.assignedVehicleNo.isNotEmpty ? wo.assignedVehicleNo : '-',
+        assignedDriver: wo.assignedDriverId.isNotEmpty ? wo.assignedDriverId : '-',
       );
     }).toList();
   }
@@ -292,6 +301,8 @@ class _AssignmentRow {
   final String route;
   final String requiredVehicle;
   final String status;
+  final String assignedFleet;
+  final String assignedDriver;
 
   _AssignmentRow({
     required this.woId,
@@ -300,5 +311,7 @@ class _AssignmentRow {
     required this.route,
     required this.requiredVehicle,
     required this.status,
+    required this.assignedFleet,
+    required this.assignedDriver,
   });
 }

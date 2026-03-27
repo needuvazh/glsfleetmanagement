@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../domain/cargo_model.dart';
 import '../../domain/entities/compliance_assignment.dart';
@@ -88,6 +89,13 @@ class _ResourceAssignmentScreenState extends ConsumerState<ResourceAssignmentScr
     return OpsShell(
       title: 'Assignments',
       currentRoute: RoutePaths.resourceAssignment,
+      actions: [
+        IconButton(
+          onPressed: () => context.go(RoutePaths.assignmentList),
+          icon: const Icon(Icons.close),
+          tooltip: 'Back to List',
+        ),
+      ],
       child: state.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(child: Text(error.toString())),
@@ -177,73 +185,45 @@ class _ResourceAssignmentScreenState extends ConsumerState<ResourceAssignmentScr
 
           return SingleChildScrollView(
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SizedBox(
-                  height: isDesktop ? 600 : null,
-                  child: isDesktop
-                      ? Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: SingleChildScrollView(
-                                child: _buildLeftPanel(
-                                  data,
-                                  selectedOrder,
-                                  selectedCargoProfile,
-                                  selectedVehicle,
-                                  selectedDriver,
-                                  customerAssignmentSummary,
-                                  cargoAssignmentSummary,
-                                  customerHardBlockRules,
-                                  cargoHardBlockRules,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: SingleChildScrollView(
-                                child: _buildMiddlePanel(
-                                  fleetRows,
-                                  selectedVehicle,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: SingleChildScrollView(
-                                child: _buildRightPanel(
-                                  driverRows,
-                                  selectedDriver,
-                                ),
-                              ),
-                            ),
-                          ],
-                        )
-                      : Column(
-                          children: [
-                            _buildLeftPanel(
-                              data,
-                              selectedOrder,
-                              selectedCargoProfile,
-                              selectedVehicle,
-                              selectedDriver,
-                              customerAssignmentSummary,
-                              cargoAssignmentSummary,
-                              customerHardBlockRules,
-                              cargoHardBlockRules,
-                            ),
-                            _buildMiddlePanel(fleetRows, selectedVehicle),
-                            _buildRightPanel(driverRows, selectedDriver),
-                          ],
-                        ),
+                // Row 1: Work Order Summary (Full Row)
+                _buildLeftPanel(
+                  data,
+                  selectedOrder,
+                  selectedCargoProfile,
+                  selectedVehicle,
+                  selectedDriver,
+                  customerAssignmentSummary,
+                  cargoAssignmentSummary,
+                  customerHardBlockRules,
+                  cargoHardBlockRules,
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 16),
+
+                // Row 2: Fleet Selection (Full Row)
+                _buildMiddlePanel(
+                  fleetRows,
+                  selectedVehicle,
+                ),
+                const SizedBox(height: 16),
+
+                // Row 3: Driver Selection (Full Row)
+                _buildRightPanel(
+                  driverRows,
+                  selectedDriver,
+                ),
+                const SizedBox(height: 16),
+
+                // Row 4: Validation Section (Full Row)
                 _buildValidationSection(
                   checks,
                   customerHardBlockRules,
                   cargoHardBlockRules,
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 20),
+
+                // Row 5: Actions
                 _buildActionsBar(
                   onValidate: () {
                     final allowed = checks.values.every((v) => v);
@@ -258,14 +238,13 @@ class _ResourceAssignmentScreenState extends ConsumerState<ResourceAssignmentScr
                   onAssign: () => _assignOrReassign(data),
                   onSaveRemarks: () => _toast('Assignment remarks saved.'),
                   onReassign: () => _assignOrReassign(data, forceReassign: true),
-                  canAssign: _validated &&
-                      _assignmentAllowed &&
-                      _selectedOrderId != null &&
+                  canAssign: _selectedOrderId != null &&
                       _selectedVehicleNo != null &&
                       _selectedDriverId != null &&
                       _selectedTrailerId != null,
                   hasExistingAssignment: _selectedOrderId == data.assignedOrderId,
                 ),
+                const SizedBox(height: 30),
               ],
             ),
           );
@@ -285,6 +264,24 @@ class _ResourceAssignmentScreenState extends ConsumerState<ResourceAssignmentScr
     List<String> customerHardBlockRules,
     List<String> cargoHardBlockRules,
   ) {
+    if (selectedOrder == null) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            children: [
+              Text('Work Order Summary',
+                  style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 10),
+              _buildOrderDropdown(data),
+              const SizedBox(height: 20),
+              const Center(child: Text('Please select a work order.')),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -294,145 +291,177 @@ class _ResourceAssignmentScreenState extends ConsumerState<ResourceAssignmentScr
             Text('Work Order Summary',
                 style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 10),
-            DropdownButtonFormField<String>(
-              value: _selectedOrderId,
-              decoration: const InputDecoration(labelText: 'Work Order'),
-              items: [
-                for (final item in data.workOrders)
-                  DropdownMenuItem(
-                    value: item.woId,
-                    child: Text('${item.woId} (${item.customer})'),
-                  ),
+            _buildOrderDropdown(data),
+            const SizedBox(height: 16),
+            
+            // Headline Section
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _headlineChip('WO', selectedOrder.woId),
+                _headlineChip('Customer', selectedOrder.customer),
+                _headlineChip('Status', selectedOrder.status),
               ],
-              onChanged: (value) {
-                final order = data.workOrders.where((wo) => wo.woId == value).firstOrNull;
-                setState(() {
-                  _selectedOrderId = value;
-                  if (order != null && order.assignedVehicleNo.isNotEmpty) {
-                    _selectedVehicleNo = order.assignedVehicleNo;
-                    _selectedDriverId = order.assignedDriverId;
-                    _selectedTrailerId = order.assignedTrailerId.isNotEmpty ? order.assignedTrailerId : null;
-                  }
-                  _validated = false;
-                });
-              },
             ),
-            const SizedBox(height: 10),
-            _pair('WO Number', selectedOrder?.woId ?? '-'),
-            _pair('Customer', selectedOrder?.customer ?? '-'),
-            _pair('Route', selectedOrder?.route ?? '-'),
-            _pair('Cargo', selectedOrder?.cargo ?? '-'),
-            _pair('Planned Date', _plannedDate(selectedOrder?.woId)),
-            _pair('Inspection Need', 'Required'),
-            _pair('Trip Readiness',
-                data.canStartTrip ? 'Ready' : 'Pending checks'),
-            _pair('Customer Compliance (Assignment)',
-                _stageSummaryText(customerSummary)),
-            _pair('Cargo Compliance (Assignment)',
-                _stageSummaryText(cargoSummary)),
-            if (customerHardBlockRules.isNotEmpty)
-              _pair('Customer Block Rules', customerHardBlockRules.join(', ')),
-            if (cargoHardBlockRules.isNotEmpty)
-              _pair('Cargo Block Rules', cargoHardBlockRules.join(', ')),
-            if (selectedCargo != null) ...[
-              const SizedBox(height: 8),
-              _pair('Cargo Risk', selectedCargo.riskLevel.label),
-              _pair(
-                  'Preferred Trailer',
-                  selectedCargo.preferredTrailerType.isEmpty
-                      ? '-'
-                      : selectedCargo.preferredTrailerType),
-              _pair('Lashing Required',
-                  selectedCargo.lashingRequired ? 'Yes' : 'No'),
-              _pair('Escort Required',
-                  selectedCargo.escortRequired ? 'Yes' : 'No'),
-              _pair(
-                'Required Certifications',
-                selectedCargo.requiredCertifications.isEmpty
-                    ? '-'
-                    : selectedCargo.requiredCertifications.join(', '),
-              ),
-              _pair(
-                'Required Permits',
-                selectedCargo.requiredPermits.isEmpty
-                    ? '-'
-                    : selectedCargo.requiredPermits.join(', '),
-              ),
-              if (_cargoWarnings(selectedCargo).isNotEmpty)
-                Container(
-                  width: double.infinity,
-                  margin: const EdgeInsets.only(top: 6),
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFF7ED),
-                    border: Border.all(color: const Color(0xFFF59E0B)),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Cargo Assignment Guidance',
-                        style: TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                      const SizedBox(height: 6),
-                      for (final note in _cargoWarnings(selectedCargo))
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 4),
-                          child: Text('- $note'),
-                        ),
-                    ],
-                  ),
-                ),
-              if (_missingComplianceForCargo(
-                cargo: selectedCargo,
-                vehicle: selectedVehicle,
-                driver: selectedDriver,
-              ).isNotEmpty)
-                Container(
-                  width: double.infinity,
-                  margin: const EdgeInsets.only(top: 6),
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFEF2F2),
-                    border: Border.all(color: const Color(0xFFB91C1C)),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Cargo Compliance Gaps',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFFB91C1C),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      for (final gap in _missingComplianceForCargo(
-                        cargo: selectedCargo,
-                        vehicle: selectedVehicle,
-                        driver: selectedDriver,
-                      ))
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 4),
-                          child: Text('- $gap'),
-                        ),
-                    ],
-                  ),
+            const SizedBox(height: 16),
+
+            // Planning Details
+            _SectionHeader(title: 'PLANNING DETAILS', icon: Icons.calendar_today_outlined),
+            const SizedBox(height: 8),
+            _detailGrid([
+              _detailItem('Route', selectedOrder.route),
+              _detailItem('Risk Level', selectedOrder.routeRiskLevel),
+              _detailItem('Planned Start', _formatDate(selectedOrder.serviceStartDate)),
+              _detailItem('Planned End', _formatDate(selectedOrder.serviceEndDate)),
+            ]),
+            const SizedBox(height: 16),
+
+            // Cargo Details
+            _SectionHeader(title: 'CARGO DETAILS', icon: Icons.inventory_2_outlined),
+            const SizedBox(height: 8),
+            _detailGrid([
+              _detailItem('Cargo Profile', selectedOrder.cargo),
+              if (selectedCargo != null) ...[
+                _detailItem('Hazardous', selectedCargo.hazardous ? 'Yes' : 'No'),
+                _detailItem('Cargo Risk', selectedCargo.riskLevel.label),
+                _detailItem('Preferred Trailer', selectedCargo.preferredTrailerType.isEmpty ? '-' : selectedCargo.preferredTrailerType),
+                _detailItem('Lashing Req.', selectedCargo.lashingRequired ? 'Yes' : 'No'),
+                _detailItem('Escort Req.', selectedCargo.escortRequired ? 'Yes' : 'No'),
+              ],
+            ]),
+            const SizedBox(height: 16),
+
+            // Operational Context
+            _SectionHeader(title: 'OPERATIONAL CONTEXT', icon: Icons.analytics_outlined),
+            const SizedBox(height: 8),
+            _detailGrid([
+              _detailItem('Inspection', 'Required'),
+              _detailItem('Trip Readiness', data.canStartTrip ? 'Ready' : 'Pending'),
+              _detailItem('Cust. Compliance', _stageSummaryText(customerSummary)),
+              _detailItem('Cargo Compliance', _stageSummaryText(cargoSummary)),
+            ]),
+            
+            if (customerHardBlockRules.isNotEmpty || cargoHardBlockRules.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              const Text('Hard Block Rules Active', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Colors.red)),
+              const SizedBox(height: 4),
+              for (final rule in [...customerHardBlockRules, ...cargoHardBlockRules])
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 2),
+                  child: Text('• $rule', style: const TextStyle(fontSize: 11, color: Colors.red)),
                 ),
             ],
-            const SizedBox(height: 8),
+
+            if (selectedCargo != null && _cargoWarnings(selectedCargo).isNotEmpty)
+              _WarningBox(
+                title: 'Cargo Assignment Guidance',
+                warnings: _cargoWarnings(selectedCargo),
+              ),
+            
+            if (selectedCargo != null)
+              _GapBox(
+                gaps: _missingComplianceForCargo(
+                  cargo: selectedCargo,
+                  vehicle: selectedVehicle,
+                  driver: selectedDriver,
+                ),
+              ),
+
+            const SizedBox(height: 16),
             TextFormField(
               controller: _remarksController,
-              maxLines: 3,
+              maxLines: 2,
               decoration: const InputDecoration(
                 labelText: 'Assignment Remarks',
+                alignLabelWithHint: true,
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildOrderDropdown(LogisticsUiState data) {
+    return DropdownButtonFormField<String>(
+      value: _selectedOrderId,
+      decoration: const InputDecoration(labelText: 'Change Work Order'),
+      items: [
+        for (final item in data.workOrders)
+          DropdownMenuItem(
+            value: item.woId,
+            child: Text('${item.woId} (${item.customer})'),
+          ),
+      ],
+      onChanged: (value) {
+        final order = data.workOrders.where((wo) => wo.woId == value).firstOrNull;
+        setState(() {
+          _selectedOrderId = value;
+          if (order != null && order.assignedVehicleNo.isNotEmpty) {
+            _selectedVehicleNo = order.assignedVehicleNo;
+            _selectedDriverId = order.assignedDriverId;
+            _selectedTrailerId = order.assignedTrailerId.isNotEmpty ? order.assignedTrailerId : null;
+          }
+          _validated = false;
+        });
+      },
+    );
+  }
+
+  Widget _headlineChip(String label, String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEFF6FF),
+        border: Border.all(color: const Color(0xFFBFDBFE)),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: RichText(
+        text: TextSpan(
+          style: const TextStyle(fontSize: 11, color: Color(0xFF1E40AF)),
+          children: [
+            TextSpan(text: '$label: ', style: const TextStyle(fontWeight: FontWeight.bold)),
+            TextSpan(text: value),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _detailGrid(List<Widget> items) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final crossCount = constraints.maxWidth > 900 ? 4 : (constraints.maxWidth > 500 ? 2 : 1);
+        return Wrap(
+          spacing: 24,
+          runSpacing: 16,
+          children: items.map((item) {
+            final itemWidth = (constraints.maxWidth - (crossCount - 1) * 24) / crossCount - 1;
+            return SizedBox(
+              width: itemWidth > 0 ? itemWidth : 140,
+              child: item,
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+
+  Widget _detailItem(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label.toUpperCase(),
+            style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: Colors.blueGrey,
+                letterSpacing: 0.8)),
+        const SizedBox(height: 4),
+        Text(value,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+      ],
     );
   }
 
@@ -531,22 +560,23 @@ class _ResourceAssignmentScreenState extends ConsumerState<ResourceAssignmentScr
               ],
               onChanged: (value) => setState(() => _selectedTrailerId = value),
             ),
-            const SizedBox(height: 12),
-            Text('Fleet Details Preview',
-                style: Theme.of(context).textTheme.titleSmall),
-            const SizedBox(height: 8),
-            _pair('Vehicle Number', selectedVehicle?.vehicleNo ?? '-'),
-            _pair('Vehicle Type', selectedVehicle?.type ?? '-'),
-            _pair(
-              'Vehicle Permits',
-              selectedVehicle == null || selectedVehicle.permits.isEmpty
-                  ? '-'
-                  : selectedVehicle.permits.join(', '),
-            ),
-            _pair('Capacity', selectedVehicle?.capacity ?? '-'),
-            _pair('Fuel Type', selectedVehicle?.fuelType ?? '-'),
-            _pair('IVMS Device', selectedVehicle?.ivmsDeviceId ?? '-'),
-            _pair('Operational Status', selectedVehicle?.status ?? '-'),
+            const SizedBox(height: 20),
+            _SectionHeader(title: 'FLEET DETAILS PREVIEW', icon: Icons.local_shipping_outlined),
+            const SizedBox(height: 10),
+            _detailGrid([
+              _detailItem('Vehicle Number', selectedVehicle?.vehicleNo ?? '-'),
+              _detailItem('Vehicle Type', selectedVehicle?.type ?? '-'),
+              _detailItem('Capacity', selectedVehicle?.capacity ?? '-'),
+              _detailItem('Fuel Type', selectedVehicle?.fuelType ?? '-'),
+              _detailItem('IVMS Device', selectedVehicle?.ivmsDeviceId ?? '-'),
+              _detailItem('Status', selectedVehicle?.status ?? '-'),
+              _detailItem(
+                'Permits',
+                selectedVehicle == null || selectedVehicle.permits.isEmpty
+                    ? '-'
+                    : selectedVehicle.permits.join(', '),
+              ),
+            ]),
           ],
         ),
       ),
@@ -561,7 +591,7 @@ class _ResourceAssignmentScreenState extends ConsumerState<ResourceAssignmentScr
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Driver Selection + Validation',
+              'Driver Selection',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 10),
@@ -616,19 +646,22 @@ class _ResourceAssignmentScreenState extends ConsumerState<ResourceAssignmentScr
                 });
               },
             ),
-            const SizedBox(height: 12),
-            _pair('Driver', selectedDriver?.name ?? '-'),
-            _pair('License', selectedDriver?.licenseNo ?? '-'),
-            _pair(
-              'Driver Certifications',
-              selectedDriver == null || selectedDriver.certifications.isEmpty
-                  ? '-'
-                  : selectedDriver.certifications.join(', '),
-            ),
-            _pair('License Expiry', selectedDriver?.expiryDate ?? '-'),
-            _pair('Availability', selectedDriver?.status ?? '-'),
-            _pair('Compliance Readiness',
-                _driverComplianceReady(selectedDriver) ? 'Ready' : 'Action required'),
+            const SizedBox(height: 20),
+            _SectionHeader(title: 'DRIVER DETAILS PREVIEW', icon: Icons.person_outline),
+            const SizedBox(height: 10),
+            _detailGrid([
+              _detailItem('Driver Name', selectedDriver?.name ?? '-'),
+              _detailItem('License Number', selectedDriver?.licenseNo ?? '-'),
+              _detailItem('License Expiry', selectedDriver?.expiryDate ?? '-'),
+              _detailItem('Availability', selectedDriver?.status ?? '-'),
+              _detailItem('Compliance', _driverComplianceReady(selectedDriver) ? 'Ready' : 'Action required'),
+              _detailItem(
+                'Certifications',
+                selectedDriver == null || selectedDriver.certifications.isEmpty
+                    ? '-'
+                    : selectedDriver.certifications.join(', '),
+              ),
+            ]),
           ],
         ),
       ),
@@ -654,14 +687,22 @@ class _ResourceAssignmentScreenState extends ConsumerState<ResourceAssignmentScr
             Text('Validation Section',
                 style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 10),
-            Wrap(
-              spacing: 12,
-              runSpacing: 10,
-              children: checks.entries
-                  .map(
-                    (entry) => _validationChip(entry.key, entry.value),
-                  )
-                  .toList(),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final crossCount = constraints.maxWidth > 800 ? 5 : (constraints.maxWidth > 500 ? 3 : 2);
+                final items = checks.entries.toList();
+                return Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: items.map((entry) {
+                    final itemWidth = (constraints.maxWidth - (crossCount - 1) * 12) / crossCount - 1;
+                    return SizedBox(
+                      width: itemWidth > 0 ? itemWidth : 120,
+                      child: _validationChip(entry.key, entry.value),
+                    );
+                  }).toList(),
+                );
+              },
             ),
             const SizedBox(height: 10),
             Text(
@@ -742,23 +783,6 @@ class _ResourceAssignmentScreenState extends ConsumerState<ResourceAssignmentScr
     );
   }
 
-  Widget _pair(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 130,
-            child: Text(label,
-                style: const TextStyle(fontWeight: FontWeight.w600)),
-          ),
-          const SizedBox(width: 8),
-          Expanded(child: Text(value)),
-        ],
-      ),
-    );
-  }
 
   Widget _validationChip(String label, bool pass) {
     return Container(
@@ -1080,6 +1104,28 @@ class _ResourceAssignmentScreenState extends ConsumerState<ResourceAssignmentScr
     return '$day/$month/${now.year}';
   }
 
+  String _formatDate(String iso) {
+    if (iso.isEmpty) return '-';
+    final parsed = DateTime.tryParse(iso);
+    if (parsed == null) return iso;
+    final year = parsed.year;
+    final month = parsed.month.toString().padLeft(2, '0');
+    final day = parsed.day.toString().padLeft(2, '0');
+    return '$day/$month/$year';
+  }
+
+  String _formatDateTime(String iso) {
+    if (iso.isEmpty) return '-';
+    final parsed = DateTime.tryParse(iso);
+    if (parsed == null) return iso;
+    final year = parsed.year;
+    final month = parsed.month.toString().padLeft(2, '0');
+    final day = parsed.day.toString().padLeft(2, '0');
+    final hour = parsed.hour.toString().padLeft(2, '0');
+    final min = parsed.minute.toString().padLeft(2, '0');
+    return '$day/$month/$year $hour:$min';
+  }
+
   void _assignOrReassign(LogisticsUiState data, {bool forceReassign = false}) {
     if (_selectedOrderId == null ||
         _selectedVehicleNo == null ||
@@ -1094,11 +1140,146 @@ class _ResourceAssignmentScreenState extends ConsumerState<ResourceAssignmentScr
           driverId: _selectedDriverId!,
           trailerId: _selectedTrailerId!,
         );
-    _toast(forceReassign ? 'Reassignment done. $msg' : msg);
+    
+    _showSuccessDialog(forceReassign ? 'Reassignment Successful' : 'Assignment Successful', msg);
+  }
+
+  void _showSuccessDialog(String title, String message) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.green, size: 28),
+            const SizedBox(width: 12),
+            Text(title),
+          ],
+        ),
+        content: Text(message),
+        actions: [
+          FilledButton(
+            onPressed: () {
+              Navigator.of(context).pop(); // Close dialog
+              context.go(RoutePaths.assignmentList); // Redirect to list
+            },
+            child: const Text('Back to List'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _toast(String message) {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Widget _pair(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(
+              '$label:',
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 11, color: Colors.blueGrey),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  final String title;
+  final IconData icon;
+
+  const _SectionHeader({required this.title, required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 14, color: Colors.blueGrey),
+        const SizedBox(width: 6),
+        Text(title, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.blueGrey, letterSpacing: 1.0)),
+      ],
+    );
+  }
+}
+
+class _WarningBox extends StatelessWidget {
+  final String title;
+  final List<String> warnings;
+
+  const _WarningBox({required this.title, required this.warnings});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF7ED),
+        border: Border.all(color: const Color(0xFFF59E0B)),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+          const SizedBox(height: 6),
+          for (final note in warnings)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: Text('• $note', style: const TextStyle(fontSize: 11)),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GapBox extends StatelessWidget {
+  final List<String> gaps;
+
+  const _GapBox({required this.gaps});
+
+  @override
+  Widget build(BuildContext context) {
+    if (gaps.isEmpty) return const SizedBox.shrink();
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFEF2F2),
+        border: Border.all(color: const Color(0xFFB91C1C)),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Compliance Gaps', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: Color(0xFFB91C1C))),
+          const SizedBox(height: 6),
+          for (final gap in gaps)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: Text('• $gap', style: const TextStyle(fontSize: 11, color: Color(0xFFB91C1C))),
+            ),
+        ],
+      ),
+    );
   }
 }

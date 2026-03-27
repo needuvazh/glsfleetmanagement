@@ -84,6 +84,7 @@ class OpsShell extends ConsumerWidget {
     RoutePaths.auditTrail: 'Audit Trail',
     RoutePaths.statusTimeline: 'Status Timeline',
     RoutePaths.trailerMaster: 'Trailer Master',
+    RoutePaths.complianceReadiness: 'Compliance Readiness',
   };
 
   @override
@@ -588,7 +589,7 @@ class _SidebarState extends ConsumerState<_Sidebar> {
         'OPERATIONS',
         const [
           _OpsMenuItem('Fleet Assignment', Icons.local_shipping_outlined, route: RoutePaths.assignmentList),
-          _OpsMenuItem('Compliance Readiness', Icons.shield_outlined, route: RoutePaths.dispatchReadiness),
+          _OpsMenuItem('Compliance Readiness', Icons.fact_check_outlined, route: RoutePaths.complianceReadiness),
           _OpsMenuItem('Journey Management Plan', Icons.alt_route_outlined, route: RoutePaths.journeyManagement),
           _OpsMenuItem('Pre-Trip Inspection', Icons.fact_check_outlined, route: RoutePaths.inspections),
           _OpsMenuItem('Dispatch', Icons.play_circle_outline, route: RoutePaths.dispatch),

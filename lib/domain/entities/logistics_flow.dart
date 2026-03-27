@@ -681,6 +681,74 @@ class DriverData {
   }
 }
 
+class JourneyManagementPlan {
+  const JourneyManagementPlan({
+    required this.jmpId,
+    required this.woId,
+    required this.status, // Draft, Ready, Approved, Rejected
+    required this.routeOrigin,
+    required this.routeDestination,
+    required this.routeStops,
+    required this.estimatedDuration,
+    required this.restPoints,
+    required this.communicationPlan,
+    required this.riskLevel, // Low, Medium, High
+    required this.emergencyContact,
+    required this.specialInstructions,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  final String jmpId;
+  final String woId;
+  final String status;
+  final String routeOrigin;
+  final String routeDestination;
+  final List<String> routeStops;
+  final String estimatedDuration;
+  final List<String> restPoints;
+  final String communicationPlan;
+  final String riskLevel;
+  final String emergencyContact;
+  final String specialInstructions;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  JourneyManagementPlan copyWith({
+    String? jmpId,
+    String? woId,
+    String? status,
+    String? routeOrigin,
+    String? routeDestination,
+    List<String>? routeStops,
+    String? estimatedDuration,
+    List<String>? restPoints,
+    String? communicationPlan,
+    String? riskLevel,
+    String? emergencyContact,
+    String? specialInstructions,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return JourneyManagementPlan(
+      jmpId: jmpId ?? this.jmpId,
+      woId: woId ?? this.woId,
+      status: status ?? this.status,
+      routeOrigin: routeOrigin ?? this.routeOrigin,
+      routeDestination: routeDestination ?? this.routeDestination,
+      routeStops: routeStops ?? this.routeStops,
+      estimatedDuration: estimatedDuration ?? this.estimatedDuration,
+      restPoints: restPoints ?? this.restPoints,
+      communicationPlan: communicationPlan ?? this.communicationPlan,
+      riskLevel: riskLevel ?? this.riskLevel,
+      emergencyContact: emergencyContact ?? this.emergencyContact,
+      specialInstructions: specialInstructions ?? this.specialInstructions,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+}
+
 class JourneyMasterData {
   const JourneyMasterData({
     required this.journeyId,

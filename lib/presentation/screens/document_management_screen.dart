@@ -122,7 +122,7 @@ class _DocumentManagementScreenState
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 18),
               child: Text('No compliance rules found for selected filters.'),
-            ),
+            ) // Removed the rogue comma here
           else
             Expanded(
               child: _buildPaginatedTable(data.filteredItems),

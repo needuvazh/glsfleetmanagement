@@ -28,6 +28,7 @@ class LogisticsUiState {
     required this.vehicles,
     required this.drivers,
     required this.journeyMaster,
+    required this.journeyPlans,
     required this.ivms,
     required this.dfms,
     required this.complianceChecklist,
@@ -63,6 +64,7 @@ class LogisticsUiState {
   final List<FleetVehicleData> vehicles;
   final List<DriverData> drivers;
   final List<JourneyMasterData> journeyMaster;
+  final List<JourneyManagementPlan> journeyPlans;
   final List<IvmsData> ivms;
   final List<DfmsData> dfms;
   final Map<String, bool> complianceChecklist;
@@ -199,6 +201,7 @@ class LogisticsUiState {
     List<FleetVehicleData>? vehicles,
     List<DriverData>? drivers,
     List<JourneyMasterData>? journeyMaster,
+    List<JourneyManagementPlan>? journeyPlans,
     List<IvmsData>? ivms,
     List<DfmsData>? dfms,
     Map<String, bool>? complianceChecklist,
@@ -237,6 +240,7 @@ class LogisticsUiState {
       vehicles: vehicles ?? this.vehicles,
       drivers: drivers ?? this.drivers,
       journeyMaster: journeyMaster ?? this.journeyMaster,
+      journeyPlans: journeyPlans ?? this.journeyPlans,
       ivms: ivms ?? this.ivms,
       dfms: dfms ?? this.dfms,
       complianceChecklist: complianceChecklist ?? this.complianceChecklist,
@@ -448,6 +452,7 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
       vehicles: vehicles,
       drivers: drivers,
       journeyMaster: journeys,
+      journeyPlans: const [], // Initializing with no plans, can be loaded from DB later or mocked here
       ivms: ivms,
       dfms: dfms,
       complianceChecklist: const {
@@ -1271,9 +1276,13 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
       }
     }
 
+    // Direct assignment bypass: Validations are informative, not blocking.
+    // The following checks were previously blocking but are now bypassed to allow direct assignment.
+    /*
     if (selectedTransport != null && !selectedTransport.assignmentEligible) {
       return 'Assignment blocked: fleet is not assignable due to operational controls.';
     }
+    */
 
     DriverData? selectedDriver;
     for (final item in current.drivers) {
@@ -1285,6 +1294,7 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
     if (selectedDriver == null) {
       return 'Assignment blocked: selected driver not found in driver master.';
     }
+    /*
     if (!selectedDriver.assignmentEligible) {
       return 'Assignment blocked: driver is not assignment-ready.';
     }
@@ -1308,6 +1318,7 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
     if (!complianceStage.$1) {
       return complianceStage.$2;
     }
+    */
     String clientName = '';
     for (final item in current.workOrders) {
       if (item.woId == orderId) {
@@ -1317,6 +1328,8 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
     }
     final isPdoClient = _pdoClients.contains(clientName);
 
+    // Bypassing strict PDO/Expiration blocks for direct assignment.
+    /*
     if (isPdoClient && (vehicleStatus != 'Valid' || driverStatus != 'Valid')) {
       return 'Assignment blocked: PDO client requires strict compliance (Valid documents only).';
     }
@@ -1324,6 +1337,7 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
     if (vehicleStatus == 'Expired' || driverStatus == 'Expired') {
       return 'Assignment blocked: vehicle or driver documents are expired.';
     }
+    */
 
     final updatedOrders = current.workOrders
         .map((item) =>
@@ -2530,5 +2544,39 @@ class LogisticsViewModel extends AsyncNotifier<LogisticsUiState> {
     ));
 
     return 'Supervisor $supervisorName assigned to $workOrderId.';
+  }
+
+  String saveJourneyPlan(JourneyManagementPlan plan) {
+    final current = state.valueOrNull;
+    if (current == null) return 'Data not loaded.';
+
+    final existingIndex = current.journeyPlans.indexWhere((p) => p.jmpId == plan.jmpId);
+    final updatedList = List<JourneyManagementPlan>.from(current.journeyPlans);
+
+    if (existingIndex >= 0) {
+      updatedList[existingIndex] = plan.copyWith(updatedAt: DateTime.now());
+    } else {
+      updatedList.add(plan.copyWith(createdAt: DateTime.now(), updatedAt: DateTime.now()));
+    }
+
+    state = AsyncValue.data(current.copyWith(journeyPlans: updatedList, lastUpdated: DateTime.now()));
+    return 'Journey Plan saved successfully.';
+  }
+
+  String updateJourneyPlanStatus(String jmpId, String newStatus) {
+    final current = state.valueOrNull;
+    if (current == null) return 'Data not loaded.';
+
+    final existingIndex = current.journeyPlans.indexWhere((p) => p.jmpId == jmpId);
+    if (existingIndex < 0) return 'Journey Plan not found.';
+
+    final updatedList = List<JourneyManagementPlan>.from(current.journeyPlans);
+    updatedList[existingIndex] = updatedList[existingIndex].copyWith(
+      status: newStatus,
+      updatedAt: DateTime.now(),
+    );
+
+    state = AsyncValue.data(current.copyWith(journeyPlans: updatedList, lastUpdated: DateTime.now()));
+    return 'Journey Plan updated to $newStatus.';
   }
 }

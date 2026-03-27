@@ -37,6 +37,7 @@ class RoutePaths {
   static const mediaGallery = '/media-gallery';
   static const mediaPreview = '/media-preview/:evidenceId';
   static const journeyManagement = '/journey-management';
+  static const journeyManagementDetail = '/journey-management/:jmpId';
   static const tripMonitoring = '/trips';
   static const tripExecution = '/trip-execution';
   static const deliveryPod = '/delivery-pod';
@@ -46,7 +47,8 @@ class RoutePaths {
   static const reports = '/reports';
   static const workOrders = '/work-orders';
   static const assignmentList = '/assignment-list';
-  static const resourceAssignment = '/resource-assignment';
+  static const String resourceAssignment = '/resource-assignment';
+  static const String complianceReadiness = '/operations/compliance-readiness';
   static const workOrderDetail = '/work-orders/:workOrderId';
   static const editWorkOrder = '/work-orders/:workOrderId/edit';
   static const assignSupervisor = '/work-orders/:workOrderId/assign-supervisor';
@@ -168,4 +170,7 @@ class RoutePaths {
 
   static String resourceAssignmentById(String workOrderId) =>
       '$resourceAssignment?workOrderId=$workOrderId';
+
+  static String journeyManagementDetailById(String jmpId) =>
+      '/journey-management/$jmpId';
 }

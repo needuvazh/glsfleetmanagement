@@ -3,9 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../domain/entities/inspection.dart';
+import '../../domain/entities/logistics_flow.dart';
 import '../../routes/route_paths.dart';
 import '../viewmodels/inspection_viewmodel.dart';
+import '../viewmodels/logistics_viewmodel.dart';
 import '../widgets/ops_shell.dart';
+import '../widgets/ops_ui.dart';
 
 class InspectionListScreen extends ConsumerWidget {
   const InspectionListScreen({super.key});
@@ -14,8 +17,10 @@ class InspectionListScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(inspectionViewModelProvider);
     final vm = ref.read(inspectionViewModelProvider.notifier);
+    final logisticsState = ref.watch(logisticsViewModelProvider).valueOrNull;
 
     final filtered = state.filteredItems;
+    final approvedJmps = logisticsState?.journeyPlans.where((jmp) => jmp.status == 'Approved').toList() ?? [];
     final statusOptions = [
       'All',
       for (final value in InspectionStatus.values) value.label,
@@ -49,7 +54,18 @@ class InspectionListScreen extends ConsumerWidget {
         const SizedBox(width: 8),
       ],
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (approvedJmps.isNotEmpty) ...[
+            OpsSectionCard(
+              title: 'Approved Journey Plans (Ready for Inspection)',
+              subtitle: '${approvedJmps.length} plan(s) are approved and awaiting dispatch inspections.',
+              icon: Icons.alt_route,
+              accent: Colors.blue,
+              child: _buildApprovedJmpTable(context, approvedJmps),
+            ),
+            const SizedBox(height: 16),
+          ],
           Card(
             child: Padding(
               padding: const EdgeInsets.all(12),
@@ -214,6 +230,62 @@ class InspectionListScreen extends ConsumerWidget {
         label,
         style:
             TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 12),
+      ),
+    );
+  }
+
+  Widget _buildApprovedJmpTable(BuildContext context, List<JourneyManagementPlan> jmps) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(minWidth: MediaQuery.of(context).size.width - 350),
+        child: DataTable(
+          showCheckboxColumn: false,
+          headingTextStyle: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
+          columns: const [
+            DataColumn(label: Text('JMP No')),
+            DataColumn(label: Text('WO No')),
+            DataColumn(label: Text('Route')),
+            DataColumn(label: Text('Risk')),
+            DataColumn(label: Text('Action')),
+          ],
+          rows: jmps.map((jmp) {
+            Color riskColor = Colors.grey;
+            if (jmp.riskLevel == 'Low') riskColor = Colors.green;
+            if (jmp.riskLevel == 'Medium') riskColor = Colors.orange;
+            if (jmp.riskLevel == 'High') riskColor = Colors.red;
+
+            return DataRow(
+              cells: [
+                DataCell(Text(jmp.jmpId, style: const TextStyle(fontWeight: FontWeight.w600))),
+                DataCell(Text(jmp.woId.isNotEmpty ? jmp.woId : '-')),
+                DataCell(Text('${jmp.routeOrigin} -> ${jmp.routeDestination}')),
+                DataCell(
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: riskColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: riskColor.withOpacity(0.5)),
+                    ),
+                    child: Text(
+                      jmp.riskLevel,
+                      style: TextStyle(color: riskColor, fontWeight: FontWeight.bold, fontSize: 12),
+                    ),
+                  ),
+                ),
+                DataCell(
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(visualDensity: VisualDensity.compact),
+                    icon: const Icon(Icons.add_task, size: 16),
+                    label: const Text('New Inspection'),
+                    onPressed: () => context.push(RoutePaths.inspectionCreate),
+                  ),
+                ),
+              ],
+            );
+          }).toList(),
+        ),
       ),
     );
   }

@@ -49,7 +49,8 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(child: Text(error.toString())),
         data: (data) {
-          final rows = _rowsFromWorkOrders(data.workOrders, data.lastUpdated);
+          final rows = _rowsFromWorkOrders(
+              data.workOrders, data.journeyPlans, data.lastUpdated);
           final filteredRows = _filteredRows(rows);
 
           return Column(
@@ -144,86 +145,93 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
         ),
         const SizedBox(height: 8),
         Expanded(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              return SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minWidth: constraints.maxWidth),
-                  child: SingleChildScrollView(
-                    child: DataTable(
-                      columnSpacing: 28,
-                horizontalMargin: 16,
-                headingRowHeight: 46,
-                dataRowMinHeight: 56,
-                dataRowMaxHeight: 72,
-                columns: const [
-                  DataColumn(label: Text('WO Number')),
-                  DataColumn(label: Text('Customer')),
-                  DataColumn(label: Text('Route')),
-                  DataColumn(label: Text('Planned Date')),
-                  DataColumn(label: Text('Priority')),
-                  DataColumn(label: Text('Status')),
-                  DataColumn(label: Text('Trip Status')),
-                  DataColumn(label: Text('Actions')),
-                ],
-                rows: rows
-                    .map(
-                      (item) => DataRow(
-                        cells: [
-                          DataCell(Text(item.woNumber)),
-                          DataCell(
-                            SizedBox(
-                              width: 210,
-                              child: Text(
-                                item.customer,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
+          child: LayoutBuilder(builder: (context, constraints) {
+            return SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                child: SingleChildScrollView(
+                  child: DataTable(
+                    columnSpacing: 28,
+                    horizontalMargin: 16,
+                    headingRowHeight: 46,
+                    dataRowMinHeight: 56,
+                    dataRowMaxHeight: 72,
+                    columns: const [
+                      DataColumn(label: Text('WO Number')),
+                      DataColumn(label: Text('Customer')),
+                      DataColumn(label: Text('Route')),
+                      DataColumn(label: Text('Planned Date')),
+                      DataColumn(label: Text('Priority')),
+                      DataColumn(label: Text('Status')),
+                      DataColumn(label: Text('Fleet')),
+                      DataColumn(label: Text('Driver')),
+                      DataColumn(label: Text('Trip Status')),
+                      DataColumn(label: Text('JMP Status')),
+                      DataColumn(label: Text('Actions')),
+                    ],
+                    rows: rows
+                        .map(
+                          (item) => DataRow(
+                            cells: [
+                              DataCell(Text(item.woNumber)),
+                              DataCell(
+                                SizedBox(
+                                  width: 210,
+                                  child: Text(
+                                    item.customer,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
-                          DataCell(
-                            SizedBox(
-                              width: 220,
-                              child: Text(
-                                '${item.origin} -> ${item.destination}',
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
+                              DataCell(
+                                SizedBox(
+                                  width: 220,
+                                  child: Text(
+                                    '${item.origin} -> ${item.destination}',
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
                               ),
-                            ),
+                              DataCell(Text(_formatDate(item.plannedDate))),
+                              DataCell(
+                                _statusChip(item.priority,
+                                    _priorityColor(item.priority)),
+                              ),
+                              DataCell(_statusChip(
+                                  item.status, _statusColor(item.status))),
+                              DataCell(Text(item.assignedFleet)),
+                              DataCell(Text(item.assignedDriver)),
+                              DataCell(_statusChip(item.tripStatus,
+                                  _tripColor(item.tripStatus))),
+                              DataCell(_statusChip(
+                                  item.jmpStatus, _jmpColor(item.jmpStatus))),
+                              DataCell(
+                                _RowActions(
+                                  onOpen: () => _openWorkOrder(item),
+                                  onEdit: () => _openEditWorkOrder(item),
+                                  onDelegate: () => _openAssignSupervisor(item),
+                                  onAssignResources: () =>
+                                      _openAssignResources(item),
+                                  onDuplicate: () => _duplicateWorkOrder(item),
+                                  onCancel: () => _showCancelDialog(item),
+                                  onAudit: () => _openAudit(item),
+                                ),
+                              ),
+                            ],
                           ),
-                          DataCell(Text(_formatDate(item.plannedDate))),
-                          DataCell(
-                            _statusChip(
-                                item.priority, _priorityColor(item.priority)),
-                          ),
-                          DataCell(_statusChip(
-                              item.status, _statusColor(item.status))),
-                          DataCell(_statusChip(
-                              item.tripStatus, _tripColor(item.tripStatus))),
-                          DataCell(
-                            _RowActions(
-                              onOpen: () => _openWorkOrder(item),
-                              onEdit: () => _openEditWorkOrder(item),
-                              onDelegate: () => _openAssignSupervisor(item),
-                              onAssignResources: () => _openAssignResources(item),
-                              onDuplicate: () => _duplicateWorkOrder(item),
-                              onCancel: () => _showCancelDialog(item),
-                              onAudit: () => _openAudit(item),
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                    .toList(),
+                        )
+                        .toList(),
+                  ),
+                ),
               ),
-            ),
-          ),
-        );
-      }),
-    ),
-  ],
-);
+            );
+          }),
+        ),
+      ],
+    );
   }
 
   Widget _buildMobileList(List<_WorkOrderRow> rows) {
@@ -260,7 +268,7 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                    'Fleet: ${item.assignedFleet} | Driver: ${item.assignedDriver}'),
+                    'JMP: ${item.jmpStatus} | Fleet: ${item.assignedFleet} | Driver: ${item.assignedDriver}'),
                 const SizedBox(height: 10),
                 _RowActions(
                   compact: true,
@@ -335,30 +343,34 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
 
   List<_WorkOrderRow> _rowsFromWorkOrders(
     List<WorkOrderFlowItem> workOrders,
+    List<JourneyManagementPlan> journeyPlans,
     DateTime lastUpdated,
   ) {
     final now = DateTime.now();
-    final rows = [
-      for (final item in workOrders)
-        _WorkOrderRow(
-          woNumber: item.woId,
-          enquiryReference: item.linkedEnquiryNumber.isNotEmpty
-              ? item.linkedEnquiryNumber
-              : item.linkedQuotationRef,
-          customer: item.customer,
-          cargoType: item.cargo,
-          origin: _routeOrigin(item.route),
-          destination: _routeDestination(item.route),
-          plannedDate: _parseDate(item.serviceStartDate) ?? now,
-          priority: 'Medium',
-          status: item.status,
-          assignedFleet: '-',
-          assignedDriver: '-',
-          inspectionStatus: 'Pending',
-          tripStatus: _tripFromStatus(item.status),
-          lastUpdated: lastUpdated,
-        ),
-    ];
+    final rows = workOrders.map((item) {
+      final jmp = journeyPlans.where((p) => p.woId == item.woId).firstOrNull;
+      return _WorkOrderRow(
+        woNumber: item.woId,
+        enquiryReference: item.linkedEnquiryNumber.isNotEmpty
+            ? item.linkedEnquiryNumber
+            : item.linkedQuotationRef,
+        customer: item.customer,
+        cargoType: item.cargo,
+        origin: _routeOrigin(item.route),
+        destination: _routeDestination(item.route),
+        plannedDate: _parseDate(item.serviceStartDate) ?? now,
+        priority: 'Medium',
+        status: item.status,
+        assignedFleet:
+            item.assignedVehicleNo.isNotEmpty ? item.assignedVehicleNo : '-',
+        assignedDriver:
+            item.assignedDriverId.isNotEmpty ? item.assignedDriverId : '-',
+        inspectionStatus: 'Pending',
+        tripStatus: _tripFromStatus(item.status),
+        jmpStatus: jmp?.status ?? 'Not Created',
+        lastUpdated: lastUpdated,
+      );
+    }).toList();
     rows.sort((a, b) => a.plannedDate.compareTo(b.plannedDate));
     return rows;
   }
@@ -601,16 +613,29 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
 
   Color _tripColor(String status) {
     switch (status) {
-      case 'Not Started':
-        return const Color(0xFF2563EB);
       case 'Active':
-        return const Color(0xFF7C3AED);
-      case 'Delayed':
-        return const Color(0xFFB45309);
+        return const Color(0xFFD97706);
       case 'Delivered':
         return const Color(0xFF15803D);
+      case 'Delayed':
+        return const Color(0xFFDC2626);
       default:
+        return const Color(0xFF475569); // Not Started
+    }
+  }
+
+  Color _jmpColor(String status) {
+    switch (status) {
+      case 'Approved':
+        return const Color(0xFF15803D);
+      case 'Draft':
         return const Color(0xFF475569);
+      case 'Rejected':
+        return const Color(0xFFB91C1C);
+      case 'Ready':
+        return const Color(0xFFD97706);
+      default:
+        return Colors.grey.shade600; // Not Created
     }
   }
 }
@@ -909,7 +934,9 @@ class _RowActions extends StatelessWidget {
           TextButton(onPressed: onOpen, child: const Text('Open')),
           TextButton(onPressed: onEdit, child: const Text('Edit')),
           TextButton(onPressed: onDelegate, child: const Text('Delegate')),
-          TextButton(onPressed: onAssignResources, child: const Text('Assign Resources')),
+          TextButton(
+              onPressed: onAssignResources,
+              child: const Text('Assign Resources')),
           TextButton(onPressed: onDuplicate, child: const Text('Duplicate')),
           TextButton(onPressed: onCancel, child: const Text('Cancel')),
           TextButton(onPressed: onAudit, child: const Text('Audit')),
@@ -975,6 +1002,7 @@ class _WorkOrderRow {
     required this.assignedDriver,
     required this.inspectionStatus,
     required this.tripStatus,
+    required this.jmpStatus,
     required this.lastUpdated,
   });
 
@@ -991,6 +1019,7 @@ class _WorkOrderRow {
   final String assignedDriver;
   final String inspectionStatus;
   final String tripStatus;
+  final String jmpStatus;
   final DateTime lastUpdated;
 
   String get routeLabel => '$origin -> $destination';

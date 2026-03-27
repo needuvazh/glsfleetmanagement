@@ -10,6 +10,7 @@ import '../viewmodels/inspection_master_viewmodel.dart';
 import '../viewmodels/inspection_viewmodel.dart';
 import '../viewmodels/vendor_viewmodel.dart';
 import '../widgets/ops_shell.dart';
+import 'inspection_template_store.dart';
 
 class InspectionCreateScreen extends ConsumerStatefulWidget {
   const InspectionCreateScreen({super.key, this.inspectionId});
@@ -54,7 +55,8 @@ class _InspectionCreateScreenState
 
   InspectionType _type = InspectionType.preDeparture; // Default to new type
   DateTime _inspectionDateTime = DateTime.now();
-  InspectionApprovalStatus _selectedApprovalStatus = InspectionApprovalStatus.pending;
+  InspectionApprovalStatus _selectedApprovalStatus =
+      InspectionApprovalStatus.pending;
 
   List<_ChecklistDraft> _items = [];
   final List<_DocumentDraftRow> _docRows = [_DocumentDraftRow()];
@@ -74,7 +76,9 @@ class _InspectionCreateScreenState
   }
 
   void _loadExistingInspection() {
-    final record = ref.read(inspectionViewModelProvider.notifier).byId(widget.inspectionId!);
+    final record = ref
+        .read(inspectionViewModelProvider.notifier)
+        .byId(widget.inspectionId!);
     if (record == null) return;
 
     _inspectionIdController.text = record.inspectionId;
@@ -126,6 +130,28 @@ class _InspectionCreateScreenState
   }
 
   void _rebuildChecklists() {
+    final template = InspectionTemplateStore.resolveActiveTemplate(
+      type: _type,
+      vehicleType: 'Truck',
+    );
+    if (template != null && template.items.isNotEmpty) {
+      setState(() {
+        _items = [
+          for (var i = 0; i < template.items.length; i++)
+            _ChecklistDraft(
+              sno: i + 1,
+              itemName: template.items[i].name,
+              category: template.items[i].category,
+              mandatory: template.items[i].mandatory,
+              severity: template.items[i].severity,
+              requiresPhoto: template.items[i].requiresPhoto,
+              requiresVideo: template.items[i].requiresVideo,
+            ),
+        ];
+      });
+      return;
+    }
+
     final types = ref.read(inspectionTypesProvider);
     final checklists = ref.read(inspectionChecklistsProvider);
 
@@ -139,9 +165,12 @@ class _InspectionCreateScreenState
           _ChecklistDraft(sno: 1, itemName: 'Tyres', category: 'General'),
           _ChecklistDraft(sno: 2, itemName: 'Brake', category: 'General'),
           _ChecklistDraft(sno: 3, itemName: 'Lights', category: 'General'),
-          _ChecklistDraft(sno: 4, itemName: 'Fire Extinguisher', category: 'General'),
-          _ChecklistDraft(sno: 5, itemName: 'Vehicle Documents', category: 'General'),
-          _ChecklistDraft(sno: 6, itemName: 'Driver Documents', category: 'General'),
+          _ChecklistDraft(
+              sno: 4, itemName: 'Fire Extinguisher', category: 'General'),
+          _ChecklistDraft(
+              sno: 5, itemName: 'Vehicle Documents', category: 'General'),
+          _ChecklistDraft(
+              sno: 6, itemName: 'Driver Documents', category: 'General'),
         ];
       });
       return;
@@ -158,7 +187,8 @@ class _InspectionCreateScreenState
         final categoryName = masterType.categories
             .firstWhere((cat) => cat.id == c.categoryId)
             .name;
-        return _ChecklistDraft(sno: c.sno, itemName: c.description, category: categoryName);
+        return _ChecklistDraft(
+            sno: c.sno, itemName: c.description, category: categoryName);
       }).toList();
     });
   }
@@ -262,23 +292,28 @@ class _InspectionCreateScreenState
                 runSpacing: 10,
                 children: [
                   _field(_fleetController, 'Vehicle Code', required: true),
-                  _field(_mulkiyaExpiryController, 'Mulkiya Expiry Date', isDate: true),
+                  _field(_mulkiyaExpiryController, 'Mulkiya Expiry Date',
+                      isDate: true),
                   _field(_rasExpiryController, 'RAS Expiry Date', isDate: true),
                   _field(_trailerController, 'Trailer Code'),
                   _field(_trailerMulkiyaExpiryController,
-                      'Trailer Mulkiya Expiry Date', isDate: true),
-                  _field(
-                      _trailerRasExpiryController, 'Trailer RAS Expiry Date', isDate: true),
+                      'Trailer Mulkiya Expiry Date',
+                      isDate: true),
+                  _field(_trailerRasExpiryController, 'Trailer RAS Expiry Date',
+                      isDate: true),
                   _field(_driverController, 'Driver Code', required: true),
-                  _field(_driverLicenseExpiryController, 'License Expiry Date', isDate: true),
-                  _field(_h2sPermitExpiryController, 'H2S Permit Expiry Date', isDate: true),
+                  _field(_driverLicenseExpiryController, 'License Expiry Date',
+                      isDate: true),
+                  _field(_h2sPermitExpiryController, 'H2S Permit Expiry Date',
+                      isDate: true),
                   _field(_defensiveDrivingController, 'Defensive Driving'),
                   _field(_tyrePressureDriverSideController,
                       'Tyre Pressure (Driver Side)'),
                   _field(_tyrePressurePassengerSideController,
                       'Tyre Pressure (Passenger Side)'),
                   _field(_tyreManufacturingDateController,
-                      'Tyre Manufacturing Date', isDate: true),
+                      'Tyre Manufacturing Date',
+                      isDate: true),
                 ],
               ),
             ),
@@ -398,8 +433,8 @@ class _InspectionCreateScreenState
                             flex: 2,
                             child: DropdownButtonFormField<String>(
                               value: _docRows[i].docType,
-                              decoration: const InputDecoration(
-                                  labelText: 'Doc Type'),
+                              decoration:
+                                  const InputDecoration(labelText: 'Doc Type'),
                               isExpanded: true,
                               items: [
                                 for (final desc in docDescriptions)
@@ -439,7 +474,8 @@ class _InspectionCreateScreenState
                                           ),
                                         ),
                                       );
-                                      await Future.delayed(const Duration(seconds: 1));
+                                      await Future.delayed(
+                                          const Duration(seconds: 1));
                                       if (mounted) {
                                         Navigator.of(context).pop();
                                         _toast('File uploaded successfully');
@@ -451,12 +487,14 @@ class _InspectionCreateScreenState
                           ),
                           const SizedBox(width: 10),
                           IconButton(
-                            icon: const Icon(Icons.add_circle_outline, color: Colors.green),
+                            icon: const Icon(Icons.add_circle_outline,
+                                color: Colors.green),
                             onPressed: _isReadOnly
                                 ? null
                                 : () {
                                     setState(() {
-                                      _docRows.insert(i + 1, _DocumentDraftRow());
+                                      _docRows.insert(
+                                          i + 1, _DocumentDraftRow());
                                     });
                                   },
                           ),
@@ -518,7 +556,9 @@ class _InspectionCreateScreenState
                 children: [
                   _field(_reviewerController, 'Reviewer Name'),
                   OutlinedButton.icon(
-                    onPressed: _isReadOnly ? null : () => _toast('Signature placeholder'),
+                    onPressed: _isReadOnly
+                        ? null
+                        : () => _toast('Signature placeholder'),
                     icon: const Icon(Icons.draw_outlined),
                     label: const Text('Signature (Placeholder)'),
                   ),
@@ -531,11 +571,18 @@ class _InspectionCreateScreenState
                 width: 260,
                 child: DropdownButtonFormField<InspectionApprovalStatus>(
                   value: _selectedApprovalStatus,
-                  decoration: const InputDecoration(labelText: 'Approval Status'),
+                  decoration:
+                      const InputDecoration(labelText: 'Approval Status'),
                   items: const [
-                    DropdownMenuItem(value: InspectionApprovalStatus.pending, child: Text('Pending')),
-                    DropdownMenuItem(value: InspectionApprovalStatus.approved, child: Text('Approved')),
-                    DropdownMenuItem(value: InspectionApprovalStatus.rejected, child: Text('Rejected')),
+                    DropdownMenuItem(
+                        value: InspectionApprovalStatus.pending,
+                        child: Text('Pending')),
+                    DropdownMenuItem(
+                        value: InspectionApprovalStatus.approved,
+                        child: Text('Approved')),
+                    DropdownMenuItem(
+                        value: InspectionApprovalStatus.rejected,
+                        child: Text('Rejected')),
                   ],
                   onChanged: _isReadOnly
                       ? null
@@ -562,8 +609,8 @@ class _InspectionCreateScreenState
                 runSpacing: 8,
                 children: [
                   OutlinedButton.icon(
-                    onPressed: () =>
-                        _submit(InspectionStatus.draft, InspectionResult.passed),
+                    onPressed: () => _submit(
+                        InspectionStatus.draft, InspectionResult.passed),
                     icon: const Icon(Icons.save_outlined),
                     label: const Text('Save Draft'),
                   ),
@@ -574,14 +621,14 @@ class _InspectionCreateScreenState
                     label: const Text('Submit'),
                   ),
                   FilledButton.tonalIcon(
-                    onPressed: () =>
-                        _submit(InspectionStatus.passed, InspectionResult.passed),
+                    onPressed: () => _submit(
+                        InspectionStatus.passed, InspectionResult.passed),
                     icon: const Icon(Icons.verified_outlined),
                     label: const Text('Mark Passed'),
                   ),
                   FilledButton.tonalIcon(
-                    onPressed: () =>
-                        _submit(InspectionStatus.failed, InspectionResult.failed),
+                    onPressed: () => _submit(
+                        InspectionStatus.failed, InspectionResult.failed),
                     icon: const Icon(Icons.block_outlined),
                     label: const Text('Mark Failed'),
                   ),
@@ -682,7 +729,7 @@ class _InspectionCreateScreenState
               setState(() {
                 item.passed = !item.passed;
               });
-      },
+            },
       child: Container(
         height: 32,
         alignment: Alignment.center,
@@ -723,15 +770,15 @@ class _InspectionCreateScreenState
             : null,
         decoration: InputDecoration(
           labelText: required ? '$label *' : label,
-          suffixIcon: isDate ? const Icon(Icons.calendar_today, size: 20) : null,
+          suffixIcon:
+              isDate ? const Icon(Icons.calendar_today, size: 20) : null,
         ),
       ),
     );
   }
 
   InspectionResult _computedResult() {
-    final hasFailed =
-        _items.any((item) => !item.passed);
+    final hasFailed = _items.any((item) => !item.passed);
     return hasFailed ? InspectionResult.failed : InspectionResult.passed;
   }
 
@@ -849,7 +896,6 @@ class _InspectionCreateScreenState
     context.go(RoutePaths.inspections);
   }
 
-
   String _fmtDateTime(DateTime dt) {
     final day = dt.day.toString().padLeft(2, '0');
     final month = dt.month.toString().padLeft(2, '0');
@@ -898,15 +944,22 @@ class _ChecklistDraft {
     required this.sno,
     required this.itemName,
     required this.category,
+    this.mandatory = true,
+    this.requiresPhoto = false,
+    this.requiresVideo = false,
+    this.severity = InspectionFailureSeverity.low,
   }) : remarksController = TextEditingController();
 
   final int sno;
   final String itemName;
   final String category;
+  final bool mandatory;
+  final bool requiresPhoto;
+  final bool requiresVideo;
   final TextEditingController remarksController;
   bool passed = true;
   int mediaCount = 0;
-  InspectionFailureSeverity severity = InspectionFailureSeverity.low;
+  InspectionFailureSeverity severity;
 }
 
 class _DocumentDraftRow {

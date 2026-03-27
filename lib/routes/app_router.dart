@@ -20,6 +20,7 @@ import '../presentation/screens/enquiry_details_screen.dart';
 import '../presentation/screens/create_work_order_screen.dart';
 import '../presentation/screens/assign_supervisor_screen.dart';
 import '../presentation/screens/compliance_dashboard_screen.dart';
+import '../presentation/screens/compliance_readiness_screen.dart'; // Added import
 import '../presentation/screens/dispatch_readiness_screen.dart';
 import '../presentation/screens/delivery_pod_screen.dart';
 import '../presentation/screens/document_management_screen.dart';
@@ -46,7 +47,8 @@ import '../presentation/screens/inspection_list_screen.dart';
 import '../presentation/screens/inspection_template_management_screen.dart';
 import '../presentation/screens/inspection_template_form_screen.dart';
 import '../presentation/screens/inspection_template_view_screen.dart';
-import '../presentation/screens/journey_management_screen.dart';
+import '../presentation/screens/journey_management_list_screen.dart';
+import '../presentation/screens/journey_management_detail_screen.dart';
 import '../presentation/screens/login_screen.dart';
 import '../presentation/screens/location_form_screen.dart';
 import '../presentation/screens/location_list_screen.dart';
@@ -305,7 +307,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: RoutePaths.journeyManagement,
-        builder: (context, state) => const JourneyManagementScreen(),
+        builder: (context, state) => const JourneyManagementListScreen(),
+        routes: [
+          GoRoute(
+            path: ':jmpId',
+            builder: (context, state) => JourneyManagementDetailScreen(
+              jmpId: state.pathParameters['jmpId'] ?? 'new',
+              initialWoId: state.uri.queryParameters['woId'],
+            ),
+          ),
+        ],
       ),
       GoRoute(
         path: RoutePaths.tripMonitoring,
