@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:printing/printing.dart';
 
 import '../../domain/entities/logistics_flow.dart';
+import '../services/quotation_pdf_service.dart';
 import '../../routes/route_paths.dart';
 import '../viewmodels/logistics_viewmodel.dart';
 import '../widgets/ops_shell.dart';
@@ -360,6 +362,12 @@ class _QuotationFormScreenState extends ConsumerState<QuotationFormScreen> {
                       runSpacing: 12,
                       alignment: WrapAlignment.end,
                       children: [
+                        if (_isEdit)
+                          OutlinedButton.icon(
+                            onPressed: () => _downloadPdf(),
+                            icon: const Icon(Icons.download_outlined),
+                            label: const Text('Download PDF'),
+                          ),
                         OutlinedButton.icon(
                           onPressed: () => _save('Draft'),
                           icon: const Icon(Icons.save_outlined),
@@ -404,6 +412,50 @@ class _QuotationFormScreenState extends ConsumerState<QuotationFormScreen> {
         .showSnackBar(SnackBar(content: Text(msg)));
     if (msg.contains('saved.')) {
       context.go(RoutePaths.quotation);
+    }
+  }
+
+  Future<void> _downloadPdf() async {
+    final quoteRef = widget.quoteRef ?? '';
+    if (quoteRef.trim().isEmpty) {
+      return;
+    }
+
+    final model = QuotationModel(
+      quotationNo: quoteRef,
+      date: _dateCtrl.text.trim(),
+      validityDate: _validityCtrl.text.trim(),
+      customer: _customer,
+      contact: _contact,
+      pickup: _pickup,
+      delivery: _delivery,
+      route: _route,
+      cargoType: _cargoType,
+      weight: _weightVolume,
+      vehicle: _requiredVehicleType,
+      dispatchDate: _tentativeDispatchDate,
+      notes: _enquiryNotes,
+      rate: _rateCtrl.text.trim().isEmpty ? '0.00' : _rateCtrl.text.trim(),
+      costSummary: _costSummaryCtrl.text.trim(),
+      paymentTerms: _termsCtrl.text.trim(),
+      remarks: _remarksCtrl.text.trim(),
+    );
+
+    try {
+      final bytes = await generateQuotationPdf(model);
+      await Printing.layoutPdf(
+        name: '${quoteRef.trim()}.pdf',
+        onLayout: (format) async => bytes,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Generated PDF for $quoteRef')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to generate PDF for $quoteRef')),
+      );
     }
   }
 

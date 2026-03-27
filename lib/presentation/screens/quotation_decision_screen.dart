@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:printing/printing.dart';
 
+import '../../domain/entities/logistics_flow.dart';
 import '../../routes/route_paths.dart';
+import '../services/quotation_pdf_service.dart';
 import '../viewmodels/logistics_viewmodel.dart';
 import '../widgets/ops_shell.dart';
 import '../widgets/ops_ui.dart';
@@ -58,6 +61,9 @@ class _QuotationDecisionScreenState
           if (quotation == null) {
             return const Center(child: Text('Quotation not found.'));
           }
+          final enquiry = data.customerRequests
+              .where((e) => e.enquiryNumber == quotation.enquiryRef)
+              .firstOrNull;
 
           return ListView(
             padding: const EdgeInsets.all(16),
@@ -207,6 +213,11 @@ class _QuotationDecisionScreenState
                       spacing: 12,
                       alignment: WrapAlignment.end,
                       children: [
+                        OutlinedButton.icon(
+                          onPressed: () => _downloadPdf(quotation, enquiry),
+                          icon: const Icon(Icons.download_outlined),
+                          label: const Text('Download PDF'),
+                        ),
                         OutlinedButton(
                           onPressed: () => context.go(RoutePaths.quotation),
                           child: const Text('Cancel'),
@@ -243,6 +254,50 @@ class _QuotationDecisionScreenState
         .showSnackBar(SnackBar(content: Text(msg)));
     if (msg.contains('recorded:')) {
       context.go(RoutePaths.quotation);
+    }
+  }
+
+  Future<void> _downloadPdf(
+    QuotationData quotation,
+    CustomerRequestData? enquiry,
+  ) async {
+    final model = QuotationModel(
+      quotationNo: quotation.quoteRef,
+      date: quotation.date,
+      validityDate: quotation.validityDate,
+      customer: quotation.customer,
+      contact: enquiry?.contact ?? '-',
+      pickup: enquiry?.pickup ?? '-',
+      delivery: enquiry?.delivery ?? '-',
+      route: (enquiry?.routeName.isNotEmpty ?? false)
+          ? enquiry!.routeName
+          : (enquiry?.route ?? '-'),
+      cargoType: enquiry?.cargoType ?? '-',
+      weight: enquiry?.weightVolume ?? '-',
+      vehicle: enquiry?.requiredVehicleType ?? '-',
+      dispatchDate: enquiry?.tentativeDispatchDate ?? '-',
+      notes: enquiry?.notes ?? '-',
+      rate: quotation.rate.toStringAsFixed(2),
+      costSummary: quotation.costSummary,
+      paymentTerms: quotation.terms,
+      remarks: quotation.remarks,
+    );
+
+    try {
+      final bytes = await generateQuotationPdf(model);
+      await Printing.layoutPdf(
+        name: '${quotation.quoteRef}.pdf',
+        onLayout: (format) async => bytes,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Generated PDF for ${quotation.quoteRef}')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to generate PDF for ${quotation.quoteRef}')),
+      );
     }
   }
 
