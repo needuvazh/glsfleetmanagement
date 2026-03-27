@@ -131,25 +131,11 @@ class _CargoFormScreenState extends ConsumerState<CargoFormScreen> {
             _hydrated = true;
           }
           final categoryOptions = _withCurrent(
-            source: data.items
-                .map((item) => item.category.trim())
-                .where((item) => item.isNotEmpty)
-                .toSet()
-                .toList()
-              ..sort(),
+            source: _categorySubcategoryMap.keys.toList(),
             current: _category.text.trim(),
           );
           final subcategoryOptions = _withCurrent(
-            source: data.items
-                .where(
-                  (item) => item.category.trim().toLowerCase() ==
-                      _category.text.trim().toLowerCase(),
-                )
-                .map((item) => item.subcategory.trim())
-                .where((item) => item.isNotEmpty)
-                .toSet()
-                .toList()
-              ..sort(),
+            source: _subcategoriesFor(_category.text),
             current: _subcategory.text.trim(),
           );
           final vehicleSource = vehicleTypeState == null ||
@@ -214,32 +200,21 @@ class _CargoFormScreenState extends ConsumerState<CargoFormScreen> {
                               const InputDecoration(labelText: 'Cargo Name *'),
                           validator: _required,
                         ),
-                        DropdownButtonFormField<String?>(
+                        _SearchableSelectionField<String>(
+                          label: 'Category *',
                           value: _category.text.trim().isEmpty
                               ? null
                               : _category.text.trim(),
-                          decoration:
-                              const InputDecoration(labelText: 'Category *'),
-                          validator: (value) {
-                            if ((value ?? '').trim().isEmpty) {
-                              return 'Required';
-                            }
-                            return null;
-                          },
-                          items: [
-                            for (final item in categoryOptions)
-                              DropdownMenuItem<String?>(
-                                value: item,
-                                child: Text(
-                                  item,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                          ],
-                          onChanged: (value) {
+                          items: categoryOptions,
+                          itemLabel: (item) => item,
+                          validator: (value) =>
+                              (value == null || value.trim().isEmpty)
+                              ? 'Required'
+                              : null,
+                          onSelected: (value) {
                             final previous = _category.text.trim().toLowerCase();
                             setState(() {
-                              _category.text = value ?? '';
+                              _category.text = value;
                               final next = _category.text.trim().toLowerCase();
                               if (previous != next) {
                                 _subcategory.clear();
@@ -251,30 +226,27 @@ class _CargoFormScreenState extends ConsumerState<CargoFormScreen> {
                       const SizedBox(height: 10),
                       _row(
                         context,
-                        DropdownButtonFormField<String?>(
+                        _SearchableSelectionField<String>(
+                          label: 'Subcategory *',
                           value: _subcategory.text.trim().isEmpty
                               ? null
                               : _subcategory.text.trim(),
-                          decoration:
-                              const InputDecoration(labelText: 'Subcategory'),
-                          items: [
-                            for (final item in subcategoryOptions)
-                              DropdownMenuItem<String?>(
-                                value: item,
-                                child: Text(
-                                  item,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                          ],
-                          onChanged: (value) {
+                          items: subcategoryOptions,
+                          itemLabel: (item) => item,
+                          enabled: _category.text.trim().isNotEmpty,
+                          disabledHint: 'Select category first',
+                          validator: (value) =>
+                              (value == null || value.trim().isEmpty)
+                              ? 'Required'
+                              : null,
+                          onSelected: (value) {
                             setState(() {
-                              _subcategory.text = value ?? '';
+                              _subcategory.text = value;
                             });
                           },
                         ),
                         DropdownButtonFormField<CargoStatus>(
-                          value: _status,
+                          initialValue: _status,
                           decoration:
                               const InputDecoration(labelText: 'Status'),
                           items: [
@@ -303,21 +275,27 @@ class _CargoFormScreenState extends ConsumerState<CargoFormScreen> {
                         TextFormField(
                           controller: _weightRange,
                           decoration: const InputDecoration(
-                              labelText: 'Standard Weight Range'),
+                            labelText: 'Standard Weight Range',
+                          ),
                         ),
                         TextFormField(
                           controller: _length,
                           keyboardType: const TextInputType.numberWithOptions(
                               decimal: true),
-                          decoration:
-                              const InputDecoration(labelText: 'Length'),
+                          decoration: const InputDecoration(
+                            labelText: 'Length',
+                            suffixText: 'ft',
+                          ),
                           validator: _nonNegative,
                         ),
                         TextFormField(
                           controller: _width,
                           keyboardType: const TextInputType.numberWithOptions(
                               decimal: true),
-                          decoration: const InputDecoration(labelText: 'Width'),
+                          decoration: const InputDecoration(
+                            labelText: 'Width',
+                            suffixText: 'ft',
+                          ),
                           validator: _nonNegative,
                         ),
                       ),
@@ -328,14 +306,18 @@ class _CargoFormScreenState extends ConsumerState<CargoFormScreen> {
                           controller: _height,
                           keyboardType: const TextInputType.numberWithOptions(
                               decimal: true),
-                          decoration:
-                              const InputDecoration(labelText: 'Height'),
+                          decoration: const InputDecoration(
+                            labelText: 'Height',
+                            suffixText: 'ft',
+                          ),
                           validator: _nonNegative,
                         ),
                         TextFormField(
                           controller: _sizeClass,
                           decoration: const InputDecoration(
-                              labelText: 'Volume / Size Class'),
+                            labelText: 'Volume / Size Class',
+                            suffixText: 'm³',
+                          ),
                         ),
                         SwitchListTile(
                           value: _oversized,
@@ -356,7 +338,7 @@ class _CargoFormScreenState extends ConsumerState<CargoFormScreen> {
                       _row(
                         context,
                         DropdownButtonFormField<CargoRiskLevel>(
-                          value: _riskLevel,
+                          initialValue: _riskLevel,
                           decoration:
                               const InputDecoration(labelText: 'Risk Level'),
                           items: [
@@ -410,7 +392,7 @@ class _CargoFormScreenState extends ConsumerState<CargoFormScreen> {
                       _row(
                         context,
                         DropdownButtonFormField<String?>(
-                          value: _preferredVehicleType.text.trim().isEmpty
+                          initialValue: _preferredVehicleType.text.trim().isEmpty
                               ? null
                               : _preferredVehicleType.text.trim(),
                           decoration: const InputDecoration(
@@ -431,7 +413,7 @@ class _CargoFormScreenState extends ConsumerState<CargoFormScreen> {
                           },
                         ),
                         DropdownButtonFormField<String?>(
-                          value: _preferredTrailerType.text.trim().isEmpty
+                          initialValue: _preferredTrailerType.text.trim().isEmpty
                               ? null
                               : _preferredTrailerType.text.trim(),
                           decoration: const InputDecoration(
@@ -598,7 +580,7 @@ class _CargoFormScreenState extends ConsumerState<CargoFormScreen> {
                       _row(
                         context,
                         DropdownButtonFormField<String?>(
-                          value: _inspectionTemplate.text.trim().isEmpty
+                          initialValue: _inspectionTemplate.text.trim().isEmpty
                               ? null
                               : _inspectionTemplate.text.trim(),
                           decoration: const InputDecoration(
@@ -829,6 +811,20 @@ class _CargoFormScreenState extends ConsumerState<CargoFormScreen> {
     return cleaned;
   }
 
+  List<String> _subcategoriesFor(String category) {
+    final normalized = category.trim();
+    if (normalized.isEmpty) {
+      return const <String>[];
+    }
+
+    for (final entry in _categorySubcategoryMap.entries) {
+      if (entry.key.toLowerCase() == normalized.toLowerCase()) {
+        return List<String>.from(entry.value);
+      }
+    }
+    return const <String>[];
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -898,3 +894,191 @@ class _CargoFormScreenState extends ConsumerState<CargoFormScreen> {
     }
   }
 }
+
+class _SearchableSelectionField<T> extends StatefulWidget {
+  const _SearchableSelectionField({
+    required this.label,
+    required this.value,
+    required this.items,
+    required this.itemLabel,
+    required this.onSelected,
+    this.validator,
+    this.enabled = true,
+    this.disabledHint,
+  });
+
+  final String label;
+  final T? value;
+  final List<T> items;
+  final String Function(T item) itemLabel;
+  final ValueChanged<T> onSelected;
+  final String? Function(T? value)? validator;
+  final bool enabled;
+  final String? disabledHint;
+
+  @override
+  State<_SearchableSelectionField<T>> createState() =>
+      _SearchableSelectionFieldState<T>();
+}
+
+class _SearchableSelectionFieldState<T>
+    extends State<_SearchableSelectionField<T>> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    final initialValue = widget.value;
+    _controller = TextEditingController(
+      text: initialValue == null ? '' : widget.itemLabel(initialValue),
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant _SearchableSelectionField<T> oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final nextValue = widget.value;
+    final nextText = nextValue == null ? '' : widget.itemLabel(nextValue);
+    if (_controller.text != nextText) {
+      _controller.text = nextText;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      controller: _controller,
+      readOnly: true,
+      enabled: widget.enabled,
+      validator: (_) => widget.validator?.call(widget.value),
+      decoration: InputDecoration(
+        labelText: widget.label,
+        hintText: widget.enabled ? null : widget.disabledHint,
+        suffixIcon: Icon(
+          widget.enabled ? Icons.search : Icons.lock_outline,
+        ),
+      ),
+      onTap: !widget.enabled
+          ? null
+          : () async {
+              final selected = await showDialog<T>(
+                context: context,
+                builder: (context) => _SearchSelectionDialog<T>(
+                  title: widget.label,
+                  items: widget.items,
+                  itemLabel: widget.itemLabel,
+                ),
+              );
+
+              if (selected == null) {
+                return;
+              }
+
+              widget.onSelected(selected);
+            },
+    );
+  }
+}
+
+class _SearchSelectionDialog<T> extends StatefulWidget {
+  const _SearchSelectionDialog({
+    required this.title,
+    required this.items,
+    required this.itemLabel,
+  });
+
+  final String title;
+  final List<T> items;
+  final String Function(T item) itemLabel;
+
+  @override
+  State<_SearchSelectionDialog<T>> createState() =>
+      _SearchSelectionDialogState<T>();
+}
+
+class _SearchSelectionDialogState<T> extends State<_SearchSelectionDialog<T>> {
+  final TextEditingController _searchController = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final items = widget.items.where((item) {
+      final text = widget.itemLabel(item).toLowerCase();
+      return text.contains(_query.trim().toLowerCase());
+    }).toList();
+
+    return AlertDialog(
+      title: Text('Select ${widget.title}'),
+      content: SizedBox(
+        width: 420,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _searchController,
+              decoration: const InputDecoration(
+                labelText: 'Search',
+                prefixIcon: Icon(Icons.search),
+              ),
+              onChanged: (value) => setState(() => _query = value),
+            ),
+            const SizedBox(height: 12),
+            Flexible(
+              child: items.isEmpty
+                  ? const Center(child: Text('No matching options'))
+                  : ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: items.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final item = items[index];
+                        return ListTile(
+                          title: Text(widget.itemLabel(item)),
+                          onTap: () => Navigator.of(context).pop(item),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+      ],
+    );
+  }
+}
+
+const Map<String, List<String>> _categorySubcategoryMap =
+    <String, List<String>>{
+  'Chemical': <String>[
+    'Flammable Liquid',
+    'Corrosive',
+    'Toxic',
+  ],
+  'Petroleum': <String>[
+    'Crude Oil',
+    'Fuel (Petrol/Diesel/ATF)',
+    'LPG',
+    'Lubricants',
+    'Bitumen',
+    'Petrochemicals',
+    'Natural Gas',
+    'Specialty Products',
+  ],
+};

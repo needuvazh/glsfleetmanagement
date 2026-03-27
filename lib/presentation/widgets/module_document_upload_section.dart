@@ -10,11 +10,19 @@ class ModuleDocumentUploadSection extends ConsumerStatefulWidget {
     required this.moduleName,
     this.title = 'Document Uploads',
     this.subtitle,
+    this.fileTypeOverrides,
+    this.additionalFileTypes,
+    this.mandatoryByTypeOverrides,
+    this.defaultFileType,
   });
 
   final String moduleName;
   final String title;
   final String? subtitle;
+  final List<String>? fileTypeOverrides;
+  final List<String>? additionalFileTypes;
+  final Map<String, bool>? mandatoryByTypeOverrides;
+  final String? defaultFileType;
 
   @override
   ConsumerState<ModuleDocumentUploadSection> createState() =>
@@ -54,7 +62,7 @@ class _ModuleDocumentUploadSectionState
     final visibleRules =
         isPrivileged ? rules : rules.where((item) => item.mandatory).toList();
 
-    final fileTypes = visibleRules
+    final configuredFileTypes = visibleRules
         .map((item) => item.documentName.trim())
         .where((item) => item.isNotEmpty)
         .toSet()
@@ -63,8 +71,30 @@ class _ModuleDocumentUploadSectionState
     final mandatoryByType = <String, bool>{
       for (final rule in rules) rule.documentName.trim(): rule.mandatory,
     };
+    final fileTypes = widget.fileTypeOverrides == null ||
+            widget.fileTypeOverrides!.isEmpty
+        ? configuredFileTypes
+        : List<String>.from(widget.fileTypeOverrides!);
+    if (widget.additionalFileTypes != null &&
+        widget.additionalFileTypes!.isNotEmpty) {
+      fileTypes.addAll(widget.additionalFileTypes!);
+      fileTypes
+        ..removeWhere((item) => item.trim().isEmpty)
+        ..sort();
+      final deduped = fileTypes.toSet().toList()..sort();
+      fileTypes
+        ..clear()
+        ..addAll(deduped);
+    }
+    if (widget.mandatoryByTypeOverrides != null) {
+      mandatoryByType.addAll(widget.mandatoryByTypeOverrides!);
+    }
 
-    _syncRows(fileTypes, mandatoryByType);
+    _syncRows(
+      fileTypes,
+      mandatoryByType,
+      defaultFileType: widget.defaultFileType,
+    );
 
     return Container(
       margin: const EdgeInsets.only(top: 12),
@@ -97,9 +127,12 @@ class _ModuleDocumentUploadSectionState
                       )
                     else
                       Text(
-                        isPrivileged
-                            ? 'File types from Compliance Master (${widget.moduleName})'
-                            : 'Role filtered: mandatory file types for ${widget.moduleName}',
+                        widget.fileTypeOverrides != null &&
+                                widget.fileTypeOverrides!.isNotEmpty
+                            ? 'Configured file types for ${widget.moduleName}'
+                            : (isPrivileged
+                                ? 'File types from Compliance Master (${widget.moduleName})'
+                                : 'Role filtered: mandatory file types for ${widget.moduleName}'),
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                   ],
@@ -110,7 +143,10 @@ class _ModuleDocumentUploadSectionState
                     ? null
                     : () {
                         setState(() {
-                          final first = fileTypes.first;
+                          final first = widget.defaultFileType != null &&
+                                  fileTypes.contains(widget.defaultFileType)
+                              ? widget.defaultFileType!
+                              : fileTypes.first;
                           _rows.add(
                             _UploadRow(
                               fileType: first,
@@ -183,7 +219,7 @@ class _ModuleDocumentUploadSectionState
           SizedBox(
             width: 220,
             child: DropdownButtonFormField<String>(
-              value: selected,
+              initialValue: selected,
               decoration: const InputDecoration(
                 isDense: true,
                 labelText: 'Type',
@@ -253,7 +289,11 @@ class _ModuleDocumentUploadSectionState
     );
   }
 
-  void _syncRows(List<String> fileTypes, Map<String, bool> mandatoryByType) {
+  void _syncRows(
+    List<String> fileTypes,
+    Map<String, bool> mandatoryByType, {
+    String? defaultFileType,
+  }) {
     if (fileTypes.isEmpty) {
       for (final row in _rows) {
         row.dispose();
@@ -261,9 +301,13 @@ class _ModuleDocumentUploadSectionState
       _rows.clear();
       return;
     }
+    final fallbackType =
+        defaultFileType != null && fileTypes.contains(defaultFileType)
+            ? defaultFileType
+            : fileTypes.first;
     for (final row in _rows) {
       if (!fileTypes.contains(row.fileType)) {
-        row.fileType = fileTypes.first;
+        row.fileType = fallbackType;
       }
       row.mandatory = mandatoryByType[row.fileType] ?? false;
     }

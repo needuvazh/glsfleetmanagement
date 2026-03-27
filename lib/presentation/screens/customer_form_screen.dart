@@ -51,7 +51,7 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
   String _selectedCustomerType = 'Corporate';
   String _selectedStatus = 'Active';
   String _selectedSegment = 'NON-PDO';
-  String _selectedPaymentTerms = 'Net 30';
+  String _selectedPaymentTerms = '30 days';
   String _selectedPaymentMode = 'Credit';
   String _selectedInvoiceCycle = 'Per Trip';
   String _selectedCurrency = 'OMR';
@@ -181,6 +181,7 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
                 const ModuleDocumentUploadSection(
                   moduleName: 'Customer',
                   title: 'Customer Document Uploads',
+                  additionalFileTypes: _customerAdditionalDocumentTypes,
                 ),
                 const SizedBox(height: 16),
                 Row(
@@ -232,7 +233,7 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
           const SizedBox(height: 10),
           _buildRow(
             DropdownButtonFormField<String>(
-              value: _selectedCustomerType,
+              initialValue: _selectedCustomerType,
               decoration: const InputDecoration(labelText: 'Customer Type *'),
               items: const ['Corporate', 'Individual']
                   .map((item) =>
@@ -245,7 +246,7 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
               },
             ),
             DropdownButtonFormField<String>(
-              value: _selectedStatus,
+              initialValue: _selectedStatus,
               decoration: const InputDecoration(labelText: 'Status *'),
               items: const ['Active', 'Inactive']
                   .map((item) =>
@@ -261,7 +262,7 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
           const SizedBox(height: 10),
           _buildRow(
             DropdownButtonFormField<String>(
-              value: _selectedSegment,
+              initialValue: _selectedSegment,
               decoration:
                   const InputDecoration(labelText: 'Compliance Segment *'),
               items: const ['PDO', 'NON-PDO']
@@ -362,20 +363,7 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
         children: [
           _buildRow(
             DropdownButtonFormField<String>(
-              value: _selectedPaymentTerms,
-              decoration: const InputDecoration(labelText: 'Payment Terms *'),
-              items: const ['Advance', 'Net 15', 'Net 30', 'Net 60']
-                  .map((item) =>
-                      DropdownMenuItem(value: item, child: Text(item)))
-                  .toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() => _selectedPaymentTerms = value);
-                }
-              },
-            ),
-            DropdownButtonFormField<String>(
-              value: _selectedPaymentMode,
+              initialValue: _selectedPaymentMode,
               decoration: const InputDecoration(labelText: 'Payment Mode *'),
               items: const ['Cash', 'Bank Transfer', 'Credit']
                   .map((item) =>
@@ -383,15 +371,40 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
                   .toList(),
               onChanged: (value) {
                 if (value != null) {
-                  setState(() => _selectedPaymentMode = value);
+                  setState(() {
+                    _selectedPaymentMode = value;
+                    if (value == 'Cash') {
+                      _selectedPaymentTerms = '0 days';
+                    } else if (_selectedPaymentTerms == '0 days') {
+                      _selectedPaymentTerms = '30 days';
+                    }
+                  });
                 }
               },
+            ),
+            DropdownButtonFormField<String>(
+              initialValue: _selectedPaymentMode == 'Cash'
+                  ? null
+                  : _selectedPaymentTerms,
+              disabledHint: const Text('0 days'),
+              decoration: const InputDecoration(labelText: 'Payment Terms *'),
+              items: const ['15 days', '30 days', '45 days', '60 days', '90 days']
+                  .map((item) =>
+                      DropdownMenuItem(value: item, child: Text(item)))
+                  .toList(),
+              onChanged: _selectedPaymentMode == 'Cash'
+                  ? null
+                  : (value) {
+                      if (value != null) {
+                        setState(() => _selectedPaymentTerms = value);
+                      }
+                    },
             ),
           ),
           const SizedBox(height: 10),
           _buildRow(
             DropdownButtonFormField<String>(
-              value: _selectedInvoiceCycle,
+              initialValue: _selectedInvoiceCycle,
               decoration: const InputDecoration(labelText: 'Invoice Cycle *'),
               items: const ['Per Trip', 'Weekly', 'Monthly']
                   .map((item) =>
@@ -404,7 +417,7 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
               },
             ),
             DropdownButtonFormField<String>(
-              value: _selectedCurrency,
+              initialValue: _selectedCurrency,
               decoration: const InputDecoration(labelText: 'Currency *'),
               items: const ['OMR', 'USD', 'EUR', 'AED']
                   .map((item) =>
@@ -509,7 +522,7 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
               validator: _validateNumberOptional,
             ),
             DropdownButtonFormField<String>(
-              value: _selectedPriority,
+              initialValue: _selectedPriority,
               decoration: const InputDecoration(labelText: 'Priority Level *'),
               items: const ['Normal', 'High', 'Critical']
                   .map((item) =>
@@ -525,7 +538,7 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
           const SizedBox(height: 10),
           _buildRow(
             DropdownButtonFormField<String?>(
-              value: _selectedPreferredVehicleType,
+              initialValue: _selectedPreferredVehicleType,
               decoration: const InputDecoration(
                 labelText: 'Preferred Vehicle Type (Master)',
               ),
@@ -551,7 +564,7 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
               },
             ),
             DropdownButtonFormField<String?>(
-              value: _selectedPreferredRoute,
+              initialValue: _selectedPreferredRoute,
               decoration: const InputDecoration(
                 labelText: 'Preferred Route (Master)',
               ),
@@ -723,8 +736,10 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
     _selectedCustomerType = customer.customerType;
     _selectedStatus = customer.status;
     _selectedSegment = customer.segment;
-    _selectedPaymentTerms = customer.paymentTerms;
     _selectedPaymentMode = customer.paymentMode;
+    _selectedPaymentTerms = customer.paymentMode == 'Cash'
+        ? '0 days'
+        : _normalizePaymentTerms(customer.paymentTerms);
     _selectedInvoiceCycle = customer.invoiceCycle;
     _selectedCurrency = customer.currency;
     _selectedPriority = customer.priorityLevel;
@@ -771,6 +786,29 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
       return 'Invalid number';
     }
     return null;
+  }
+
+  String _normalizePaymentTerms(String value) {
+    switch (value.trim().toLowerCase()) {
+      case 'net 15':
+        return '15 days';
+      case 'net 30':
+        return '30 days';
+      case 'net 45':
+        return '45 days';
+      case 'net 60':
+        return '60 days';
+      case 'net 90':
+        return '90 days';
+      case '15 days':
+      case '30 days':
+      case '45 days':
+      case '60 days':
+      case '90 days':
+        return value.trim();
+      default:
+        return '30 days';
+    }
   }
 
   double _toDouble(String value) => double.tryParse(value.trim()) ?? 0;
@@ -921,3 +959,11 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
     context.go(RoutePaths.customerManagement);
   }
 }
+
+const List<String> _customerAdditionalDocumentTypes = <String>[
+  'Vat Certificate',
+  'CR Certificate',
+  'COC Certificate',
+  'Activity License Certificate',
+  'Bank Related Certificate',
+];

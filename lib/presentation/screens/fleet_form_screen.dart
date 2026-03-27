@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -94,14 +95,6 @@ class _FleetFormScreenState extends ConsumerState<FleetFormScreen> {
                       _grid(
                         children: [
                           _field(
-                            child: _InputField(
-                              label: 'Fleet Number',
-                              initialValue: form.fleetNumber,
-                              onChanged: notifier.setFleetNumber,
-                              validator: _required,
-                            ),
-                          ),
-                          _field(
                             child: DropdownButtonFormField<String>(
                               initialValue: form.vehicleTypeId,
                               decoration:
@@ -119,6 +112,20 @@ class _FleetFormScreenState extends ConsumerState<FleetFormScreen> {
                                 if (value != null) {
                                   notifier.setVehicleType(value, data.vehicleTypes);
                                 }
+                              },
+                            ),
+                          ),
+                          _field(
+                            span: 2,
+                            child: _VehicleNumberField(
+                              initialPlateNumber:
+                                  _plateNumberFromFleetNumber(form.fleetNumber),
+                              initialPlateCode:
+                                  _plateCodeFromFleetNumber(form.fleetNumber),
+                              onChanged: (plateNumber, plateCode) {
+                                notifier.setFleetNumber(
+                                  _composeFleetNumber(plateNumber, plateCode),
+                                );
                               },
                             ),
                           ),
@@ -548,6 +555,33 @@ class _FleetFormScreenState extends ConsumerState<FleetFormScreen> {
   }
 }
 
+String _plateNumberFromFleetNumber(String fleetNumber) {
+  final digits = fleetNumber.replaceAll(RegExp(r'[^0-9]'), '');
+  if (digits.isEmpty) {
+    return '';
+  }
+  return digits.length > 5 ? digits.substring(0, 5) : digits;
+}
+
+String _plateCodeFromFleetNumber(String fleetNumber) {
+  final letters = fleetNumber
+      .replaceAll(RegExp(r'[^A-Za-z]'), '')
+      .toUpperCase();
+  if (letters.isEmpty) {
+    return '';
+  }
+  return letters.length > 2 ? letters.substring(0, 2) : letters;
+}
+
+String _composeFleetNumber(String plateNumber, String plateCode) {
+  final number = plateNumber.trim();
+  final code = plateCode.trim().toUpperCase();
+  if (number.isEmpty && code.isEmpty) {
+    return '';
+  }
+  return '$number $code'.trim();
+}
+
 class _GridField {
   const _GridField({required this.child, this.span = 1});
 
@@ -614,6 +648,153 @@ class _DateField extends StatelessWidget {
       ),
       onTap: onTap,
       validator: (_) => validator?.call(value),
+    );
+  }
+}
+
+class _VehicleNumberField extends StatefulWidget {
+  const _VehicleNumberField({
+    required this.initialPlateNumber,
+    required this.initialPlateCode,
+    required this.onChanged,
+  });
+
+  final String initialPlateNumber;
+  final String initialPlateCode;
+  final void Function(String plateNumber, String plateCode) onChanged;
+
+  @override
+  State<_VehicleNumberField> createState() => _VehicleNumberFieldState();
+}
+
+class _VehicleNumberFieldState extends State<_VehicleNumberField> {
+  late final TextEditingController _plateNumberController;
+  late final TextEditingController _plateCodeController;
+
+  @override
+  void initState() {
+    super.initState();
+    _plateNumberController =
+        TextEditingController(text: widget.initialPlateNumber);
+    _plateCodeController =
+        TextEditingController(text: widget.initialPlateCode.toUpperCase());
+  }
+
+  @override
+  void didUpdateWidget(covariant _VehicleNumberField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_plateNumberController.text != widget.initialPlateNumber) {
+      _plateNumberController.text = widget.initialPlateNumber;
+    }
+    final nextCode = widget.initialPlateCode.toUpperCase();
+    if (_plateCodeController.text != nextCode) {
+      _plateCodeController.text = nextCode;
+    }
+  }
+
+  @override
+  void dispose() {
+    _plateNumberController.dispose();
+    _plateCodeController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Vehicle Number',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _plateNumberController,
+                      keyboardType: TextInputType.number,
+                      maxLength: 5,
+                      decoration: const InputDecoration(
+                        hintText: 'Plate Number',
+                        counterText: '',
+                      ),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                      ],
+                      validator: (value) {
+                        final raw = value?.trim() ?? '';
+                        if (raw.isEmpty) {
+                          return 'Required';
+                        }
+                        if (raw.length > 5) {
+                          return 'Max 5 digits';
+                        }
+                        return null;
+                      },
+                      onChanged: (value) {
+                        widget.onChanged(value, _plateCodeController.text);
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _plateCodeController,
+                      maxLength: 2,
+                      textCapitalization: TextCapitalization.characters,
+                      decoration: const InputDecoration(
+                        hintText: 'Code',
+                        counterText: '',
+                      ),
+                      inputFormatters: [
+                        _UpperCaseTextFormatter(),
+                        FilteringTextInputFormatter.allow(RegExp(r'[A-Z]')),
+                      ],
+                      validator: (value) {
+                        final raw = value?.trim().toUpperCase() ?? '';
+                        if (raw.isEmpty) {
+                          return 'Required';
+                        }
+                        if (!RegExp(r'^[A-Z]{2}$').hasMatch(raw)) {
+                          return 'Enter 2 letters';
+                        }
+                        return null;
+                      },
+                      onChanged: (value) {
+                        widget.onChanged(_plateNumberController.text, value);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _UpperCaseTextFormatter extends TextInputFormatter {
+  const _UpperCaseTextFormatter();
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    return TextEditingValue(
+      text: newValue.text.toUpperCase(),
+      selection: newValue.selection,
+      composing: TextRange.empty,
     );
   }
 }

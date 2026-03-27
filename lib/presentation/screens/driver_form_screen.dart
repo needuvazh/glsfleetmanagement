@@ -7,9 +7,11 @@ import '../../domain/route_model.dart';
 import '../../domain/entities/logistics_flow.dart';
 import '../../domain/vehicle_type_master_model.dart';
 import '../../routes/route_paths.dart';
-import '../viewmodels/auth_viewmodel.dart';
 import '../viewmodels/logistics_viewmodel.dart';
+<<<<<<< Updated upstream
 import '../viewmodels/module_document_viewmodel.dart';
+=======
+>>>>>>> Stashed changes
 import '../viewmodels/route_viewmodel.dart';
 import '../viewmodels/vehicle_type_master_viewmodel.dart';
 import '../widgets/ops_shell.dart';
@@ -27,14 +29,19 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
   final _formKey = GlobalKey<FormState>();
 
   late final TextEditingController _codeCtrl;
-  late final TextEditingController _nameCtrl;
+  late final TextEditingController _firstNameCtrl;
+  late final TextEditingController _lastNameCtrl;
   late final TextEditingController _employeeCtrl;
   late final TextEditingController _phoneCtrl;
   late final TextEditingController _licenseCtrl;
-  late final TextEditingController _licenseTypeCtrl;
   late final TextEditingController _licenseIssueCtrl;
   late final TextEditingController _expiryCtrl;
+<<<<<<< Updated upstream
   late final TextEditingController _nationalityCtrl;
+=======
+  late final TextEditingController _residentCardNumberCtrl;
+  late final TextEditingController _allowedVehicleCtrl;
+>>>>>>> Stashed changes
   late final TextEditingController _certCtrl;
   late final TextEditingController _notesCtrl;
   final ScrollController _docsHorizontalController = ScrollController();
@@ -43,13 +50,20 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
   bool _initialized = false;
   bool _saving = false;
 
+  String _nationality = 'Oman';
   String _availability = 'Available';
   String _baseLocation = OmanFleetMaster.omanLocations.first;
+  String _licenseType = 'Light Vehicle';
+  List<String> _selectedAllowedVehicleTypes = <String>[];
   bool _heavyAllowed = false;
   bool _active = true;
+<<<<<<< Updated upstream
   List<String> _selectedAllowedVehicleTypes = [];
   List<String> _selectedPreferredRoutes = [];
   List<String> _selectedPreferredVehicleTypes = [];
+=======
+  DateTime? _residentCardExpiryDate;
+>>>>>>> Stashed changes
 
   DriverData? _existingDriver(AsyncValue<LogisticsUiState> state) {
     final editId = widget.editDriverId;
@@ -74,17 +88,24 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
     final state = ref.read(logisticsViewModelProvider);
     final existing = _existingDriver(state);
     _codeCtrl = TextEditingController(text: existing?.driverId ?? '');
-    _nameCtrl = TextEditingController(text: existing?.name ?? '');
+    final nameParts = _splitName(existing?.name ?? '');
+    _firstNameCtrl = TextEditingController(text: nameParts.$1);
+    _lastNameCtrl = TextEditingController(text: nameParts.$2);
     _employeeCtrl = TextEditingController(text: existing?.employeeRef ?? '');
     _phoneCtrl = TextEditingController(text: existing?.phone ?? '');
     _licenseCtrl = TextEditingController(text: existing?.licenseNo ?? '');
-    _licenseTypeCtrl =
-        TextEditingController(text: existing?.licenseType ?? 'Light Vehicle');
     _licenseIssueCtrl =
         TextEditingController(text: existing?.licenseIssueDate ?? '');
     _expiryCtrl = TextEditingController(text: existing?.expiryDate ?? '');
+<<<<<<< Updated upstream
     _nationalityCtrl =
         TextEditingController(text: existing?.nationality ?? 'Omani');
+=======
+    _residentCardNumberCtrl = TextEditingController();
+    _allowedVehicleCtrl = TextEditingController(
+      text: existing?.allowedVehicleTypes.join(', ') ?? '',
+    );
+>>>>>>> Stashed changes
     _certCtrl = TextEditingController(
       text: existing?.certifications.join(', ') ?? '',
     );
@@ -96,6 +117,12 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
     _availability = existing?.status ?? 'Available';
     _baseLocation =
         existing?.baseLocation ?? OmanFleetMaster.omanLocations.first;
+    _nationality = existing?.nationality.isNotEmpty == true
+        ? existing!.nationality
+        : 'Oman';
+    _licenseType = existing?.licenseType ?? 'Light Vehicle';
+    _selectedAllowedVehicleTypes =
+        List<String>.from(existing?.allowedVehicleTypes ?? const <String>[]);
     _heavyAllowed = existing?.heavyVehicleAllowed ?? false;
     _active = existing?.active ?? true;
     _initialized = true;
@@ -104,14 +131,19 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
   @override
   void dispose() {
     _codeCtrl.dispose();
-    _nameCtrl.dispose();
+    _firstNameCtrl.dispose();
+    _lastNameCtrl.dispose();
     _employeeCtrl.dispose();
     _phoneCtrl.dispose();
     _licenseCtrl.dispose();
-    _licenseTypeCtrl.dispose();
     _licenseIssueCtrl.dispose();
     _expiryCtrl.dispose();
+<<<<<<< Updated upstream
     _nationalityCtrl.dispose();
+=======
+    _residentCardNumberCtrl.dispose();
+    _allowedVehicleCtrl.dispose();
+>>>>>>> Stashed changes
     _certCtrl.dispose();
     _notesCtrl.dispose();
     _docsHorizontalController.dispose();
@@ -127,33 +159,21 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
     final routeState = ref.watch(routeViewModelProvider).valueOrNull;
     final vehicleTypeState =
         ref.watch(vehicleTypeMasterViewModelProvider).valueOrNull;
+<<<<<<< Updated upstream
     final complianceState = ref.watch(moduleDocumentViewModelProvider).valueOrNull;
     final authState = ref.watch(authViewModelProvider).valueOrNull;
+=======
+>>>>>>> Stashed changes
     final isEdit = widget.editDriverId != null;
     final existing = _existingDriver(state);
-    final roleName = (authState?.userRole ?? '').toLowerCase();
-    final isComplianceRole =
-        roleName.contains('admin') || roleName.contains('compliance');
-
-    final driverRules = (complianceState?.items ?? const [])
-        .where(
-          (item) =>
-              item.applicableTo.toLowerCase() == 'driver' &&
-              item.status.toLowerCase() == 'active',
-        )
-        .toList();
-    final visibleRules = isComplianceRole
-        ? driverRules
-        : driverRules.where((item) => item.mandatory).toList();
-    final fileTypeOptions = visibleRules
-        .map((item) => item.documentName.trim())
-        .where((item) => item.isNotEmpty)
-        .toSet()
-        .toList()
-      ..sort();
-    final mandatoryByType = <String, bool>{
-      for (final item in driverRules) item.documentName.trim(): item.mandatory,
+    final fileTypeOptions = List<String>.from(_driverDocumentTypes);
+    const mandatoryByType = <String, bool>{
+      'Resident Card': true,
+      'Driver ID / Passport': false,
+      'License Copy': false,
+      'Other Documents': false,
     };
+<<<<<<< Updated upstream
     final routeOptions = _withSelections(
       _routeOptions(routeState?.routes ?? const []),
       _selectedPreferredRoutes,
@@ -161,6 +181,16 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
     final vehicleTypeOptions = _withSelections(
       _vehicleTypeOptions(vehicleTypeState?.items ?? const []),
       [..._selectedAllowedVehicleTypes, ..._selectedPreferredVehicleTypes],
+=======
+    final vehicleTypeOptions = _vehicleTypeOptions(
+      vehicleTypeState?.items ?? const [],
+      currentSelections: _selectedAllowedVehicleTypes,
+      singleSelection: _preferredVehicleTypeCtrl.text.trim(),
+    );
+    final routeOptions = _routeOptions(
+      routeState?.routes ?? const [],
+      _preferredRouteTypeCtrl.text.trim(),
+>>>>>>> Stashed changes
     );
 
     _syncUploadRowsWithOptions(
@@ -192,117 +222,133 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _sectionTitle('Driver Identity'),
-                    _field(
-                      _codeCtrl,
-                      label: 'Driver Code',
-                      enabled: !isEdit,
-                    ),
-                    const SizedBox(height: 10),
-                    _field(
-                      _nameCtrl,
-                      label: 'Full Name',
-                      validator: (v) => (v == null || v.trim().isEmpty)
-                          ? 'Driver name is required'
-                          : null,
-                    ),
-                    const SizedBox(height: 10),
-                    _field(_employeeCtrl, label: 'Employee ID / Ref'),
-                    const SizedBox(height: 10),
-                    _field(_phoneCtrl, label: 'Mobile Number'),
-                    const SizedBox(height: 10),
-                    _field(_nationalityCtrl, label: 'Nationality'),
-                    const SizedBox(height: 10),
-                    DropdownButtonFormField<String>(
-                      value: _baseLocation,
-                      decoration:
-                          const InputDecoration(labelText: 'Base Location'),
-                      items: [
-                        for (final location in OmanFleetMaster.omanLocations)
-                          DropdownMenuItem(
-                            value: location,
-                            child: Text(location),
-                          ),
+                    _buildResponsiveGrid(
+                      children: [
+                        _field(
+                          _codeCtrl,
+                          label: 'Driver Code',
+                          enabled: !isEdit,
+                        ),
+                        _field(
+                          _firstNameCtrl,
+                          label: 'First Name',
+                          validator: (v) => (v == null || v.trim().isEmpty)
+                              ? 'First name is required'
+                              : null,
+                        ),
+                        _field(
+                          _lastNameCtrl,
+                          label: 'Last Name',
+                          validator: (v) => (v == null || v.trim().isEmpty)
+                              ? 'Last name is required'
+                              : null,
+                        ),
+                        _field(_employeeCtrl, label: 'Employee ID / Ref'),
+                        _field(_phoneCtrl, label: 'Mobile Number'),
+                        _SearchableSelectionField<String>(
+                          label: 'Nationality',
+                          value: _nationality,
+                          items: _countries,
+                          itemLabel: (item) => item,
+                          onSelected: (value) =>
+                              setState(() => _nationality = value),
+                        ),
+                        _SearchableSelectionField<String>(
+                          label: 'Base Location',
+                          value: _baseLocation,
+                          items: OmanFleetMaster.omanLocations,
+                          itemLabel: (item) => item,
+                          onSelected: (value) =>
+                              setState(() => _baseLocation = value),
+                        ),
                       ],
-                      onChanged: (value) {
-                        if (value != null) {
-                          setState(() => _baseLocation = value);
-                        }
-                      },
+                    ),
+                    const SizedBox(height: 16),
+                    _sectionTitle('Resident Card Details'),
+                    _buildResponsiveGrid(
+                      children: [
+                        _field(
+                          _residentCardNumberCtrl,
+                          label: 'Resident Card Number',
+                        ),
+                        _DateInputField(
+                          label: 'Expiry Date',
+                          value: _residentCardExpiryDate,
+                          onTap: () => _pickDate(
+                            initialDate: _residentCardExpiryDate,
+                            onSelected: (value) => setState(
+                              () => _residentCardExpiryDate = value,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 16),
                     _sectionTitle('License'),
-                    _field(
-                      _licenseCtrl,
-                      label: 'License Number',
-                      validator: (v) => (v == null || v.trim().isEmpty)
-                          ? 'License number is required'
-                          : null,
-                    ),
-                    const SizedBox(height: 10),
-                    _field(
-                      _licenseTypeCtrl,
-                      label: 'License Type / Class',
-                      validator: (v) => (v == null || v.trim().isEmpty)
-                          ? 'License class is required'
-                          : null,
-                    ),
-                    const SizedBox(height: 10),
-                    _field(
-                      _licenseIssueCtrl,
-                      label: 'License Issue Date (YYYY-MM-DD)',
-                    ),
-                    const SizedBox(height: 10),
-                    _field(
-                      _expiryCtrl,
-                      label: 'License Expiry Date (YYYY-MM-DD)',
-                      validator: (v) {
-                        if (v == null || v.trim().isEmpty) {
-                          return 'License expiry is required';
-                        }
-                        return DateTime.tryParse(v.trim()) == null
-                            ? 'Use YYYY-MM-DD format'
-                            : null;
-                      },
-                    ),
-                    const SizedBox(height: 10),
-                    DropdownButtonFormField<String>(
-                      value: _availability,
-                      decoration:
-                          const InputDecoration(labelText: 'Availability'),
-                      items: const [
-                        'Available',
-                        'Assigned',
-                        'On Leave',
-                        'Resting / Off Duty',
-                        'Suspended',
-                        'Inactive',
-                      ]
-                          .map((e) => DropdownMenuItem(
-                                value: e,
-                                child: Text(e),
-                              ))
-                          .toList(),
-                      onChanged: (value) {
-                        if (value != null) {
-                          setState(() => _availability = value);
-                        }
-                      },
-                    ),
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('Heavy Vehicle Allowed'),
-                      value: _heavyAllowed,
-                      onChanged: (value) =>
-                          setState(() => _heavyAllowed = value),
-                    ),
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('Active'),
-                      value: _active,
-                      onChanged: (value) => setState(() => _active = value),
+                    _buildResponsiveGrid(
+                      children: [
+                        _field(
+                          _licenseCtrl,
+                          label: 'License Number',
+                          validator: (v) => (v == null || v.trim().isEmpty)
+                              ? 'License number is required'
+                              : null,
+                        ),
+                        _SearchableSelectionField<String>(
+                          label: 'License Type',
+                          value: _licenseType,
+                          items: _licenseTypes,
+                          itemLabel: (item) => item,
+                          onSelected: (value) =>
+                              setState(() => _licenseType = value),
+                          validator: (value) => value == null || value.trim().isEmpty
+                              ? 'License class is required'
+                              : null,
+                        ),
+                        _DateTextControllerField(
+                          label: 'Expiry Date',
+                          controller: _expiryCtrl,
+                          onTap: () => _pickDateForController(_expiryCtrl),
+                          validator: (v) {
+                            if (v == null || v.trim().isEmpty) {
+                              return 'License expiry is required';
+                            }
+                            return DateTime.tryParse(v.trim()) == null
+                                ? 'Use YYYY-MM-DD format'
+                                : null;
+                          },
+                        ),
+                        _DateTextControllerField(
+                          label: 'Issue Date',
+                          controller: _licenseIssueCtrl,
+                          onTap: () => _pickDateForController(_licenseIssueCtrl),
+                        ),
+                        _SearchableSelectionField<String>(
+                          label: 'Availability',
+                          value: _availability,
+                          items: _availabilityOptions,
+                          itemLabel: (item) => item,
+                          onSelected: (value) =>
+                              setState(() => _availability = value),
+                        ),
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('Heavy Vehicle Allowed'),
+                          value: _heavyAllowed,
+                          onChanged: (value) =>
+                              setState(() => _heavyAllowed = value),
+                        ),
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('Active'),
+                          value: _active,
+                          onChanged: (value) => setState(() => _active = value),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 16),
                     _sectionTitle('Preferences'),
+<<<<<<< Updated upstream
                     _multiSelectField(
                       label: 'Allowed Vehicle Types',
                       selectedValues: _selectedAllowedVehicleTypes,
@@ -339,6 +385,57 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
                       _notesCtrl,
                       label: 'Notes',
                       maxLines: 2,
+=======
+                    _buildResponsiveGrid(
+                      children: [
+                        _VehicleTypeMultiSelectField(
+                          label: 'Allowed Vehicle Types (comma separated)',
+                          options: vehicleTypeOptions,
+                          selectedValues: _selectedAllowedVehicleTypes,
+                          onChanged: (values) {
+                            setState(() {
+                              _selectedAllowedVehicleTypes = values;
+                              _allowedVehicleCtrl.text = values.join(', ');
+                            });
+                          },
+                        ),
+                        _SearchableSelectionField<String>(
+                          label: 'Preferred Route Type',
+                          value: _preferredRouteTypeCtrl.text.trim().isEmpty
+                              ? null
+                              : _preferredRouteTypeCtrl.text.trim(),
+                          items: routeOptions,
+                          itemLabel: (item) => item,
+                          onSelected: (value) {
+                            setState(() {
+                              _preferredRouteTypeCtrl.text = value;
+                            });
+                          },
+                        ),
+                        _SearchableSelectionField<String>(
+                          label: 'Preferred Vehicle Type',
+                          value: _preferredVehicleTypeCtrl.text.trim().isEmpty
+                              ? null
+                              : _preferredVehicleTypeCtrl.text.trim(),
+                          items: vehicleTypeOptions,
+                          itemLabel: (item) => item,
+                          onSelected: (value) {
+                            setState(() {
+                              _preferredVehicleTypeCtrl.text = value;
+                            });
+                          },
+                        ),
+                        _field(
+                          _certCtrl,
+                          label: 'Certifications (comma separated)',
+                        ),
+                        _field(
+                          _notesCtrl,
+                          label: 'Notes',
+                          maxLines: 2,
+                        ),
+                      ],
+>>>>>>> Stashed changes
                     ),
                     const SizedBox(height: 16),
                     _sectionTitle('Driver Documents Upload'),
@@ -346,7 +443,6 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
                       context: context,
                       fileTypeOptions: fileTypeOptions,
                       mandatoryByType: mandatoryByType,
-                      isComplianceRole: isComplianceRole,
                     ),
                   ],
                 ),
@@ -401,11 +497,84 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
     );
   }
 
+  Widget _buildResponsiveGrid({required List<Widget> children}) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const spacing = 16.0;
+        final columns = constraints.maxWidth >= 1120
+            ? 3
+            : (constraints.maxWidth >= 720 ? 2 : 1);
+        final baseWidth = columns == 1
+            ? constraints.maxWidth
+            : (constraints.maxWidth - (spacing * (columns - 1))) / columns;
+
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: [
+            for (final child in children)
+              _buildField(
+                width: baseWidth,
+                child: child,
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildField({required double width, required Widget child}) {
+    return SizedBox(
+      width: width,
+      child: child,
+    );
+  }
+
+  (String, String) _splitName(String fullName) {
+    final normalized = fullName.trim();
+    if (normalized.isEmpty) {
+      return ('', '');
+    }
+    final parts = normalized.split(RegExp(r'\s+'));
+    if (parts.length == 1) {
+      return (parts.first, '');
+    }
+    return (parts.first, parts.sublist(1).join(' '));
+  }
+
+  Future<void> _pickDate({
+    required DateTime? initialDate,
+    required ValueChanged<DateTime> onSelected,
+  }) async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate ?? now,
+      firstDate: DateTime(now.year - 20),
+      lastDate: DateTime(now.year + 20),
+    );
+    if (picked != null) {
+      onSelected(picked);
+    }
+  }
+
+  Future<void> _pickDateForController(TextEditingController controller) async {
+    final initial = DateTime.tryParse(controller.text.trim());
+    await _pickDate(
+      initialDate: initial,
+      onSelected: (value) {
+        final month = value.month.toString().padLeft(2, '0');
+        final day = value.day.toString().padLeft(2, '0');
+        controller.text = '${value.year}-$month-$day';
+        setState(() {});
+      },
+    );
+  }
+
   Widget _buildDocumentsUploader({
     required BuildContext context,
     required List<String> fileTypeOptions,
     required Map<String, bool> mandatoryByType,
-    required bool isComplianceRole,
   }) {
     final canAddRows = fileTypeOptions.isNotEmpty;
     return Container(
@@ -422,9 +591,7 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
             children: [
               Expanded(
                 child: Text(
-                  isComplianceRole
-                      ? 'File types from Compliance Master (Driver - Active)'
-                      : 'Role-based view: mandatory Driver documents from Compliance Master',
+                  'Supported file types: Resident Card, Driver ID / Passport, License Copy, and Other Documents.',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ),
@@ -433,8 +600,8 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
                     ? () => setState(() {
                           _uploadRows.add(
                             _DriverUploadRow(
-                              fileType: fileTypeOptions.first,
-                              mandatory: mandatoryByType[fileTypeOptions.first] ??
+                              fileType: _defaultDriverDocumentType,
+                              mandatory: mandatoryByType[_defaultDriverDocumentType] ??
                                   false,
                             ),
                           );
@@ -503,7 +670,7 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
           SizedBox(
             width: 220,
             child: DropdownButtonFormField<String>(
-              value: dropdownValue,
+              initialValue: dropdownValue,
               decoration: const InputDecoration(
                 isDense: true,
                 labelText: 'Type',
@@ -519,6 +686,9 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
                         setState(() {
                           row.fileType = value;
                           row.mandatory = mandatoryByType[value] ?? false;
+                          if (row.fileNameController.text.trim().isNotEmpty) {
+                            row.uploadedAt ??= DateTime.now();
+                          }
                         });
                       }
                     },
@@ -531,9 +701,15 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
             width: 270,
             child: TextFormField(
               controller: row.fileNameController,
-              decoration: const InputDecoration(
+              validator: (value) {
+                if (row.mandatory && (value == null || value.trim().isEmpty)) {
+                  return 'File is required';
+                }
+                return null;
+              },
+              decoration: InputDecoration(
                 isDense: true,
-                labelText: 'File name',
+                labelText: row.mandatory ? 'File name *' : 'File name',
               ),
             ),
           ),
@@ -584,7 +760,7 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
     if (_uploadRows.isNotEmpty) {
       for (final row in _uploadRows) {
         if (row.fileType.isEmpty && fileTypeOptions.isNotEmpty) {
-          row.fileType = fileTypeOptions.first;
+          row.fileType = _defaultDriverDocumentType;
         }
         row.mandatory = mandatoryByType[row.fileType] ?? false;
       }
@@ -606,11 +782,10 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
         );
       }
     } else if (fileTypeOptions.isNotEmpty) {
-      final first = fileTypeOptions.first;
       _uploadRows.add(
         _DriverUploadRow(
-          fileType: first,
-          mandatory: mandatoryByType[first] ?? false,
+          fileType: _defaultDriverDocumentType,
+          mandatory: mandatoryByType[_defaultDriverDocumentType] ?? false,
         ),
       );
     }
@@ -638,15 +813,16 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
     final message = isEdit
         ? vm.updateDriver(
             driverCode: existing!.driverId,
-            name: _nameCtrl.text.trim(),
+            name:
+                '${_firstNameCtrl.text.trim()} ${_lastNameCtrl.text.trim()}'.trim(),
             employeeRef: _employeeCtrl.text.trim(),
             phone: _phoneCtrl.text.trim(),
             licenseNo: _licenseCtrl.text.trim(),
-            licenseType: _licenseTypeCtrl.text.trim(),
+            licenseType: _licenseType.trim(),
             licenseIssueDate: _licenseIssueCtrl.text.trim(),
             licenseExpiry: _expiryCtrl.text.trim(),
             availability: _availability,
-            nationality: _nationalityCtrl.text.trim(),
+            nationality: _nationality.trim(),
             baseLocation: _baseLocation,
             heavyVehicleAllowed: _heavyAllowed,
             allowedVehicleTypes: _selectedAllowedVehicleTypes,
@@ -658,15 +834,16 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
           )
         : vm.addDriver(
             driverCode: _codeCtrl.text.trim(),
-            name: _nameCtrl.text.trim(),
+            name:
+                '${_firstNameCtrl.text.trim()} ${_lastNameCtrl.text.trim()}'.trim(),
             employeeRef: _employeeCtrl.text.trim(),
             phone: _phoneCtrl.text.trim(),
             licenseNo: _licenseCtrl.text.trim(),
-            licenseType: _licenseTypeCtrl.text.trim(),
+            licenseType: _licenseType.trim(),
             licenseIssueDate: _licenseIssueCtrl.text.trim(),
             licenseExpiry: _expiryCtrl.text.trim(),
             availability: _availability,
-            nationality: _nationalityCtrl.text.trim(),
+            nationality: _nationality.trim(),
             baseLocation: _baseLocation,
             heavyVehicleAllowed: _heavyAllowed,
             allowedVehicleTypes: _selectedAllowedVehicleTypes,
@@ -696,6 +873,7 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
         .toList();
   }
 
+<<<<<<< Updated upstream
   List<String> _withSelections(List<String> options, List<String> selected) {
     final merged = <String>{...options, ...selected};
     final items = merged.toList()..sort();
@@ -819,6 +997,31 @@ class _DriverFormScreenState extends ConsumerState<DriverFormScreen> {
         );
       },
     );
+=======
+  List<String> _vehicleTypeOptions(
+    List<dynamic> items, {
+    required List<String> currentSelections,
+    required String singleSelection,
+  }) {
+    final names = <String>{
+      for (final item in items)
+        if (item.vehicleTypeName.trim().isNotEmpty) item.vehicleTypeName.trim(),
+      ...currentSelections.where((item) => item.trim().isNotEmpty),
+      if (singleSelection.trim().isNotEmpty) singleSelection.trim(),
+    };
+    final result = names.toList()..sort();
+    return result;
+  }
+
+  List<String> _routeOptions(List<dynamic> items, String currentSelection) {
+    final names = <String>{
+      for (final item in items)
+        if (item.routeName.trim().isNotEmpty) item.routeName.trim(),
+      if (currentSelection.trim().isNotEmpty) currentSelection.trim(),
+    };
+    final result = names.toList()..sort();
+    return result;
+>>>>>>> Stashed changes
   }
 }
 
@@ -827,7 +1030,6 @@ class _DriverUploadRow {
     required this.fileType,
     required this.mandatory,
     String fileName = '',
-    this.uploadedAt,
   }) : fileNameController = TextEditingController(text: fileName);
 
   final TextEditingController fileNameController;
@@ -850,3 +1052,485 @@ class _DriverUploadRow {
     fileNameController.dispose();
   }
 }
+
+class _SearchableSelectionField<T> extends StatefulWidget {
+  const _SearchableSelectionField({
+    required this.label,
+    required this.value,
+    required this.items,
+    required this.itemLabel,
+    required this.onSelected,
+    this.validator,
+  });
+
+  final String label;
+  final T? value;
+  final List<T> items;
+  final String Function(T item) itemLabel;
+  final ValueChanged<T> onSelected;
+  final String? Function(T? value)? validator;
+
+  @override
+  State<_SearchableSelectionField<T>> createState() =>
+      _SearchableSelectionFieldState<T>();
+}
+
+class _SearchableSelectionFieldState<T>
+    extends State<_SearchableSelectionField<T>> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(
+      text: widget.value == null ? '' : widget.itemLabel(widget.value as T),
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant _SearchableSelectionField<T> oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final nextText =
+        widget.value == null ? '' : widget.itemLabel(widget.value as T);
+    if (_controller.text != nextText) {
+      _controller.text = nextText;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      controller: _controller,
+      readOnly: true,
+      validator: (_) => widget.validator?.call(widget.value),
+      decoration: InputDecoration(
+        labelText: widget.label,
+        suffixIcon: const Icon(Icons.search),
+      ),
+      onTap: () async {
+        final selected = await showDialog<T>(
+          context: context,
+          builder: (context) => _SearchSelectionDialog<T>(
+            title: widget.label,
+            items: widget.items,
+            itemLabel: widget.itemLabel,
+          ),
+        );
+        if (selected != null) {
+          widget.onSelected(selected);
+        }
+      },
+    );
+  }
+}
+
+class _SearchSelectionDialog<T> extends StatefulWidget {
+  const _SearchSelectionDialog({
+    required this.title,
+    required this.items,
+    required this.itemLabel,
+  });
+
+  final String title;
+  final List<T> items;
+  final String Function(T item) itemLabel;
+
+  @override
+  State<_SearchSelectionDialog<T>> createState() =>
+      _SearchSelectionDialogState<T>();
+}
+
+class _SearchSelectionDialogState<T> extends State<_SearchSelectionDialog<T>> {
+  final TextEditingController _searchController = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final filteredItems = widget.items.where((item) {
+      final label = widget.itemLabel(item).toLowerCase();
+      return label.contains(_query.trim().toLowerCase());
+    }).toList();
+
+    return AlertDialog(
+      title: Text('Select ${widget.title}'),
+      content: SizedBox(
+        width: 420,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _searchController,
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.search),
+                hintText: 'Search',
+              ),
+              onChanged: (value) => setState(() => _query = value),
+            ),
+            const SizedBox(height: 12),
+            Flexible(
+              child: filteredItems.isEmpty
+                  ? const Center(child: Text('No matching options found.'))
+                  : ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: filteredItems.length,
+                      itemBuilder: (context, index) {
+                        final item = filteredItems[index];
+                        return ListTile(
+                          title: Text(widget.itemLabel(item)),
+                          onTap: () => Navigator.of(context).pop(item),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Close'),
+        ),
+      ],
+    );
+  }
+}
+
+class _DateInputField extends StatelessWidget {
+  const _DateInputField({
+    required this.label,
+    required this.value,
+    required this.onTap,
+  });
+
+  final String label;
+  final DateTime? value;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = value == null
+        ? ''
+        : '${value!.year}-${value!.month.toString().padLeft(2, '0')}-${value!.day.toString().padLeft(2, '0')}';
+
+    return TextFormField(
+      readOnly: true,
+      controller: TextEditingController(text: text),
+      decoration: InputDecoration(
+        labelText: label,
+        suffixIcon: const Icon(Icons.calendar_today_outlined),
+      ),
+      onTap: onTap,
+    );
+  }
+}
+
+class _DateTextControllerField extends StatelessWidget {
+  const _DateTextControllerField({
+    required this.label,
+    required this.controller,
+    required this.onTap,
+    this.validator,
+  });
+
+  final String label;
+  final TextEditingController controller;
+  final VoidCallback onTap;
+  final String? Function(String?)? validator;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      controller: controller,
+      readOnly: true,
+      validator: validator,
+      decoration: InputDecoration(
+        labelText: label,
+        suffixIcon: const Icon(Icons.calendar_today_outlined),
+      ),
+      onTap: onTap,
+    );
+  }
+}
+
+class _VehicleTypeMultiSelectField extends StatelessWidget {
+  const _VehicleTypeMultiSelectField({
+    required this.label,
+    required this.options,
+    required this.selectedValues,
+    required this.onChanged,
+  });
+
+  final String label;
+  final List<String> options;
+  final List<String> selectedValues;
+  final ValueChanged<List<String>> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return InputDecorator(
+      decoration: InputDecoration(
+        labelText: label,
+        alignLabelWithHint: true,
+      ),
+      child: options.isEmpty
+          ? const Text('No vehicle types available.')
+          : Column(
+              children: [
+                for (final option in options)
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                    controlAffinity: ListTileControlAffinity.leading,
+                    title: Text(option),
+                    value: selectedValues.contains(option),
+                    onChanged: (checked) {
+                      final next = List<String>.from(selectedValues);
+                      if (checked == true) {
+                        if (!next.contains(option)) {
+                          next.add(option);
+                        }
+                      } else {
+                        next.remove(option);
+                      }
+                      onChanged(next);
+                    },
+                  ),
+              ],
+            ),
+    );
+  }
+}
+
+const List<String> _availabilityOptions = <String>[
+  'Available',
+  'Assigned',
+  'On Leave',
+  'Resting / Off Duty',
+  'Suspended',
+  'Inactive',
+];
+
+const List<String> _licenseTypes = <String>[
+  'Light Vehicle',
+  'Medium Vehicle',
+  'Heavy Vehicle',
+  'Trailer',
+];
+
+const String _defaultDriverDocumentType = 'Resident Card';
+
+const List<String> _driverDocumentTypes = <String>[
+  'Resident Card',
+  'Driver ID / Passport',
+  'License Copy',
+  'Other Documents',
+];
+
+const List<String> _countries = <String>[
+  'Afghanistan',
+  'Albania',
+  'Algeria',
+  'Andorra',
+  'Angola',
+  'Antigua and Barbuda',
+  'Argentina',
+  'Armenia',
+  'Australia',
+  'Austria',
+  'Azerbaijan',
+  'Bahamas',
+  'Bahrain',
+  'Bangladesh',
+  'Barbados',
+  'Belarus',
+  'Belgium',
+  'Belize',
+  'Benin',
+  'Bhutan',
+  'Bolivia',
+  'Bosnia and Herzegovina',
+  'Botswana',
+  'Brazil',
+  'Brunei',
+  'Bulgaria',
+  'Burkina Faso',
+  'Burundi',
+  'Cambodia',
+  'Cameroon',
+  'Canada',
+  'Cape Verde',
+  'Central African Republic',
+  'Chad',
+  'Chile',
+  'China',
+  'Colombia',
+  'Comoros',
+  'Congo',
+  'Costa Rica',
+  'Croatia',
+  'Cuba',
+  'Cyprus',
+  'Czech Republic',
+  'Denmark',
+  'Djibouti',
+  'Dominica',
+  'Dominican Republic',
+  'Ecuador',
+  'Egypt',
+  'El Salvador',
+  'Equatorial Guinea',
+  'Eritrea',
+  'Estonia',
+  'Eswatini',
+  'Ethiopia',
+  'Fiji',
+  'Finland',
+  'France',
+  'Gabon',
+  'Gambia',
+  'Georgia',
+  'Germany',
+  'Ghana',
+  'Greece',
+  'Grenada',
+  'Guatemala',
+  'Guinea',
+  'Guinea-Bissau',
+  'Guyana',
+  'Haiti',
+  'Honduras',
+  'Hungary',
+  'Iceland',
+  'India',
+  'Indonesia',
+  'Iran',
+  'Iraq',
+  'Ireland',
+  'Israel',
+  'Italy',
+  'Ivory Coast',
+  'Jamaica',
+  'Japan',
+  'Jordan',
+  'Kazakhstan',
+  'Kenya',
+  'Kiribati',
+  'Kuwait',
+  'Kyrgyzstan',
+  'Laos',
+  'Latvia',
+  'Lebanon',
+  'Lesotho',
+  'Liberia',
+  'Libya',
+  'Liechtenstein',
+  'Lithuania',
+  'Luxembourg',
+  'Madagascar',
+  'Malawi',
+  'Malaysia',
+  'Maldives',
+  'Mali',
+  'Malta',
+  'Marshall Islands',
+  'Mauritania',
+  'Mauritius',
+  'Mexico',
+  'Micronesia',
+  'Moldova',
+  'Monaco',
+  'Mongolia',
+  'Montenegro',
+  'Morocco',
+  'Mozambique',
+  'Myanmar',
+  'Namibia',
+  'Nauru',
+  'Nepal',
+  'Netherlands',
+  'New Zealand',
+  'Nicaragua',
+  'Niger',
+  'Nigeria',
+  'North Korea',
+  'North Macedonia',
+  'Norway',
+  'Oman',
+  'Pakistan',
+  'Palau',
+  'Panama',
+  'Papua New Guinea',
+  'Paraguay',
+  'Peru',
+  'Philippines',
+  'Poland',
+  'Portugal',
+  'Qatar',
+  'Romania',
+  'Russia',
+  'Rwanda',
+  'Saint Kitts and Nevis',
+  'Saint Lucia',
+  'Saint Vincent and the Grenadines',
+  'Samoa',
+  'San Marino',
+  'Sao Tome and Principe',
+  'Saudi Arabia',
+  'Senegal',
+  'Serbia',
+  'Seychelles',
+  'Sierra Leone',
+  'Singapore',
+  'Slovakia',
+  'Slovenia',
+  'Solomon Islands',
+  'Somalia',
+  'South Africa',
+  'South Korea',
+  'South Sudan',
+  'Spain',
+  'Sri Lanka',
+  'Sudan',
+  'Suriname',
+  'Sweden',
+  'Switzerland',
+  'Syria',
+  'Taiwan',
+  'Tajikistan',
+  'Tanzania',
+  'Thailand',
+  'Timor-Leste',
+  'Togo',
+  'Tonga',
+  'Trinidad and Tobago',
+  'Tunisia',
+  'Turkey',
+  'Turkmenistan',
+  'Tuvalu',
+  'Uganda',
+  'Ukraine',
+  'United Arab Emirates',
+  'United Kingdom',
+  'United States',
+  'Uruguay',
+  'Uzbekistan',
+  'Vanuatu',
+  'Vatican City',
+  'Venezuela',
+  'Vietnam',
+  'Yemen',
+  'Zambia',
+  'Zimbabwe',
+];
